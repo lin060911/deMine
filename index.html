@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>反向扫雷</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft YaHei", sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: linear-gradient(135deg, #f7f7f7, #e8f4f8);
+            padding: 20px;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        .game-title {
+            font-size: 32px;
+            margin: 15px 0;
+            color: #2d3748;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .rule {
+            text-align: center;
+            margin-bottom: 15px;
+            color: #4a5568;
+            font-size: 16px;
+        }
+
+        .timer-box {
+            font-size: 20px;
+            font-weight: bold;
+            color: #e53e3e;
+            margin: 10px 0;
+            background: #fff;
+            padding: 6px 14px;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            display: none;
+        }
+
+        .panel { 
+            gap:12px; 
+            display:flex; 
+            margin-bottom:15px; 
+        }
+        .panel button { 
+            padding:8px 18px; 
+            border:none; 
+            border-radius:8px; 
+            cursor:pointer;
+            color: white;
+            font-weight: 600;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #reset { 
+            background:#e53e3e; 
+        }
+        #reset:hover {
+            background:#c53030;
+            transform: translateY(-1px);
+        }
+        #clear { 
+            background:#ed8936; 
+        }
+        #clear:hover {
+            background:#dd6b20;
+            transform: translateY(-1px);
+        }
+
+        .info {
+            color: #4a5568;
+            font-size: 16px;
+            margin-bottom: 12px;
+            font-weight: 500;
+        }
+
+        .board {
+            display: grid;
+            gap: 2px;
+            background: #a0aec0;
+            padding: 3px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+        }
+        .cell {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            position: relative;
+            background: #ffffff;
+            border-radius: 4px;
+            cursor: default;
+            transition: all 0.15s;
+        }
+        .cell:hover {
+            box-shadow: inset 0 0 0 1px #4299e1;
+        }
+        .cell-valid { background:#9fdf9f; }
+        .cell-low { background:#fde68a; }
+        .cell-over { background:#fca5a5; }
+        .mine-here { 
+            box-shadow:inset 0 0 0 2px #2d3748; 
+            background:#fff !important; 
+            cursor: grab;
+        }
+        .mine-here:active { cursor: grabbing; }
+        .n1{color:#3182ce} .n2{color:#38a169} .n3{color:#e53e3e} 
+        .n4{color:#2c5282} .n5{color:#9b2c2c} .n6{color:#00a3af} 
+        .n7{color:#1a202c} .n8{color:#718096}
+
+        .mine-slot-box {
+            display: flex;
+            gap: 15px;
+            padding: 20px;
+            background: #ffffff;
+            border-radius: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 20px;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.08);
+        }
+        .mine-item {
+            width: 75px;
+            height: 75px;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 13px;
+            background: #f7fafc;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.08);
+            position: relative;
+            color: #2d3748;
+            transition: all 0.2s;
+        }
+        .mine-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+        }
+        .mine-item.disabled { 
+            opacity:0.5; 
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        .emoji-drag {
+            cursor: grab;
+            font-size: 24px;
+            margin-bottom: 4px;
+        }
+        .emoji-drag:active { cursor: grabbing; }
+
+        .normal-bomb { font-size:22px; }
+        .big-bomb { font-size:32px; }
+        .high-bomb {
+            font-size: 24px;
+            filter: saturate(1000%) brightness(1.2);
+            color: rgb(255, 0, 0) !important;
+        }
+        .anti-bomb { font-size:22px; }
+        .chiliV-bomb { font-size:22px; }
+        .chiliH-bomb { font-size:22px; transform:rotate(90deg); }
+        .chiliPlus-bomb { font-size:24px; transform:rotate(45deg);}
+        .chiliDiag-bomb { font-size:24px; }
+        .chiliBigDiag-bomb { font-size:24px; }
+
+        .mine-item::after {
+            content: attr(data-tip);
+            position: absolute;
+            bottom: 110%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #2d3748;
+            color: #ffffff;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            z-index: 10;
+        }
+        .mine-item:hover::after { opacity: 1; }
+
+        .win {
+            position: fixed;
+            top:0;left:0;width:100%;height:100%;
+            background:rgba(0,0,0,0.9);
+            display:none;
+            flex-direction:column;
+            align-items:center;
+            justify-content:center;
+            color:#fcc367;
+            font-size:40px;
+            z-index: 100;
+            text-shadow: 0 0 10px rgba(252, 195, 103, 0.8);
+        }
+        .win button {
+            margin-top: 30px;
+            padding: 12px 24px;
+            background: #48bb78;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .win button:hover {
+            background: #38a169;
+            transform: translateY(-2px);
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 320px;
+            height: 100vh;
+            background: #fff;
+            box-shadow: -3px 0 15px rgba(0,0,0,0.1);
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            z-index: 999;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .sidebar.open {
+            transform: translateX(0);
+        }
+        .sidebar-toggle {
+            position: fixed;
+            top: 50%;
+            right: 0;
+            transform: translateY(-50%);
+            background: #4299e1;
+            color: #fff;
+            border: none;
+            padding: 14px 6px;
+            writing-mode: vertical-rl;
+            border-radius: 8px 0 0 8px;
+            cursor: pointer;
+            z-index: 999;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .sidebar-section {
+            margin-bottom: 25px;
+        }
+        .sidebar-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            color: #2d3748;
+            border-left: 4px solid #4299e1;
+            padding-left: 8px;
+        }
+
+        .preset-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        .preset-btn {
+            flex: 1;
+            padding: 8px 0;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .preset-easy { background: #38a169; }
+        .preset-medium { background: #ed8936; }
+        .preset-hard { background: #e53e3e; }
+
+        .custom-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .custom-item label {
+            font-weight: 500;
+            color: #2d3748;
+        }
+        .num-control {
+            display: flex;
+            align-items: center;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .num-btn {
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: #4299e1;
+            color: white;
+            cursor: pointer;
+        }
+        .num-display {
+            width: 40px;
+            height: 28px;
+            text-align: center;
+            line-height: 28px;
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+        }
+        .apply-btn {
+            width: 100%;
+            padding: 9px;
+            background: #1dc0d2;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            margin-top: 5px;
+        }
+
+        .record-item {
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            background: #f7fafc;
+        }
+        .record-label { font-weight: bold; margin-bottom: 4px; }
+        .record-best { color: #38a169; font-weight: bold; }
+        .record-current { color: #ed8936; font-weight: bold; }
+        .record-new { color: #e53e3e; font-weight: bold; margin-left: 6px; }
+        
+        /* 版本号样式 */
+        .sidebar-version {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #e2e8f0;
+            color: #718096;
+            font-size: 14px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<h1 class="game-title">反向扫雷</h1>
+<div class="rule">💣 拖拽放置 / 右键删除<br>地雷影响:💚合适|💛偏低|❤️偏高</div>
+
+<div class="timer-box" id="timer">00:00.00</div>
+
+<div class="panel">
+    <button id="reset">新游戏</button>
+    <button id="clear">清空放置</button>
+</div>
+
+<div class="info">已放置：<span id="placed">0</span> / 总雷数：<span id="max">0</span></div>
+<div id="board" class="board"></div>
+<div class="mine-slot-box" id="slot"></div>
+
+<div class="win" id="win">
+    <div>🎉 恭喜通关！</div>
+    <button onclick="newGame()">再来一局</button>
+</div>
+
+<button class="sidebar-toggle" id="toggleSidebar">⚙️ 菜单</button>
+
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+        <div class="sidebar-title">🎮 难度选择</div>
+        <div class="preset-buttons">
+            <button class="preset-btn preset-easy" onclick="setPreset('easy')">简单</button>
+            <button class="preset-btn preset-medium" onclick="setPreset('medium')">中等</button>
+            <button class="preset-btn preset-hard" onclick="setPreset('hard')">困难</button>
+        </div>
+
+        <div class="custom-item">
+            <label>棋盘大小</label>
+            <div class="num-control">
+                <button class="num-btn" onclick="set('size',-1)">-</button>
+                <div class="num-display" id="size">10</div>
+                <button class="num-btn" onclick="set('size',1)">+</button>
+            </div>
+        </div>
+        <div class="custom-item">
+            <label>总地雷数</label>
+            <div class="num-control">
+                <button class="num-btn" onclick="set('total',-1)">-</button>
+                <div class="num-display" id="total">6</div>
+                <button class="num-btn" onclick="set('total',1)">+</button>
+            </div>
+        </div>
+        <div class="custom-item">
+            <label>特殊雷种类</label>
+            <div class="num-control">
+                <button class="num-btn" onclick="set('type',-1)">-</button>
+                <div class="num-display" id="type">2</div>
+                <button class="num-btn" onclick="set('type',1)">+</button>
+            </div>
+        </div>
+        <div class="custom-item">
+            <label>特殊雷总数</label>
+            <div class="num-control">
+                <button class="num-btn" onclick="set('spec',-1)">-</button>
+                <div class="num-display" id="spec">3</div>
+                <button class="num-btn" onclick="set('spec',1)">+</button>
+            </div>
+        </div>
+        <button class="apply-btn" onclick="apply()">应用设置</button>
+    </div>
+
+    <div class="sidebar-section">
+        <div class="sidebar-title">🏆 最快纪录</div>
+        <div id="recordList"></div>
+    </div>
+    
+    <div class="sidebar-version">v.3.1<br>作者:L1Nzy</div>
+</div>
+
+<script>
+let SIZE=10, TOTAL=6, TYPE=2, SPEC=3;
+const LIMIT = { size:[6,20], total:[2,16], type:[0,8], spec:[0,99] }; 
+
+const PRESETS = {
+    easy:   { size: 8,  total: 6,  type: 2,  spec: 4 },
+    medium: { size: 10, total: 8,  type: 4,  spec: 6 },
+    hard:   { size: 14, total: 14, type: 6,  spec: 12 }
+};
+
+let currentDifficulty = null;
+let startTime = 0;
+let timerInterval = null;
+let currentTime = 0;
+let timerStarted = false; 
+
+let records = JSON.parse(localStorage.getItem('mineRecords')) || {
+    easy: null, medium: null, hard: null
+};
+
+const MINE = {
+    normal:{n:"普通",e:"💣",cls:"normal-bomb",tip:"3x3范围 +1",f:(r,c,v)=>add(r,c,1,1,v,1)},
+    big5:{n:"巨型",e:"💣",cls:"big-bomb",tip:"5x5范围 +1",f:(r,c,v)=>add(r,c,2,2,v,1)},
+    high:{n:"高爆",e:"💣",cls:"high-bomb",tip:"3x3范围 +2",f:(r,c,v)=>add(r,c,1,1,v,2)},
+    anti:{n:"反物质",e:"💥",cls:"anti-bomb",tip:"3x3范围 -1",f:(r,c,v)=>add(r,c,1,1,v,-1)},
+    chiliV:{n:"竖辣椒",e:"🌶️",cls:"chiliV-bomb",tip:"竖方向各2格 +1",f:(r,c,v)=>{
+        for(let i=-2;i<=2;i++){let y=r+i;if(y>=0&&y<SIZE)v[y][c]++;}
+    }},
+    chiliH:{n:"横辣椒",e:"🌶️",cls:"chiliH-bomb",tip:"横方向各2格 +1",f:(r,c,v)=>{
+        for(let i=-2;i<=2;i++){let x=c+i;if(x>=0&&x<SIZE)v[r][x]++;}
+    }},
+    chiliPlus:{n:"十字辣椒",e:"✖️",cls:"chiliPlus-bomb",tip:"横竖各2格 +1",f:(r,c,v)=>{
+        for(let i=-2;i<=2;i++){let y=r+i;if(y>=0&&y<SIZE)v[y][c]++;}
+        for(let i=-2;i<=2;i++){let x=c+i;if(x>=0&&x<SIZE)v[r][x]++;}
+    }},
+    chiliDiag:{n:"对角辣椒",e:"✖️",cls:"chiliDiag-bomb",tip:"3x3对角线 +1",f:(r,c,v)=>{
+        const d=[[-1,-1],[-1,1],[0,0],[1,-1],[1,1]];
+        d.forEach(([dr,dc])=>{let y=r+dr,x=c+dc;if(y>=0&&y<SIZE&&x>=0&&x<SIZE)v[y][x]++;});
+    }},
+    chiliBigDiag:{n:"大对角辣椒",e:"✖️",cls:"chiliBigDiag-bomb",tip:"5x5对角线 +1",f:(r,c,v)=>{
+        const d=[[-2,-2],[-2,2],[-1,-1],[-1,1],[0,0],[1,-1],[1,1],[2,-2],[2,2]];
+        d.forEach(([dr,dc])=>{let y=r+dr,x=c+dc;if(y>=0&&y<SIZE&&x>=0&&x<SIZE)v[y][x]++;});
+    }}
+};
+
+let GAME={tar:[],p:[],placed:{},pool:{},max:0,drag:null};
+
+document.getElementById('toggleSidebar').onclick = () => {
+    document.getElementById('sidebar').classList.toggle('open');
+};
+
+document.addEventListener('click', (e) => {
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtn = document.getElementById('toggleSidebar');
+    if (!sidebar.contains(e.target) && e.target !== toggleBtn && sidebar.classList.contains('open')) {
+        sidebar.classList.remove('open');
+    }
+});
+
+function setPreset(difficulty) {
+    const p = PRESETS[difficulty];
+    SIZE = p.size; TOTAL = p.total; TYPE = p.type; SPEC = p.spec;
+    SPEC = Math.min(SPEC, TOTAL); TYPE = Math.min(TYPE, SPEC);
+    document.getElementById('size').textContent = SIZE;
+    document.getElementById('total').textContent = TOTAL;
+    document.getElementById('type').textContent = TYPE;
+    document.getElementById('spec').textContent = SPEC;
+    currentDifficulty = difficulty;
+    apply();
+}
+
+
+function set(key,dir){
+    let [min,max]=LIMIT[key];
+    let val = (key==='size'?SIZE:key==='total'?TOTAL:key==='type'?TYPE:SPEC);
+    val = Math.max(min, Math.min(max, val+dir));
+    if(key==='size')SIZE=val; if(key==='total')TOTAL=val;
+    if(key==='type')TYPE=val; if(key==='spec')SPEC=val;
+    SPEC=Math.min(SPEC,TOTAL); TYPE=Math.min(TYPE,SPEC);
+    document.getElementById('size').textContent=SIZE;
+    document.getElementById('total').textContent=TOTAL;
+    document.getElementById('type').textContent=TYPE;
+    document.getElementById('spec').textContent=SPEC;
+    currentDifficulty = null;
+}
+
+function apply(){
+    SPEC=Math.min(SPEC,TOTAL); TYPE=Math.min(TYPE,SPEC);
+    newGame();
+}
+
+function startTimerOnFirstMove() {
+    if (!currentDifficulty || timerStarted) return;
+    timerStarted = true;
+    startTimer();
+}
+
+function startTimer() {
+    stopTimer();
+    startTime = Date.now();
+    timerInterval = setInterval(updateTimer, 10);
+    document.getElementById('timer').style.display = 'block';
+}
+
+function stopTimer() {
+    if (timerInterval) clearInterval(timerInterval);
+}
+
+function updateTimer() {
+    const elapsed = Date.now() - startTime;
+    currentTime = elapsed;
+    const ms = elapsed % 1000;
+    const sec = Math.floor(elapsed / 1000) % 60;
+    const min = Math.floor(elapsed / 60000);
+    document.getElementById('timer').textContent = 
+        `${min.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}.${(ms/10|0).toString().padStart(2,'0')}`;
+}
+
+function resetTimer() {
+    stopTimer();
+    timerStarted = false;
+    currentTime = 0;
+    document.getElementById('timer').textContent = '00:00.00';
+    document.getElementById('timer').style.display = 'none';
+}
+
+function saveRecord() {
+    if (!currentDifficulty) return;
+    if (records[currentDifficulty] === null || currentTime < records[currentDifficulty]) {
+        records[currentDifficulty] = currentTime;
+        localStorage.setItem('mineRecords', JSON.stringify(records));
+    }
+    renderRecords();
+}
+
+function formatTime(ms) {
+    if (ms == null) return '暂无纪录';
+    const min = Math.floor(ms / 60000);
+    const sec = Math.floor(ms / 1000) % 60;
+    const msec = Math.floor((ms % 1000) / 10);
+    return `${min.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}.${msec.toString().padStart(2,'0')}`;
+}
+
+function renderRecords() {
+    const list = document.getElementById('recordList');
+    list.innerHTML = `
+        <div class="record-item"><div class="record-label">简单</div>
+            最快：<span class="record-best">${formatTime(records.easy)}</span><br>
+            本次：<span class="record-current">${currentDifficulty==='easy'?formatTime(currentTime):'—'}</span>
+            ${currentDifficulty==='easy'&&records.easy&&currentTime<records.easy?'<span class="record-new">新纪录</span>':''}
+        </div>
+        <div class="record-item"><div class="record-label">中等</div>
+            最快：<span class="record-best">${formatTime(records.medium)}</span><br>
+            本次：<span class="record-current">${currentDifficulty==='medium'?formatTime(currentTime):'—'}</span>
+            ${currentDifficulty==='medium'&&records.medium&&currentTime<records.medium?'<span class="record-new">新纪录</span>':''}
+        </div>
+        <div class="record-item"><div class="record-label">困难</div>
+            最快：<span class="record-best">${formatTime(records.hard)}</span><br>
+            本次：<span class="record-current">${currentDifficulty==='hard'?formatTime(currentTime):'—'}</span>
+            ${currentDifficulty==='hard'&&records.hard&&currentTime<records.hard?'<span class="record-new">新纪录</span>':''}
+        </div>
+    `;
+}
+
+document.addEventListener('dragstart', e => {
+    e.dataTransfer.setDragImage(new Image(), 0, 0);
+}, false);
+
+function add(r,c,dr,dc,v,n){
+    for(let nr=-dr;nr<=dr;nr++)for(let nc=-dc;nc<=dc;nc++){
+        let y=r+nr,x=c+nc; if(y>=0&&y<SIZE&&x>=0&&x<SIZE)v[y][x]+=n;
+    }
+}
+
+function generate(){
+    let all=["big5","high","anti","chiliV","chiliH","chiliPlus","chiliDiag","chiliBigDiag"];
+    let sel=all.sort(()=>Math.random()-0.5).slice(0,TYPE);
+    let pool={};
+    let normal=Math.max(0,TOTAL-SPEC); if(TYPE>0)normal=Math.max(1,normal);
+    pool.normal=normal;
+    let rem=SPEC; sel.forEach(t=>{pool[t]=1;rem--});
+    while(rem>0){let t=sel[Math.random()*sel.length|0];pool[t]++;rem--}
+    let mines=[]; for(let t in pool)for(let i=0;i<pool[t];i++)mines.push(t);
+    mines=mines.slice(0,TOTAL);
+    let pos=new Set(),ans={};
+    while(mines.length){
+        let r=Math.random()*SIZE|0,c=Math.random()*SIZE|0,k=r+','+c;
+        if(!pos.has(k)){pos.add(k);ans[k]=mines.pop();}
+    }
+    let tar=Array(SIZE).fill().map(()=>Array(SIZE).fill(0));
+    for(let k in ans){let [r,c]=k.split(',');MINE[ans[k]].f(+r,+c,tar);}
+    GAME.tar=tar; GAME.pool=pool; GAME.max=TOTAL; GAME.placed={}; resetP();
+}
+
+function resetP(){
+    GAME.p=Array(SIZE).fill().map(()=>Array(SIZE).fill(0));
+    for(let k in GAME.placed){let [r,c]=k.split(',');MINE[GAME.placed[k]].f(+r,+c,GAME.p);}
+}
+
+function render(){
+    let b=document.getElementById('board'); b.innerHTML='';
+    b.style.gridTemplateRows=`repeat(${SIZE},40px)`;
+    b.style.gridTemplateColumns=`repeat(${SIZE},40px)`;
+    for(let r=0;r<SIZE;r++)for(let c=0;c<SIZE;c++){
+        let d=document.createElement('div'); d.className='cell';
+        d.dataset.r=r; d.dataset.c=c;
+        let t=GAME.tar[r][c],p=GAME.p[r][c],k=r+','+c;
+        if(p===t)d.classList.add('cell-valid');
+        else if(p<t)d.classList.add('cell-low');
+        else d.classList.add('cell-over');
+        if(t!==0){d.textContent=t;d.classList.add('n'+Math.min(t,8));}
+        if(GAME.placed[k]){
+            d.classList.add('mine-here');
+            let ty=GAME.placed[k];
+            d.innerHTML=`<span class="${MINE[ty].cls}">${MINE[ty].e}</span>`;
+            d.draggable=true;
+            d.ondragstart=e=>{GAME.drag=k; e.dataTransfer.setData('text/plain','');};
+        }
+        d.ondragover=e=>{e.preventDefault();d.style.boxShadow='inset 0 0 0 2px #4299e1';};
+        d.ondragleave=()=>{if(!GAME.placed[d.dataset.r+','+d.dataset.c])d.style.boxShadow='';};
+        d.ondrop=e=>{e.preventDefault();d.style.boxShadow='';drop.call(d,e);};
+        d.oncontextmenu=e=>{e.preventDefault();del(r,c);};
+        b.appendChild(d);
+    }
+    document.getElementById('placed').textContent=Object.keys(GAME.placed).length;
+    document.getElementById('max').textContent=GAME.max;
+    slot(); win();
+}
+
+function slot(){
+    let s=document.getElementById('slot');s.innerHTML='';
+    for(let t in GAME.pool){
+        let max=GAME.pool[t],use=Object.values(GAME.placed).filter(x=>x===t).length;
+        let div=document.createElement('div');
+        div.className='mine-item'+(use>=max?' disabled':'');
+        div.dataset.tip=MINE[t].tip;
+        div.innerHTML=`<div class="emoji-drag ${MINE[t].cls}" draggable="${use<max}">${MINE[t].e}</div><div>${MINE[t].n}</div><div>${use}/${max}</div>`;
+        div.querySelector('.emoji-drag').ondragstart=e=>{
+            if(use>=max){e.preventDefault();return;}
+            GAME.drag=null; e.dataTransfer.setData('t',t);
+        };
+        s.appendChild(div);
+    }
+}
+
+function drop(e){
+    startTimerOnFirstMove();
+    let r=+this.dataset.r,c=+this.dataset.c,k=r+','+c;
+    if(GAME.placed[k])return;
+    if(GAME.drag){let t=GAME.placed[GAME.drag];delete GAME.placed[GAME.drag];GAME.placed[k]=t;GAME.drag=null;}
+    else{let t=e.dataTransfer.getData('t');if(!t)return;let use=Object.values(GAME.placed).filter(x=>x===t).length;if(use>=GAME.pool[t])return;GAME.placed[k]=t;}
+    resetP();render();
+}
+
+function del(r,c){
+    startTimerOnFirstMove();
+    let k=r+','+c; if(!GAME.placed[k])return;
+    delete GAME.placed[k]; resetP(); render();
+}
+
+function win(){
+    if(Object.keys(GAME.placed).length!==GAME.max)return;
+    for(let r=0;r<SIZE;r++)for(let c=0;c<SIZE;c++)if(GAME.p[r][c]!==GAME.tar[r][c])return;
+    stopTimer(); saveRecord();
+    document.getElementById('win').style.display='flex';
+}
+
+function newGame(){
+    resetTimer(); generate(); render(); renderRecords();
+    document.getElementById('win').style.display='none';
+}
+
+function clear(){GAME.placed={};resetP();render();}
+document.getElementById('reset').onclick=newGame;
+document.getElementById('clear').onclick=clear;
+window.onload=()=>{renderRecords();newGame();};
+</script>
+</body>
+</html>

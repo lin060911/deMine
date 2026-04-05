@@ -182,6 +182,12 @@
         .chiliPlus-bomb { font-size:24px; transform:rotate(45deg);}
         .chiliDiag-bomb { font-size:24px; }
         .chiliBigDiag-bomb { font-size:24px; }
+        .ring-bomb { font-size:24px; }
+        .mirror-bomb { font-size:24px; }
+        .radiation-bomb { font-size:24px; }
+        .eight-bomb { font-size:24px; }
+        .blackhole-bomb { font-size:24px; }
+        .yin-yang-bomb { font-size:24px; }
 
         .mine-item::after {
             content: attr(data-tip);
@@ -352,7 +358,6 @@
         .record-current { color: #ed8936; font-weight: bold; }
         .record-new { color: #e53e3e; font-weight: bold; margin-left: 6px; }
         
-        /* 版本号样式 */
         .sidebar-version {
             margin-top: 30px;
             padding-top: 15px;
@@ -366,7 +371,7 @@
 <body>
 
 <h1 class="game-title">反向扫雷</h1>
-<div class="rule">💣 拖拽放置 / 右键删除<br>地雷影响:💚合适|💛偏低|❤️偏高</div>
+<div class="rule">💣 拖拽放置 / 右键删除<br>地块受地雷影响程度:🟩合适|🟨偏低|🟥偏高</div>
 
 <div class="timer-box" id="timer">00:00.00</div>
 
@@ -435,12 +440,12 @@
         <div id="recordList"></div>
     </div>
     
-    <div class="sidebar-version">v.3.1<br>作者:L1Nzy</div>
+    <div class="sidebar-version">v.3.3<br>作者:L1Nzy</div>
 </div>
 
 <script>
 let SIZE=10, TOTAL=6, TYPE=2, SPEC=3;
-const LIMIT = { size:[6,20], total:[2,16], type:[0,8], spec:[0,99] }; 
+const LIMIT = { size:[6,20], total:[2,16], type:[0,14], spec:[0,99] }; 
 
 const PRESETS = {
     easy:   { size: 8,  total: 6,  type: 2,  spec: 4 },
@@ -459,9 +464,9 @@ let records = JSON.parse(localStorage.getItem('mineRecords')) || {
 };
 
 const MINE = {
-    normal:{n:"普通",e:"💣",cls:"normal-bomb",tip:"3x3范围 +1",f:(r,c,v)=>add(r,c,1,1,v,1)},
-    big5:{n:"巨型",e:"💣",cls:"big-bomb",tip:"5x5范围 +1",f:(r,c,v)=>add(r,c,2,2,v,1)},
-    high:{n:"高爆",e:"💣",cls:"high-bomb",tip:"3x3范围 +2",f:(r,c,v)=>add(r,c,1,1,v,2)},
+    normal:{n:"普通雷",e:"💣",cls:"normal-bomb",tip:"3x3范围 +1",f:(r,c,v)=>add(r,c,1,1,v,1)},
+    big5:{n:"巨型雷",e:"💣",cls:"big-bomb",tip:"5x5范围 +1",f:(r,c,v)=>add(r,c,2,2,v,1)},
+    high:{n:"高爆雷",e:"💣",cls:"high-bomb",tip:"3x3范围 +2",f:(r,c,v)=>add(r,c,1,1,v,2)},
     anti:{n:"反物质",e:"💥",cls:"anti-bomb",tip:"3x3范围 -1",f:(r,c,v)=>add(r,c,1,1,v,-1)},
     chiliV:{n:"竖辣椒",e:"🌶️",cls:"chiliV-bomb",tip:"竖方向各2格 +1",f:(r,c,v)=>{
         for(let i=-2;i<=2;i++){let y=r+i;if(y>=0&&y<SIZE)v[y][c]++;}
@@ -478,8 +483,73 @@ const MINE = {
         d.forEach(([dr,dc])=>{let y=r+dr,x=c+dc;if(y>=0&&y<SIZE&&x>=0&&x<SIZE)v[y][x]++;});
     }},
     chiliBigDiag:{n:"大对角辣椒",e:"✖️",cls:"chiliBigDiag-bomb",tip:"5x5对角线 +1",f:(r,c,v)=>{
-        const d=[[-2,-2],[-2,2],[-1,-1],[-1,1],[0,0],[1,-1],[1,1],[2,-2],[2,2]];
+        const d=[[-2,-2],[-2,2],[-1,-1],[1,1],[-1,1],[1,-1],[0,0],[2,-2],[2,2]];
         d.forEach(([dr,dc])=>{let y=r+dr,x=c+dc;if(y>=0&&y<SIZE&&x>=0&&x<SIZE)v[y][x]++;});
+    }},
+    ring:{n:"环形雷",e:"🔘",cls:"ring-bomb",tip:"5x5区域外圈 +1",f:(r,c,v)=>{
+        for(let nr=-2;nr<=2;nr++){
+            for(let nc=-2;nc<=2;nc++){
+                if(nr === -2 || nr === 2 || nc === -2 || nc === 2){
+                    let y = r + nr;
+                    let x = c + nc;
+                    if(y >= 0 && y < SIZE && x >= 0 && x < SIZE){
+                        v[y][x]++;
+                    }
+                }
+            }
+        }
+    }},
+    mirror:{n:"镜像双雷",e:"🍻",cls:"mirror-bomb",tip:"自身+对称点 3x3 +1",f:(r,c,v)=>{
+        let mr = SIZE - 1 - r;
+        let mc = SIZE - 1 - c;
+        add(r, c, 1,1,v,1);
+        add(mr, mc,1,1,v,1);
+    }},
+    radiation:{n:"辐射雷",e:"☢️",cls:"radiation-bomb",tip:"中心+3 内环+2 外环+1",f:(r,c,v)=>{
+        v[r][c] +=3;
+        for(let dr=-1;dr<=1;dr++){
+            for(let dc=-1;dc<=1;dc++){
+                if(dr===0 && dc===0) continue;
+                let y = r+dr, x = c+dc;
+                if(y>=0&&y<SIZE&&x>=0&&x<SIZE) v[y][x]+=2;
+            }
+        }
+        for(let dr=-2;dr<=2;dr++){
+            for(let dc=-2;dc<=2;dc++){
+                if(Math.abs(dr)===2 || Math.abs(dc)===2){
+                    let y = r+dr, x = c+dc;
+                    if(y>=0&&y<SIZE&&x>=0&&x<SIZE) v[y][x]+=1;
+                }
+            }
+        }
+    }},
+    eight:{n:"八向雷",e:"✳️",cls:"eight-bomb",tip:"8方向各2格+自身 +1",f:(r,c,v)=>{
+        const dirs = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+        v[r][c]++;
+        dirs.forEach(([dy,dx])=>{
+            for(let i=1;i<=2;i++){
+                let y = r + dy*i;
+                let x = c + dx*i;
+                if(y>=0&&y<SIZE&&x>=0&&x<SIZE) v[y][x]++;
+            }
+        });
+    }},
+    blackhole:{n:"黑洞炸弹",e:"🕳️",cls:"blackhole-bomb",tip:"中心-1 十字不变 外圈8格+1",f:(r,c,v)=>{
+        v[r][c] -= 1;
+        const outer = [[-1,-1],[-1,1],[1,-1],[1,1],[-2,0],[2,0],[0,-2],[0,2]];
+        outer.forEach(([dr, dc]) => {
+            let y = r + dr;
+            let x = c + dc;
+            if(y >= 0 && y < SIZE && x >= 0 && x < SIZE) {
+                v[y][x] += 1;
+            }
+        });
+    }},
+    yinYang:{n:"阴阳炸弹",e:"☯️",cls:"yin-yang-bomb",tip:"自身3x3+1 对称点3x3-1",f:(r,c,v)=>{
+        add(r, c, 1, 1, v, 1);
+        let mr = SIZE - 1 - r;
+        let mc = SIZE - 1 - c;
+        add(mr, mc, 1, 1, v, -1);
     }}
 };
 
@@ -508,7 +578,6 @@ function setPreset(difficulty) {
     currentDifficulty = difficulty;
     apply();
 }
-
 
 function set(key,dir){
     let [min,max]=LIMIT[key];
@@ -592,7 +661,7 @@ function renderRecords() {
         <div class="record-item"><div class="record-label">中等</div>
             最快：<span class="record-best">${formatTime(records.medium)}</span><br>
             本次：<span class="record-current">${currentDifficulty==='medium'?formatTime(currentTime):'—'}</span>
-            ${currentDifficulty==='medium'&&records.medium&&currentTime<records.medium?'<span class="record-new">新纪录</span>':''}
+            ${currentDifficulty==='medium'&&records.medium&&currentTime<records.medium?'<span class="record-new">':''}
         </div>
         <div class="record-item"><div class="record-label">困难</div>
             最快：<span class="record-best">${formatTime(records.hard)}</span><br>
@@ -613,7 +682,7 @@ function add(r,c,dr,dc,v,n){
 }
 
 function generate(){
-    let all=["big5","high","anti","chiliV","chiliH","chiliPlus","chiliDiag","chiliBigDiag"];
+    let all=["big5","high","anti","chiliV","chiliH","chiliPlus","chiliDiag","chiliBigDiag","ring","mirror","radiation","eight","blackhole","yinYang"];
     let sel=all.sort(()=>Math.random()-0.5).slice(0,TYPE);
     let pool={};
     let normal=Math.max(0,TOTAL-SPEC); if(TYPE>0)normal=Math.max(1,normal);

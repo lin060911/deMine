@@ -8,7 +8,7 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: "Microsoft YaHei", sans-serif;
+            font-family: "Microsoft kaiti", sans-serif;
             user-select: none;
             -webkit-user-select: none;
             -moz-user-select: none;
@@ -366,12 +366,20 @@
             font-size: 14px;
             text-align: center;
         }
+        
+        .record-tip {
+            font-size: 12px;
+            color: #718096;
+            margin-bottom: 10px;
+            padding-left: 8px;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
 
-<h1 class="game-title">反向扫雷</h1>
-<div class="rule">💣 拖拽放置 / 右键删除<br>地块受地雷影响程度:🟩合适|🟨偏低|🟥偏高</div>
+<h1 class="game-title">反向💣扫雷</h1>
+<div class="rule">ℹ️拖拽放置 / 右键删除<br>地块受地雷影响程度:🟩合适|🟨偏低|🟥偏高</div>
 
 <div class="timer-box" id="timer">00:00.00</div>
 
@@ -395,9 +403,9 @@
     <div class="sidebar-section">
         <div class="sidebar-title">🎮 难度选择</div>
         <div class="preset-buttons">
-            <button class="preset-btn preset-easy" onclick="setPreset('easy')">简单</button>
-            <button class="preset-btn preset-medium" onclick="setPreset('medium')">中等</button>
-            <button class="preset-btn preset-hard" onclick="setPreset('hard')">困难</button>
+            <button class="preset-btn preset-easy" onclick="setPreset('easy')">😎简单</button>
+            <button class="preset-btn preset-medium" onclick="setPreset('medium')">😮中等</button>
+            <button class="preset-btn preset-hard" onclick="setPreset('hard')">👿困难</button>
         </div>
 
         <div class="custom-item">
@@ -437,10 +445,11 @@
 
     <div class="sidebar-section">
         <div class="sidebar-title">🏆 最快纪录</div>
+        <div class="record-tip">使用预设难度开始计时挑战吧！ヾ(≧▽≦*)o</div>
         <div id="recordList"></div>
     </div>
     
-    <div class="sidebar-version">v.3.3<br>作者:L1Nzy</div>
+    <div class="sidebar-version">v.3.3<br>作者:L1Nzy<br>邮箱:lin060911@qq.com</div>
 </div>
 
 <script>
@@ -450,7 +459,7 @@ const LIMIT = { size:[6,20], total:[2,16], type:[0,14], spec:[0,99] };
 const PRESETS = {
     easy:   { size: 8,  total: 6,  type: 2,  spec: 4 },
     medium: { size: 10, total: 8,  type: 4,  spec: 6 },
-    hard:   { size: 14, total: 14, type: 6,  spec: 12 }
+    hard:   { size: 12, total: 10, type: 6,  spec: 8 }
 };
 
 let currentDifficulty = null;
@@ -459,6 +468,9 @@ let timerInterval = null;
 let currentTime = 0;
 let timerStarted = false; 
 
+let lastTimes = JSON.parse(localStorage.getItem('mineLastTimes')) || {
+    easy: null, medium: null, hard: null
+};
 let records = JSON.parse(localStorage.getItem('mineRecords')) || {
     easy: null, medium: null, hard: null
 };
@@ -635,6 +647,9 @@ function resetTimer() {
 
 function saveRecord() {
     if (!currentDifficulty) return;
+    lastTimes[currentDifficulty] = currentTime;
+    localStorage.setItem('mineLastTimes', JSON.stringify(lastTimes));
+    
     if (records[currentDifficulty] === null || currentTime < records[currentDifficulty]) {
         records[currentDifficulty] = currentTime;
         localStorage.setItem('mineRecords', JSON.stringify(records));
@@ -655,18 +670,15 @@ function renderRecords() {
     list.innerHTML = `
         <div class="record-item"><div class="record-label">简单</div>
             最快：<span class="record-best">${formatTime(records.easy)}</span><br>
-            本次：<span class="record-current">${currentDifficulty==='easy'?formatTime(currentTime):'—'}</span>
-            ${currentDifficulty==='easy'&&records.easy&&currentTime<records.easy?'<span class="record-new">新纪录</span>':''}
+            本次：<span class="record-current">${formatTime(lastTimes.easy)}</span>
         </div>
         <div class="record-item"><div class="record-label">中等</div>
             最快：<span class="record-best">${formatTime(records.medium)}</span><br>
-            本次：<span class="record-current">${currentDifficulty==='medium'?formatTime(currentTime):'—'}</span>
-            ${currentDifficulty==='medium'&&records.medium&&currentTime<records.medium?'<span class="record-new">':''}
+            本次：<span class="record-current">${formatTime(lastTimes.medium)}</span>
         </div>
         <div class="record-item"><div class="record-label">困难</div>
             最快：<span class="record-best">${formatTime(records.hard)}</span><br>
-            本次：<span class="record-current">${currentDifficulty==='hard'?formatTime(currentTime):'—'}</span>
-            ${currentDifficulty==='hard'&&records.hard&&currentTime<records.hard?'<span class="record-new">新纪录</span>':''}
+            本次：<span class="record-current">${formatTime(lastTimes.hard)}</span>
         </div>
     `;
 }
@@ -685,11 +697,27 @@ function generate(){
     let all=["big5","high","anti","chiliV","chiliH","chiliPlus","chiliDiag","chiliBigDiag","ring","mirror","radiation","eight","blackhole","yinYang"];
     let sel=all.sort(()=>Math.random()-0.5).slice(0,TYPE);
     let pool={};
-    let normal=Math.max(0,TOTAL-SPEC); if(TYPE>0)normal=Math.max(1,normal);
-    pool.normal=normal;
-    let rem=SPEC; sel.forEach(t=>{pool[t]=1;rem--});
-    while(rem>0){let t=sel[Math.random()*sel.length|0];pool[t]++;rem--}
-    let mines=[]; for(let t in pool)for(let i=0;i<pool[t];i++)mines.push(t);
+    let normal = 0;
+    if (SPEC < TOTAL) {
+        normal = Math.max(1, TOTAL - SPEC);
+    }
+    if (normal > 0) {
+        pool.normal = normal;
+    }
+    
+    let rem=SPEC; 
+    sel.forEach(t=>{pool[t]=1;rem--});
+    while(rem>0){
+        let t=sel[Math.random()*sel.length|0];
+        pool[t]++;
+        rem--;
+    }
+    let mines=[]; 
+    for(let t in pool){
+        for(let i=0;i<pool[t];i++){
+            mines.push(t);
+        }
+    }
     mines=mines.slice(0,TOTAL);
     let pos=new Set(),ans={};
     while(mines.length){
@@ -697,8 +725,12 @@ function generate(){
         if(!pos.has(k)){pos.add(k);ans[k]=mines.pop();}
     }
     let tar=Array(SIZE).fill().map(()=>Array(SIZE).fill(0));
-    for(let k in ans){let [r,c]=k.split(',');MINE[ans[k]].f(+r,+c,tar);}
-    GAME.tar=tar; GAME.pool=pool; GAME.max=TOTAL; GAME.placed={}; resetP();
+    for(let k in ans){
+        let [r,c]=k.split(',');
+        MINE[ans[k]].f(+r,+c,tar);
+    }
+    GAME.tar=tar; GAME.pool=pool; GAME.max=TOTAL; GAME.placed={}; 
+    resetP();
 }
 
 function resetP(){

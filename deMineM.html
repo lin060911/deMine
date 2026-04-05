@@ -1,0 +1,1580 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>反向扫雷</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft kaiti", sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: linear-gradient(135deg, #f7f7f7, #e8f4f8);
+            padding: 10px;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        .game-title {
+            font-size: 24px;
+            margin: 10px 0;
+            color: #2d3748;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .rule {
+            text-align: center;
+            margin-bottom: 10px;
+            color: #4a5568;
+            font-size: 14px;
+            line-height: 1.4;
+            padding: 0 5px;
+        }
+
+        .timer-box {
+            font-size: 18px;
+            font-weight: bold;
+            color: #e53e3e;
+            margin: 8px 0;
+            background: #fff;
+            padding: 4px 12px;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            display: none;
+        }
+
+        .panel { 
+            gap:8px; 
+            display:flex; 
+            margin-bottom:10px; 
+            width: 100%;
+            max-width: 350px;
+            justify-content: center;
+        }
+        .panel button { 
+            padding:8px 16px; 
+            border:none; 
+            border-radius:8px; 
+            cursor: pointer;
+            color: white;
+            font-weight: 600;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            font-size: 14px;
+            flex: 1;
+        }
+        #reset { 
+            background:#e53e3e; 
+        }
+        #reset:hover, #reset:active {
+            background:#c53030;
+            transform: translateY(-1px);
+        }
+        #clear { 
+            background:#ed8936; 
+        }
+        #clear:hover, #clear:active {
+            background:#dd6b20;
+            transform: translateY(-1px);
+        }
+
+        .info {
+            color: #4a5568;
+            font-size: 14px;
+            margin-bottom: 8px;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .board-wrapper {
+            width: 100%;
+            max-width: calc(100vw - 20px);
+            max-height: calc(100vh - 300px);
+            overflow: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            touch-action: pan-x pan-y; 
+        }
+        
+        .board {
+            display: grid;
+            gap: 2px;
+            background: #a0aec0;
+            padding: 3px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+            transform-origin: center center;
+            transition: transform 0.1s ease-out;
+            --cell-size: clamp(25px, 7vw, 35px);
+            grid-template-columns: repeat(var(--board-size), var(--cell-size));
+            margin: auto;
+        }
+        
+        .zoom-display {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            opacity: 0.8;
+            z-index: 10;
+        }
+        
+        .cell {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            position: relative;
+            background: #ffffff;
+            border-radius: 4px;
+            cursor: default;
+            transition: all 0.15s;
+            font-size: clamp(12px, 3vw, 16px);
+            touch-action: none;
+        }
+        .cell:hover, .cell.touch-hover {
+            box-shadow: inset 0 0 0 1px #4299e1;
+        }
+        .cell-valid { background:#9fdf9f; }
+        .cell-low { background:#fde68a; }
+        .cell-over { background:#fca5a5; }
+        .mine-here { 
+            box-shadow:inset 0 0 0 2px #2d3748; 
+            background:#fff !important; 
+            cursor: grab;
+            touch-action: none;
+        }
+        .mine-here:active { cursor: grabbing; }
+        .n1{color:#3182ce} .n2{color:#38a169} .n3{color:#e53e3e} 
+        .n4{color:#2c5282} .n5{color:#9b2c2c} .n6{color:#00a3af} 
+        .n7{color:#1a202c} .n8{color:#718096}
+
+        .mine-slot-box {
+            display: flex;
+            gap: 10px;
+            padding: 15px;
+            background: #ffffff;
+            border-radius: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 15px;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.08);
+            width: 100%;
+            max-width: calc(100vw - 20px);
+        }
+        .mine-item {
+            width: clamp(60px, 18vw, 75px);
+            height: clamp(60px, 18vw, 75px);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 12px;
+            background: #f7fafc;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.08);
+            position: relative;
+            color: #2d3748;
+            transition: all 0.2s;
+        }
+        .mine-item:hover, .mine-item.touch-hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+        }
+        .mine-item.disabled { 
+            opacity:0.5; 
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        .emoji-drag {
+            cursor: grab;
+            font-size: clamp(18px, 5vw, 24px);
+            margin-bottom: 4px;
+        }
+        .emoji-drag:active { cursor: grabbing; }
+
+        .normal-bomb { font-size:clamp(18px, 4vw, 22px); }
+        .big-bomb { font-size:clamp(24px, 6vw, 32px); }
+        .high-bomb {
+            font-size: clamp(20px, 4.5vw, 24px);
+            filter: saturate(1000%) brightness(1.2);
+            color: rgb(255, 0, 0) !important;
+        }
+        .anti-bomb { font-size:clamp(18px, 4vw, 22px); }
+        .chiliV-bomb { font-size:clamp(18px, 4vw, 22px); }
+        .chiliH-bomb { font-size:clamp(18px, 4vw, 22px); transform:rotate(90deg); }
+        .chiliPlus-bomb { font-size:clamp(20px, 4.5vw, 24px); transform:rotate(45deg);}
+        .chiliDiag-bomb { font-size:clamp(20px, 4.5vw, 24px); }
+        .chiliBigDiag-bomb { font-size:clamp(20px, 4.5vw, 24px); }
+        .ring-bomb { font-size:clamp(20px, 4.5vw, 24px); }
+        .mirror-bomb { font-size:clamp(20px, 4.5vw, 24px); }
+        .radiation-bomb { font-size:clamp(20px, 4.5vw, 24px); }
+        .eight-bomb { font-size:clamp(20px, 4.5vw, 24px); }
+        .blackhole-bomb { font-size:clamp(20px, 4.5vw, 24px); }
+        .yin-yang-bomb { font-size:clamp(20px, 4.5vw, 24px); }
+
+        .mine-item {
+            position: relative;
+        }
+        .mine-item::after {
+            content: attr(data-tip);
+            position: absolute;
+            bottom: 110%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #2d3748;
+            color: #ffffff;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            z-index: 10;
+            max-width: 200px;
+            word-wrap: break-word;
+        }
+        .mine-item:hover::after, .mine-item.touch-hover::after { opacity: 1; }
+
+        .mine-info-tip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            color: #718096;
+            cursor: pointer;
+            position: relative;
+        }
+        .mine-preview {
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s;
+            z-index: 1000;
+            max-width: 280px;
+            max-height: 200px;
+            overflow: hidden;
+        }
+        .mine-info-tip:hover .mine-preview, .mine-info-tip.touch-hover .mine-preview {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .win {
+            position: fixed;
+            top:0;left:0;width:100%;height:100%;
+            background:rgba(0,0,0,0.9);
+            display:none;
+            flex-direction:column;
+            align-items:center;
+            justify-content:center;
+            color:#fcc367;
+            font-size:clamp(28px, 8vw, 40px);
+            z-index: 100;
+            text-shadow: 0 0 10px rgba(252, 195, 103, 0.8);
+            padding: 20px;
+        }
+        .win button {
+            margin-top: 30px;
+            padding: 12px 24px;
+            background: #48bb78;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: clamp(16px, 4vw, 18px);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            min-width: 120px;
+        }
+        .win button:hover, .win button:active {
+            background: #38a169;
+            transform: translateY(-2px);
+        }
+
+        .sidebar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            max-height: 80vh;
+            background: #fff;
+            box-shadow: 0 -3px 15px rgba(0,0,0,0.1);
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+            z-index: 999;
+            padding: 15px;
+            overflow-y: auto;
+            touch-action: pan-y;
+        }
+        .sidebar.open {
+            transform: translateY(0);
+        }
+        .sidebar-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            top: auto;
+            transform: none;
+            background: #4299e1;
+            color: #fff;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 50px;
+            cursor: pointer;
+            z-index: 999;
+            font-weight: bold;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            writing-mode: horizontal-tb;
+        }
+
+        .info-sidebar {
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            width: 100%;
+            max-height: 80vh;
+            background: #fff;
+            box-shadow: 0 -3px 15px rgba(0,0,0,0.1);
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+            z-index: 998;
+            padding: 15px;
+            overflow-y: auto;
+            touch-action: pan-y;
+        }
+        .info-sidebar.open {
+            transform: translateY(0);
+        }
+        .info-sidebar-toggle {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            top: auto;
+            transform: none;
+            background: #7ac8ea;
+            color: #fff;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 50px;
+            cursor: pointer;
+            z-index: 998;
+            font-weight: bold;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            writing-mode: horizontal-tb;
+        }
+
+        .sidebar-section {
+            margin-bottom: 20px;
+        }
+        .sidebar-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #2d3748;
+            border-left: 4px solid #4299e1;
+            padding-left: 8px;
+        }
+        .info-sidebar .sidebar-title {
+            border-left-color: #7ac8ea;
+        }
+
+        .preset-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            width: 100%;
+        }
+        .preset-btn {
+            flex: 1;
+            padding: 8px 0;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .preset-easy { background: #38a169; }
+        .preset-medium { background: #ed8936; }
+        .preset-hard { background: #e53e3e; }
+
+        .custom-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .custom-item label {
+            font-weight: 500;
+            color: #2d3748;
+            font-size: 14px;
+        }
+        .num-control {
+            display: flex;
+            align-items: center;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .num-btn {
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: #4299e1;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .num-display {
+            width: 40px;
+            height: 28px;
+            text-align: center;
+            line-height: 28px;
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            font-size: 14px;
+        }
+        .apply-btn {
+            width: 100%;
+            padding: 9px;
+            background: #1dc0d2;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            margin-top: 5px;
+            font-size: 14px;
+        }
+
+        .record-item {
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            background: #f7fafc;
+        }
+        .record-label { font-weight: bold; margin-bottom: 4px; font-size: 14px;}
+        .record-best { color: #38a169; font-weight: bold; font-size: 14px;}
+        .record-current { color: #ed8936; font-weight: bold; font-size: 14px;}
+        .record-new { color: #e53e3e; font-weight: bold; margin-left: 6px; font-size: 14px;}
+        
+        .sidebar-version {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #e2e8f0;
+            color: #718096;
+            font-size: 12px;
+            text-align: center;
+        }
+        
+        .record-tip {
+            font-size: 12px;
+            color: #718096;
+            margin-bottom: 10px;
+            padding-left: 8px;
+            font-style: italic;
+        }
+
+        .mine-info-item {
+            padding: 10px;
+            border-radius: 8px;
+            background: #f7fafc;
+            margin-bottom: 8px;
+            border-left: 3px solid #7ac8ea;
+        }
+        .mine-info-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+        .mine-info-emoji {
+            font-size: 18px;
+        }
+        .mine-info-name {
+            font-weight: bold;
+            font-size: 14px;
+            color: #2d3748;
+        }
+        .mine-info-desc {
+            font-size: 13px;
+            color: #4a5568;
+            line-height: 1.4;
+            margin-bottom: 6px;
+        }
+        .mine-info-tip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            color: #718096;
+            cursor: pointer;
+        }
+        .preview-grid {
+            display: grid;
+            gap: 1px;
+            background: #a0aec0;
+            padding: 2px;
+            border-radius: 4px;
+            position: relative;
+        }
+        .preview-cell {
+            width: clamp(15px, 4vw, 20px);
+            height: clamp(15px, 4vw, 20px);
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(10px, 2vw, 11px);
+            font-weight: bold;
+            color: #2d3748;
+        }
+        .preview-cell.active {
+            background: #9fdf9f;
+        }
+        .preview-cell.center {
+            background: #fca5a5 !important;
+        }
+        .preview-cell.split-left {
+            background: #9fdf9f;
+        }
+        .preview-cell.split-right {
+            background: #9fdf9f;
+        }
+        .diagonal-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.3);
+            z-index: 997;
+            display: none;
+        }
+        .overlay.show {
+            display: block;
+        }
+
+        .drag-ghost {
+            position: fixed;
+            pointer-events: none;
+            z-index: 1000;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            text-shadow: 0 0 3px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body>
+    <h1 class="game-title">反向💣扫雷</h1>
+    <div class="rule">
+            ℹ️操作tips:&emsp;拖拽放置✅ / 长按移除🚫
+        <br>双指缩放棋盘🤏/空白区域移动棋盘👆
+        <br>地块受地雷影响程度:🟩合适|🟨偏低|🟥偏高</div>
+
+    <div class="timer-box" id="timer">00:00.00</div>
+
+    <div class="panel">
+        <button id="reset">新游戏</button>
+        <button id="clear">清空放置</button>
+    </div>
+
+    <div class="info">已放置：<span id="placed">0</span> / 总雷数：<span id="max">0</span></div>
+    
+    <div class="board-wrapper" id="boardWrapper">
+        <div class="board" id="board"></div>
+        <div class="zoom-display" id="zoomDisplay">100%</div>
+    </div>
+    
+    <div class="mine-slot-box" id="slot"></div>
+
+    <div class="win" id="win">
+        <div>🎉 恭喜通关！</div>
+        <button onclick="newGame()">再来一局</button>
+    </div>
+
+    <div class="overlay" id="overlay"></div>
+    
+    <button class="sidebar-toggle" id="toggleSidebar">⚙️ 菜单</button>
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-section">
+            <div class="sidebar-title">🎮 难度选择</div>
+            <div class="preset-buttons">
+                <button class="preset-btn preset-easy" onclick="setPre('easy')">😎简单</button>
+                <button class="preset-btn preset-medium" onclick="setPre('medium')">😮中等</button>
+                <button class="preset-btn preset-hard" onclick="setPre('hard')">👿困难</button>
+            </div>
+
+            <div class="custom-item">
+                <label>棋盘大小</label>
+                <div class="num-control">
+                    <button class="num-btn" onclick="setVal('size',-1)">-</button>
+                    <div class="num-display" id="size">10</div>
+                    <button class="num-btn" onclick="setVal('size',1)">+</button>
+                </div>
+            </div>
+            <div class="custom-item">
+                <label>总地雷数</label>
+                <div class="num-control">
+                    <button class="num-btn" onclick="setVal('total',-1)">-</button>
+                    <div class="num-display" id="total">6</div>
+                    <button class="num-btn" onclick="setVal('total',1)">+</button>
+                </div>
+            </div>
+            <div class="custom-item">
+                <label>特殊雷种类</label>
+                <div class="num-control">
+                    <button class="num-btn" onclick="setVal('type',-1)">-</button>
+                    <div class="num-display" id="type">2</div>
+                    <button class="num-btn" onclick="setVal('type',1)">+</button>
+                </div>
+            </div>
+            <div class="custom-item">
+                <label>特殊雷总数</label>
+                <div class="num-control">
+                    <button class="num-btn" onclick="setVal('spec',-1)">-</button>
+                    <div class="num-display" id="spec">3</div>
+                    <button class="num-btn" onclick="setVal('spec',1)">+</button>
+                </div>
+            </div>
+            <button class="apply-btn" onclick="applySet()">应用设置</button>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-title">🏆 最快纪录</div>
+            <div class="record-tip">使用预设难度开始计时挑战吧！ヾ(≧▽≦*)o</div>
+            <div id="recordList"></div>
+        </div>
+        
+        <div class="sidebar-version">v.4.1移动端<br>作者:L1Nzy<br>邮箱:lin060911@qq.com</div>
+    </div>
+
+    <button class="info-sidebar-toggle" id="toggleInfoSidebar">ℹ️信息</button>
+    <div class="info-sidebar" id="infoSidebar">
+        <div class="sidebar-section">
+            <div class="sidebar-title">💣 炸弹信息</div>
+            <div id="mineInfoList"></div>
+        </div>
+    </div>
+
+    <script>
+        let S=10, T=6, TY=2, SP=3;
+        const LIMIT = { size:[6,20], total:[2,16], type:[0,14], spec:[0,99] }; 
+
+        const PRE = {
+            easy:   { size: 8,  total: 6,  type: 2,  spec: 4 },
+            medium: { size: 10, total: 8,  type: 4,  spec: 6 },
+            hard:   { size: 12, total: 10, type: 6,  spec: 8 }
+        };
+
+        let diff = null;
+        let st = 0;
+        let ti = null;
+        let ct = 0;
+        let ts = false; 
+
+        let lt = JSON.parse(localStorage.getItem('mineLastTimes')) || {
+            easy: null, medium: null, hard: null
+        };
+        let rec = JSON.parse(localStorage.getItem('mineRecords')) || {
+            easy: null, medium: null, hard: null
+        };
+
+        const M = {
+            normal:{n:"普通雷",e:"💣",cls:"normal-bomb",tip:"3x3范围 +1",f:(r,c,v)=>addVal(r,c,1,1,v,1),
+                preview: {size:3, active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2]], center: [1,1]}},
+            big5:{n:"巨型雷",e:"💣",cls:"big-bomb",tip:"5x5范围 +1",f:(r,c,v)=>addVal(r,c,2,2,v,1),
+                preview: {size:5, active: [[0,0],[0,1],[0,2],[0,3],[0,4],[1,0],[1,1],[1,2],[1,3],[1,4],[2,0],[2,1],[2,2],[2,3],[2,4],[3,0],[3,1],[3,2],[3,3],[3,4],[4,0],[4,1],[4,2],[4,3],[4,4]], center: [2,2]}},
+            high:{n:"高爆雷",e:"💣",cls:"high-bomb",tip:"3x3范围 +2",f:(r,c,v)=>addVal(r,c,1,1,v,2),
+                preview: {size:3, active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2]], center: [1,1], values: [[2,2,2],[2,2,2],[2,2,2]]}},
+            anti:{n:"反物质炸弹",e:"💥",cls:"anti-bomb",tip:"3x3范围 -1",f:(r,c,v)=>addVal(r,c,1,1,v,-1),
+                preview: {size:3, active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2]], center: [1,1], values: [[-1,-1,-1],[-1,-1,-1],[-1,-1,-1]]}},
+            chiliV:{n:"竖辣椒",e:"🌶️",cls:"chiliV-bomb",tip:"竖方向各2格 +1",f:(r,c,v)=>{
+                for(let i=-2;i<=2;i++){let y=r+i;if(y>=0&&y<S)v[y][c]++;}
+            }, preview: {size:5, active: [[0,2],[1,2],[2,2],[3,2],[4,2]], center: [2,2]}},
+            chiliH:{n:"横辣椒",e:"🌶️",cls:"chiliH-bomb",tip:"横方向各2格 +1",f:(r,c,v)=>{
+                for(let i=-2;i<=2;i++){let x=c+i;if(x>=0&&x<S)v[r][x]++;}
+            }, preview: {size:5, active: [[2,0],[2,1],[2,2],[2,3],[2,4]], center: [2,2]}},
+            chiliPlus:{n:"十字辣椒",e:"✖️",cls:"chiliPlus-bomb",tip:"横竖各2格 +1",f:(r,c,v)=>{
+                for(let i=-2;i<=2;i++){let y=r+i;if(y>=0&&y<S)v[y][c]++;}
+                for(let i=-2;i<=2;i++){let x=c+i;if(x>=0&&x<S)v[r][x]++;}
+            }, preview: {size:5, active: [[0,2],[1,2],[2,0],[2,1],[2,2],[2,3],[2,4],[3,2],[4,2]], center: [2,2]}},
+            chiliDiag:{n:"对角辣椒",e:"✖️",cls:"chiliDiag-bomb",tip:"3x3对角线 +1",f:(r,c,v)=>{
+                const d=[[-1,-1],[-1,1],[0,0],[1,-1],[1,1]];
+                d.forEach(([dr,dc])=>{let y=r+dr,x=c+dc;if(y>=0&&y<S&&x>=0&&x<S)v[y][x]++;});
+            }, preview: {size:3, active: [[0,0],[0,2],[1,1],[2,0],[2,2]], center: [1,1]}},
+            chiliBigDiag:{n:"大对角辣椒",e:"✖️",cls:"chiliBigDiag-bomb",tip:"5x5对角线 +1",f:(r,c,v)=>{
+                const d=[[-2,-2],[-2,2],[-1,-1],[1,1],[-1,1],[1,-1],[0,0],[2,-2],[2,2]];
+                d.forEach(([dr,dc])=>{let y=r+dr,x=c+dc;if(y>=0&&y<S&&x>=0&&x<S)v[y][x]++;});
+            }, preview: {size:5, active: [[0,0],[0,4],[1,1],[1,3],[2,2],[3,1],[3,3],[4,0],[4,4]], center: [2,2]}},
+            ring:{n:"环形雷",e:"🔘",cls:"ring-bomb",tip:"5x5区域外圈 +1",f:(r,c,v)=>{
+                for(let nr=-2;nr<=2;nr++){
+                    for(let nc=-2;nc<=2;nc++){
+                        if(nr === -2 || nr === 2 || nc === -2 || nc === 2){
+                            let y = r + nr;
+                            let x = c + nc;
+                            if(y >= 0 && y < S && x >= 0 && x < S){
+                                v[y][x]++;
+                            }
+                        }
+                    }
+                }
+            }, preview: {size:5, active: [[0,0],[0,1],[0,2],[0,3],[0,4],[1,0],[1,4],[2,0],[2,4],[3,0],[3,4],[4,0],[4,1],[4,2],[4,3],[4,4]], center: [2,2]}},
+            mirror:{n:"镜像双雷",e:"🪞",cls:"mirror-bomb",tip:"自身+对称点 3x3 +1",f:(r,c,v)=>{
+                let mr = S - 1 - r;
+                let mc = S - 1 - c;
+                addVal(r, c, 1,1,v,1);
+                addVal(mr, mc,1,1,v,1);
+            }, preview: {size:6, active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2],[3,3],[3,4],[3,5],[4,3],[4,4],[4,5],[5,3],[5,4],[5,5]], center: [1,1], split: true}},
+            radiation:{n:"辐射雷",e:"☢️",cls:"radiation-bomb",tip:"中心+3 内环+2 外环+1",f:(r,c,v)=>{
+                v[r][c] +=3;
+                for(let dr=-1;dr<=1;dr++){
+                    for(let dc=-1;dc<=1;dc++){
+                        if(dr===0 && dc===0) continue;
+                        let y = r+dr, x = c+dc;
+                        if(y>=0&&y<S&&x>=0&&x<S) v[y][x]+=2;
+                    }
+                }
+                for(let dr=-2;dr<=2;dr++){
+                    for(let dc=-2;dc<=2;dc++){
+                        if(Math.abs(dr)===2 || Math.abs(dc)===2){
+                            let y = r+dr, x = c+dc;
+                            if(y>=0&&y<S&&x>=0&&x<S) v[y][x]+=1;
+                        }
+                    }
+                }
+            }, preview: {size:5, active: [[0,0],[0,1],[0,2],[0,3],[0,4],[1,0],[1,1],[1,2],[1,3],[1,4],[2,0],[2,1],[2,2],[2,3],[2,4],[3,0],[3,1],[3,2],[3,3],[3,4],[4,0],[4,1],[4,2],[4,3],[4,4]], 
+                center: [2,2], values: [[1,1,1,1,1],[1,2,2,2,1],[1,2,3,2,1],[1,2,2,2,1],[1,1,1,1,1]]}},
+            eight:{n:"八向雷",e:"✳️",cls:"eight-bomb",tip:"8方向各2格+自身 +1",f:(r,c,v)=>{
+                const dirs = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+                v[r][c]++;
+                dirs.forEach(([dy,dx])=>{
+                    for(let i=1;i<=2;i++){
+                        let y = r + dy*i;
+                        let x = c + dx*i;
+                        if(y>=0&&y<S&&x>=0&&x<S) v[y][x]++;
+                    }
+                });
+            }, preview: {size:5, active: [
+                [2,2],
+                [1,2], [0,2],
+                [3,2], [4,2],
+                [2,1], [2,0],
+                [2,3], [2,4],
+                [1,1], [0,0],
+                [1,3], [0,4],
+                [3,1], [4,0],
+                [3,3], [4,4]
+            ], center: [2,2]}},
+            blackhole:{n:"黑洞炸弹",e:"🕳️",cls:"blackhole-bomb",tip:"中心-1 十字不变 外圈8格+1",f:(r,c,v)=>{
+                v[r][c] -= 1;
+                const outer = [[-1,-1],[-1,1],[1,-1],[1,1],[-2,0],[2,0],[0,-2],[0,2]];
+                outer.forEach(([dr, dc]) => {
+                    let y = r + dr;
+                    let x = c + dc;
+                    if(y >= 0 && y < S && x >= 0 && x < S) {
+                        v[y][x] += 1;
+                    }
+                });
+            }, preview: {size:5, active: [[0,2],[1,1],[1,3],[2,0],[2,2],[2,4],[3,1],[3,3],[4,2]], center: [2,2], values: [[, ,1, , ], [,1,,1, ], [1,,-1,,1], [,1,,1, ], [, ,1, , ]]}},
+            yinYang:{n:"阴阳炸弹",e:"☯️",cls:"yin-yang-bomb",tip:"自身3x3+1 对称点3x3-1",f:(r,c,v)=>{
+                addVal(r, c, 1, 1, v, 1);
+                let mr = S - 1 - r;
+                let mc = S - 1 - c;
+                addVal(mr, mc, 1, 1, v, -1);
+            }, preview: {size:6, active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2],[3,3],[3,4],[3,5],[4,3],[4,4],[4,5],[5,3],[5,4],[5,5]], 
+                center: [1,1], values: [[1,1,1,,,], [1,1,1,,,], [1,1,1,,,], [,,, -1,-1,-1], [,,, -1,-1,-1], [,,, -1,-1,-1]], split: true}}
+        };
+
+        let G={tar:[],p:[],placed:{},pool:{},max:0,drag:null};
+        let dragGhost = null;
+        let isDraggingFromBoard = false;
+        let dragMineType = null;
+        let dragMineKey = null;
+        let touchStartX = 0, touchStartY = 0;
+        let touchStartTime = 0;
+        let touchMoveDistance = 0;
+        let touchTimeout = null;
+        
+        let boardScale = 1;
+        let minScale = 0.5;
+        let maxScale = 3;
+        let initialDistance = null;
+        let isPinching = false;
+        let isDragging = false; 
+        let isDeleting = false;
+
+        document.getElementById('toggleInfoSidebar').onclick = (e) => {
+            e.stopPropagation();
+            const infoSb = document.getElementById('infoSidebar');
+            const overlay = document.getElementById('overlay');
+            infoSb.classList.toggle('open');
+            overlay.classList.toggle('show');
+            document.getElementById('sidebar').classList.remove('open');
+        };
+        document.getElementById('toggleSidebar').onclick = (e) => {
+            e.stopPropagation();
+            const sb = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            sb.classList.toggle('open');
+            overlay.classList.toggle('show');
+            document.getElementById('infoSidebar').classList.remove('open');
+        };
+
+        document.addEventListener('click', (e) => {
+            const sidebar = document.getElementById('sidebar');
+            const infoSidebar = document.getElementById('infoSidebar');
+            const toggleSidebar = document.getElementById('toggleSidebar');
+            const toggleInfoSidebar = document.getElementById('toggleInfoSidebar');
+            const overlay = document.getElementById('overlay');
+
+            const isClickOutsideSidebar = !sidebar.contains(e.target) && e.target !== toggleSidebar;
+            const isClickOutsideInfoSidebar = !infoSidebar.contains(e.target) && e.target !== toggleInfoSidebar;
+
+            if (isClickOutsideSidebar && sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+            }
+            if (isClickOutsideInfoSidebar && infoSidebar.classList.contains('open')) {
+                infoSidebar.classList.remove('open');
+            }
+            if (!sidebar.classList.contains('open') && !infoSidebar.classList.contains('open')) {
+                overlay.classList.remove('show');
+            }
+        });
+
+        function createDragGhost(emoji, className) {
+            if (dragGhost) {
+                dragGhost.remove();
+            }
+            dragGhost = document.createElement('div');
+            dragGhost.className = `drag-ghost ${className}`;
+            dragGhost.textContent = emoji;
+            dragGhost.style.display = 'none';
+            document.body.appendChild(dragGhost);
+            return dragGhost;
+        }
+
+        function updateZoomDisplay() {
+            document.getElementById('zoomDisplay').textContent = Math.round(boardScale * 100) + '%';
+        }
+
+        function setBoardScale(scale) {
+            const board = document.getElementById('board');
+            boardScale = Math.max(minScale, Math.min(maxScale, scale));
+            board.style.transform = `scale(${boardScale})`;
+            updateZoomDisplay();
+            
+            localStorage.setItem('boardScale', boardScale.toString());
+        }
+
+        function initTouchEvents() {
+            const slot = document.getElementById('slot');
+            const board = document.getElementById('board');
+            const boardWrapper = document.getElementById('boardWrapper');
+            
+            slot.addEventListener('touchstart', function(e) {
+                e.stopPropagation();
+                if (e.touches.length > 1) return;
+                
+                const touch = e.touches[0];
+                const target = e.target;
+                
+                const mineItem = target.closest('.mine-item');
+                if (!mineItem || mineItem.classList.contains('disabled')) return;
+                
+                const emojiElement = mineItem.querySelector('.emoji-drag');
+                if (!emojiElement) return;
+                
+                const mineType = Object.keys(M).find(key => M[key].cls === emojiElement.className.split(' ')[1]);
+                if (!mineType) return;
+                
+                const useCount = Object.values(G.placed).filter(x => x === mineType).length;
+                if (useCount >= G.pool[mineType]) return;
+                
+                touchStartX = touch.clientX;
+                touchStartY = touch.clientY;
+                touchStartTime = Date.now();
+                dragMineType = mineType;
+                dragMineKey = null;
+                isDraggingFromBoard = false;
+                isDragging = true;
+                isDeleting = false;
+                touchMoveDistance = 0;
+                
+                if (touchTimeout) {
+                    clearTimeout(touchTimeout);
+                    touchTimeout = null;
+                }
+                
+                const ghost = createDragGhost(M[mineType].e, M[mineType].cls);
+                ghost.style.display = 'block';
+                ghost.style.left = touch.clientX + 'px';
+                ghost.style.top = touch.clientY + 'px';
+                
+                e.preventDefault();
+            }, { passive: false });
+            
+            board.addEventListener('touchstart', function(e) {
+                e.stopPropagation();
+                if (e.touches.length > 1) {
+                    isPinching = true;
+                    initialDistance = null;
+                    e.preventDefault();
+                    return;
+                }
+                
+                const touch = e.touches[0];
+                const target = e.target;
+                
+                const cell = target.closest('.cell');
+                if (!cell) return;
+                
+                const r = parseInt(cell.dataset.r);
+                const c = parseInt(cell.dataset.c);
+                const k = r + ',' + c;
+                
+                touchStartX = touch.clientX;
+                touchStartY = touch.clientY;
+                touchStartTime = Date.now();
+                touchMoveDistance = 0;
+                isDragging = false;
+                isDeleting = false;
+                
+                if (touchTimeout) {
+                    clearTimeout(touchTimeout);
+                }
+                
+                if (G.placed[k]) {
+                    dragMineType = G.placed[k];
+                    dragMineKey = k;
+                    isDraggingFromBoard = true;
+                    
+                    const ghost = createDragGhost(M[dragMineType].e, M[dragMineType].cls);
+                    ghost.style.display = 'block';
+                    ghost.style.left = touch.clientX + 'px';
+                    ghost.style.top = touch.clientY + 'px';
+                    
+                    touchTimeout = setTimeout(() => {
+                        if (!isDragging && touchMoveDistance < 10) {
+                            isDeleting = true;
+                            delete G.placed[k];
+                            resetP();
+                            render();
+                            updatePlaced();
+                            
+                            if (dragGhost) {
+                                dragGhost.style.display = 'none';
+                            }
+                        }
+                    }, 800);
+                } else {
+                    dragMineType = null;
+                    dragMineKey = null;
+                    isDraggingFromBoard = false;
+                }
+                
+                e.preventDefault();
+            }, { passive: false });
+            
+            document.addEventListener('touchmove', function(e) {
+                if (e.touches.length > 1) {
+                    isPinching = true;
+                    const touch1 = e.touches[0];
+                    const touch2 = e.touches[1];
+                    
+                    const currentDistance = Math.sqrt(
+                        Math.pow(touch2.clientX - touch1.clientX, 2) +
+                        Math.pow(touch2.clientY - touch1.clientY, 2)
+                    );
+                    
+                    if (initialDistance === null) {
+                        initialDistance = currentDistance;
+                    } else {
+                        const scaleChange = currentDistance / initialDistance;
+                        setBoardScale(boardScale * scaleChange);
+                        initialDistance = currentDistance;
+                    }
+                    
+                    e.preventDefault();
+                    return;
+                }
+                
+                if (!dragMineType && !isDraggingFromBoard) return;
+                
+                const touch = e.touches[0];
+                const dx = touch.clientX - touchStartX;
+                const dy = touch.clientY - touchStartY;
+                touchMoveDistance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (touchMoveDistance > 5) {
+                    isDragging = true;
+                    if (touchTimeout) {
+                        clearTimeout(touchTimeout);
+                        touchTimeout = null;
+                    }
+                }
+                
+                if (dragMineType && dragGhost) {
+                    dragGhost.style.left = touch.clientX + 'px';
+                    dragGhost.style.top = touch.clientY + 'px';
+                }
+                
+                if (touchMoveDistance > 10) {
+                    e.preventDefault();
+                }
+            }, { passive: false });
+            
+            document.addEventListener('touchend', function(e) {
+                if (isPinching) {
+                    isPinching = false;
+                    initialDistance = null;
+                    return;
+                }
+                
+                if (touchTimeout) {
+                    clearTimeout(touchTimeout);
+                    touchTimeout = null;
+                }
+                
+                const touch = e.changedTouches[0];
+                
+                if (dragMineType && isDragging && !isDeleting) {
+                    const target = document.elementFromPoint(touch.clientX, touch.clientY);
+                    
+                    if (target) {
+                        const cell = target.closest('.cell');
+                        
+                        if (cell) {
+                            const r = parseInt(cell.dataset.r);
+                            const c = parseInt(cell.dataset.c);
+                            const k = r + ',' + c;
+                            
+                            if (isDraggingFromBoard) {
+                                if (k !== dragMineKey && !G.placed[k]) {
+                                    delete G.placed[dragMineKey];
+                                    G.placed[k] = dragMineType;
+                                    startTiOnFirst();
+                                    resetP();
+                                    render();
+                                    updatePlaced();
+                                }
+                            } else {
+                                if (!G.placed[k]) {
+                                    const useCount = Object.values(G.placed).filter(x => x === dragMineType).length;
+                                    if (useCount < G.pool[dragMineType]) {
+                                        G.placed[k] = dragMineType;
+                                        startTiOnFirst();
+                                        resetP();
+                                        render();
+                                        updatePlaced();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                if (dragGhost) {
+                    dragGhost.style.display = 'none';
+                }
+                
+                dragMineType = null;
+                dragMineKey = null;
+                isDraggingFromBoard = false;
+                isDragging = false;
+                isDeleting = false;
+                touchMoveDistance = 0;
+            });
+            
+            document.addEventListener('touchcancel', function() {
+                if (touchTimeout) {
+                    clearTimeout(touchTimeout);
+                    touchTimeout = null;
+                }
+                
+                if (dragGhost) {
+                    dragGhost.style.display = 'none';
+                }
+                
+                dragMineType = null;
+                dragMineKey = null;
+                isDraggingFromBoard = false;
+                isDragging = false;
+                isDeleting = false;
+                touchMoveDistance = 0;
+                isPinching = false;
+                initialDistance = null;
+            });
+        }
+
+        function initInfoSidebarLongPress() {
+            const infoSidebar = document.getElementById('infoSidebar');
+            
+            infoSidebar.addEventListener('touchstart', function(e) {
+                if (e.touches.length > 1) return;
+                
+                const touch = e.touches[0];
+                const target = e.target;
+                
+                const tipElement = target.closest('.mine-info-tip');
+                if (!tipElement) return;
+                
+                const longPressTimer = setTimeout(() => {
+                    tipElement.classList.add('touch-hover');
+                }, 300);
+                
+                e.target.dataset.longPressTimer = longPressTimer;
+                
+                e.preventDefault();
+            }, { passive: false });
+            
+            infoSidebar.addEventListener('touchmove', function(e) {
+                const target = e.target;
+                const tipElement = target.closest('.mine-info-tip');
+                
+                if (tipElement && tipElement.dataset.longPressTimer) {
+                    clearTimeout(tipElement.dataset.longPressTimer);
+                    delete tipElement.dataset.longPressTimer;
+                    tipElement.classList.remove('touch-hover');
+                }
+            }, { passive: false });
+            
+            infoSidebar.addEventListener('touchend', function(e) {
+                const target = e.target;
+                const tipElement = target.closest('.mine-info-tip');
+                
+                if (tipElement) {
+                    if (tipElement.dataset.longPressTimer) {
+                        clearTimeout(tipElement.dataset.longPressTimer);
+                        delete tipElement.dataset.longPressTimer;
+                    }
+                    
+                    tipElement.classList.add('touch-hover');
+                    setTimeout(() => {
+                        tipElement.classList.remove('touch-hover');
+                    }, 1000);
+                }
+            });
+            
+            infoSidebar.addEventListener('touchcancel', function(e) {
+                const target = e.target;
+                const tipElement = target.closest('.mine-info-tip');
+                
+                if (tipElement && tipElement.dataset.longPressTimer) {
+                    clearTimeout(tipElement.dataset.longPressTimer);
+                    delete tipElement.dataset.longPressTimer;
+                    tipElement.classList.remove('touch-hover');
+                }
+            });
+        }
+
+        function addVal(r,c,dr,dc,v,n){
+            for(let nr=-dr;nr<=dr;nr++) {
+                for(let nc=-dc;nc<=dc;nc++){
+                    let y=r+nr,x=c+nc; 
+                    if(y>=0&&y<S&&x>=0&&x<S) v[y][x]+=n;
+                }
+            }
+        }
+
+        function genGame(){
+            let all=["big5","high","anti","chiliV","chiliH","chiliPlus","chiliDiag","chiliBigDiag","ring","mirror","radiation","eight","blackhole","yinYang"];
+            let sel=all.sort(()=>Math.random()-0.5).slice(0,TY);
+            let pool={};
+            let normal = 0;
+            
+            if (SP < T) {
+                normal = Math.max(1, T - SP);
+            }
+            if (normal > 0) {
+                pool.normal = normal;
+            }
+            
+            let rem=SP; 
+            sel.forEach(t=>{pool[t]=1;rem--});
+            
+            while(rem>0){
+                let t=sel[Math.random()*sel.length|0];
+                pool[t]++;
+                rem--;
+            }
+            
+            let mines=[]; 
+            for(let t in pool){
+                for(let i=0;i<pool[t];i++){
+                    mines.push(t);
+                }
+            }
+            
+            mines=mines.slice(0,T);
+            let pos=new Set(),ans={};
+            
+            while(mines.length){
+                let r=Math.random()*S|0,c=Math.random()*S|0,k=r+','+c;
+                if(!pos.has(k)){pos.add(k);ans[k]=mines.pop();}
+            }
+            
+            let tar=Array(S).fill().map(()=>Array(S).fill(0));
+            for(let k in ans){
+                let [r,c]=k.split(',');
+                M[ans[k]].f(+r,+c,tar);
+            }
+            
+            G.tar=tar; 
+            G.pool=pool; 
+            G.max=T; 
+            G.placed={}; 
+            resetP();
+        }
+
+        function resetP(){
+            G.p=Array(S).fill().map(()=>Array(S).fill(0));
+            for(let k in G.placed){
+                let [r,c]=k.split(',');
+                M[G.placed[k]].f(+r,+c,G.p);
+            }
+        }
+
+        function render(){
+            let b=document.getElementById('board'); 
+            b.innerHTML='';
+            b.style.setProperty('--board-size', S);
+            
+            for(let r=0;r<S;r++) {
+                for(let c=0;c<S;c++){
+                    let d=document.createElement('div'); 
+                    d.className='cell';
+                    d.dataset.r=r; 
+                    d.dataset.c=c;
+                    
+                    let t=G.tar[r][c],p=G.p[r][c],k=r+','+c;
+                    
+                    if(p===t) d.classList.add('cell-valid');
+                    else if(p<t) d.classList.add('cell-low');
+                    else d.classList.add('cell-over');
+                    
+                    if(t!==0){
+                        d.textContent=t;
+                        d.classList.add('n'+Math.min(t,8));
+                    }
+                    
+                    if(G.placed[k]){
+                        d.classList.add('mine-here');
+                        let ty=G.placed[k];
+                        d.innerHTML=`<span class="${M[ty].cls}">${M[ty].e}</span>`;
+                    }
+                    
+                    b.appendChild(d);
+                }
+            }
+            
+            document.getElementById('placed').textContent=Object.keys(G.placed).length;
+            document.getElementById('max').textContent=G.max;
+            
+            renderSlot(); 
+            checkWin();
+        }
+
+        function renderSlot(){
+            let s=document.getElementById('slot');
+            s.innerHTML='';
+            
+            for(let t in G.pool){
+                let max=G.pool[t],use=Object.values(G.placed).filter(x=>x===t).length;
+                let div=document.createElement('div');
+                
+                div.className='mine-item'+(use>=max?' disabled':'');
+                div.dataset.tip=M[t].tip;
+                div.innerHTML=`<div class="emoji-drag ${M[t].cls}">${M[t].e}</div><div>${M[t].n}</div><div>${use}/${max}</div>`;
+                
+                s.appendChild(div);
+            }
+            
+            initTouchEvents();
+        }
+
+        function updatePlaced(){
+            let placed=Object.keys(G.placed).length;
+            document.getElementById('placed').textContent=placed;
+            document.getElementById('max').textContent=G.max;
+        }
+
+        function startTiOnFirst(){
+            if (!diff || ts) return;
+            ts = true;
+            startTi();
+        }
+
+        function startTi() {
+            stopTi();
+            st = Date.now();
+            ti = setInterval(updateTi, 10);
+            document.getElementById('timer').style.display = 'block';
+        }
+
+        function stopTi() {
+            if (ti) clearInterval(ti);
+        }
+
+        function updateTi() {
+            const elapsed = Date.now() - st;
+            ct = elapsed;
+            const ms = elapsed % 1000;
+            const sec = Math.floor(elapsed / 1000) % 60;
+            const min = Math.floor(elapsed / 60000);
+            
+            document.getElementById('timer').textContent = 
+                `${min.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}.${(ms/10|0).toString().padStart(2,'0')}`;
+        }
+
+        function checkWin(){
+            if(Object.keys(G.placed).length!==G.max) return;
+            
+            for(let r=0;r<S;r++) {
+                for(let c=0;c<S;c++) {
+                    if(G.p[r][c]!==G.tar[r][c]) return;
+                }
+            }
+            
+            stopTi(); 
+            saveRec();
+            document.getElementById('win').style.display='flex';
+        }
+
+        function saveRec() {
+            if (!diff) return;
+            lt[diff] = ct;
+            localStorage.setItem('mineLastTimes', JSON.stringify(lt));
+            
+            if (rec[diff] === null || ct < rec[diff]) {
+                rec[diff] = ct;
+                localStorage.setItem('mineRecords', JSON.stringify(rec));
+            }
+            renderRec();
+        }
+
+        function fmtTime(ms) {
+            if (ms == null) return '暂无纪录';
+            const min = Math.floor(ms / 60000);
+            const sec = Math.floor(ms / 1000) % 60;
+            const msec = Math.floor((ms % 1000) / 10);
+            
+            return `${min.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}.${msec.toString().padStart(2,'0')}`;
+        }
+
+        function renderRec() {
+            const list = document.getElementById('recordList');
+            list.innerHTML = `
+                <div class="record-item"><div class="record-label">简单</div>
+                    最快：<span class="record-best">${fmtTime(rec.easy)}</span><br>
+                    本次：<span class="record-current">${fmtTime(lt.easy)}</span>
+                </div>
+                <div class="record-item"><div class="record-label">中等</div>
+                    最快：<span class="record-best">${fmtTime(rec.medium)}</span><br>
+                    本次：<span class="record-current">${fmtTime(lt.medium)}</span>
+                </div>
+                <div class="record-item"><div class="record-label">困难</div>
+                    最快：<span class="record-best">${fmtTime(rec.hard)}</span><br>
+                    本次：<span class="record-current">${fmtTime(lt.hard)}</span>
+                </div>
+            `;
+        }
+
+        function setPre(d) {
+            const p = PRE[d];
+            S = p.size; 
+            T = p.total; 
+            TY = p.type; 
+            SP = p.spec;
+            SP = Math.min(SP, T); 
+            TY = Math.min(TY, SP);
+            
+            document.getElementById('size').textContent = S;
+            document.getElementById('total').textContent = T;
+            document.getElementById('type').textContent = TY;
+            document.getElementById('spec').textContent = SP;
+            
+            diff = d;
+            applySet();
+        }
+
+        function setVal(key,dir){
+            let [min,max]=LIMIT[key];
+            let val = (key==='size'?S:key==='total'?T:key==='type'?TY:SP);
+            val = Math.max(min, Math.min(max, val+dir));
+            
+            if(key==='size') S=val; 
+            if(key==='total') T=val;
+            if(key==='type') TY=val; 
+            if(key==='spec') SP=val;
+            
+            SP=Math.min(SP,T); 
+            TY=Math.min(TY,SP);
+            
+            document.getElementById('size').textContent=S;
+            document.getElementById('total').textContent=T;
+            document.getElementById('type').textContent=TY;
+            document.getElementById('spec').textContent=SP;
+            
+            diff = null;
+        }
+
+        function applySet(){
+            SP=Math.min(SP,T); 
+            TY=Math.min(TY,SP);
+            newGame();
+        }
+
+        function newGame(){
+            stopTi();
+            ts = false;
+            ct = 0;
+            document.getElementById('timer').textContent = '00:00.00';
+            document.getElementById('timer').style.display = 'none';
+            document.getElementById('win').style.display='none';
+            genGame(); 
+            render(); 
+            renderRec();
+        }
+
+        function clearAll(){
+            G.placed={};
+            resetP();
+            render();
+        }
+
+        function genPreHtml(mk) {
+            const mine = M[mk];
+            const { size, active, center, values, split } = mine.preview;
+            const isPlus1 = !values;
+
+            let diagonal = '';
+            if (split) {
+                diagonal = `<svg class="diagonal-line" viewBox="0 0 ${size} ${size}">
+                                <line x1="${size}" y1="0" x2="0" y2="${size}" stroke="#666" stroke-width="0.2"/>
+                            </svg>`;
+            }
+
+            let html = `<div class="preview-grid" style="grid-template-columns: repeat(${size}, 1fr);">`;
+            html += diagonal;
+
+            for (let i = 0; i < size; i++) {
+                for (let j = 0; j < size; j++) {
+                    let cellCls = 'preview-cell';
+                    let isCenter = (i === center[0] && j === center[1]);
+                    let isActive = active.some(([x, y]) => x === i && y === j);
+
+                    if (isCenter) {
+                        cellCls += ' center';
+                    } else if (isActive) {
+                        if (split) {
+                            if (i < 3 && j < 3) {
+                                cellCls += ' split-left';
+                            } else if (i >= 3 && j >= 3) {
+                                cellCls += ' split-right';
+                            }
+                        } else {
+                            cellCls += ' active';
+                        }
+                    }
+
+                    let cellVal = '';
+                    if (!isPlus1 && values && values[i] && values[i][j] !== undefined && values[i][j] !== '') {
+                        cellVal = values[i][j];
+                    }
+
+                    html += `<div class="${cellCls}">${cellVal}</div>`;
+                }
+            }
+            html += `</div>`;
+            return html;
+        }
+
+        function renderMineInfo() {
+            const list = document.getElementById('mineInfoList');
+            let html = '';
+            for (const key in M) {
+                const mine = M[key];
+                html += `
+                <div class="mine-info-item">
+                    <div class="mine-info-header">
+                        <div class="mine-info-emoji ${mine.cls}">${mine.e}</div>
+                        <div class="mine-info-name">${mine.n}</div>
+                    </div>
+                    <div class="mine-info-desc">${mine.tip}</div>
+                    <div class="mine-info-tip">
+                        ℹ️查看影响范围
+                        <div class="mine-preview">${genPreHtml(key)}</div>
+                    </div>
+                </div>`;
+            }
+            list.innerHTML = html;
+            
+            initInfoSidebarLongPress();
+        }
+
+        document.getElementById('reset').onclick=newGame;
+        document.getElementById('clear').onclick=clearAll;
+
+        window.onload=()=>{
+            renderRec();
+            renderMineInfo();
+            newGame();
+            
+            const savedScale = localStorage.getItem('boardScale');
+            if (savedScale) {
+                setBoardScale(parseFloat(savedScale));
+            } else {
+                setBoardScale(1);
+            }
+        };
+
+        window.addEventListener('resize', function() {
+            const board = document.getElementById('board');
+            board.style.transform = `scale(${boardScale})`;
+        });
+    </script>
+</body>
+</html>

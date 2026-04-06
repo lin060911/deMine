@@ -151,18 +151,34 @@
             transition: all 0.15s;
             font-size: clamp(12px, 3vw, 16px);
             touch-action: none;
+            z-index: 1;
         }
         .cell:hover, .cell.touch-hover {
             box-shadow: inset 0 0 0 1px #4299e1;
         }
-        .cell-valid { background:#9fdf9f; }
-        .cell-low { background:#fde68a; }
-        .cell-over { background:#fca5a5; }
+        .cell-valid { background:#9fdf9f!important;z-index: 2; }
+        .cell-low { background:#fde68a!important; z-index: 2;}
+        .cell-over { background:#fca5a5!important;z-index: 2; }
         .mine-here { 
-            box-shadow:inset 0 0 0 2px #2d3748; 
-            background:#fff !important; 
+            position: relative;
             cursor: grab;
-            touch-action: none;
+            z-index: 3;
+        }
+        .mine-here::after {
+            content: '';
+            position: absolute;
+            top: -1px;
+            left: -1px;
+            right: -1px;
+            bottom: -1px;
+            box-shadow: inset 0 0 0 2px #2d3748; 
+            border-radius: 3px;
+            pointer-events: none; 
+            background: rgba(255, 255, 255, 0.7); }
+        .mine-here .mine-icon {
+            position: relative;
+            z-index: 4; /* 图标在最上层 */
+            font-size: 18px;
         }
         .mine-here:active { cursor: grabbing; }
         .n1{color:#3182ce} .n2{color:#38a169} .n3{color:#e53e3e} 
@@ -214,25 +230,25 @@
         }
         .emoji-drag:active { cursor: grabbing; }
 
-        .normal-bomb { font-size:clamp(18px, 4vw, 22px); }
-        .big-bomb { font-size:clamp(24px, 6vw, 32px); }
+        .normal-bomb { font-size:clamp(14px, 4vw, 22px); }
+        .big-bomb { font-size:clamp(18px, 6vw, 32px); }
         .high-bomb {
-            font-size: clamp(20px, 4.5vw, 24px);
+            font-size: clamp(16px, 4.5vw, 24px);
             filter: saturate(1000%) brightness(1.2);
             color: rgb(255, 0, 0) !important;
         }
-        .anti-bomb { font-size:clamp(18px, 4vw, 22px); }
-        .chiliV-bomb { font-size:clamp(18px, 4vw, 22px); }
-        .chiliH-bomb { font-size:clamp(18px, 4vw, 22px); transform:rotate(90deg); }
-        .chiliPlus-bomb { font-size:clamp(20px, 4.5vw, 24px); transform:rotate(45deg);}
-        .chiliDiag-bomb { font-size:clamp(20px, 4.5vw, 24px); }
-        .chiliBigDiag-bomb { font-size:clamp(20px, 4.5vw, 24px); }
-        .ring-bomb { font-size:clamp(20px, 4.5vw, 24px); }
-        .mirror-bomb { font-size:clamp(20px, 4.5vw, 24px); }
-        .radiation-bomb { font-size:clamp(20px, 4.5vw, 24px); }
-        .eight-bomb { font-size:clamp(20px, 4.5vw, 24px); }
-        .blackhole-bomb { font-size:clamp(20px, 4.5vw, 24px); }
-        .yin-yang-bomb { font-size:clamp(20px, 4.5vw, 24px); }
+        .anti-bomb { font-size:clamp(14px, 4vw, 22px); }
+        .chiliV-bomb { font-size:clamp(14px, 4vw, 22px); }
+        .chiliH-bomb { font-size:clamp(14px, 4vw, 22px); transform:rotate(90deg); }
+        .chiliPlus-bomb { font-size:clamp(14px, 4.5vw, 24px); transform:rotate(45deg);}
+        .chiliDiag-bomb { font-size:clamp(14px, 4.5vw, 24px); }
+        .chiliBigDiag-bomb { font-size:clamp(14px, 4.5vw, 24px); }
+        .ring-bomb { font-size:clamp(14px, 4.5vw, 24px); }
+        .mirror-bomb { font-size:clamp(14px, 4.5vw, 24px); }
+        .radiation-bomb { font-size:clamp(14px, 4.5vw, 24px); }
+        .eight-bomb { font-size:clamp(14px, 4.5vw, 24px); }
+        .blackhole-bomb { font-size:clamp(14px, 4.5vw, 24px); }
+        .yin-yang-bomb { font-size:clamp(14px, 4.5vw, 24px); }
 
         .mine-item {
             position: relative;
@@ -737,8 +753,8 @@
                 for(let i=-2;i<=2;i++){let x=c+i;if(x>=0&&x<S)v[r][x]++;}
             }, preview: {size:5, active: [[2,0],[2,1],[2,2],[2,3],[2,4]], center: [2,2]}},
             chiliPlus:{n:"十字辣椒",e:"✖️",cls:"chiliPlus-bomb",tip:"横竖各2格 +1",f:(r,c,v)=>{
-                for(let i=-2;i<=2;i++){let y=r+i;if(y>=0&&y<S)v[y][c]++;}
-                for(let i=-2;i<=2;i++){let x=c+i;if(x>=0&&x<S)v[r][x]++;}
+                const d=[[0,0],[1,0],[2,0],[0,1],[0,2],[-1,0],[-2,0],[0,-1],[0,-2]];
+                d.forEach(([dr,dc])=>{let y=r+dr,x=c+dc;if(y>=0&&y<S&&x>=0&&x<S)v[y][x]++;});
             }, preview: {size:5, active: [[0,2],[1,2],[2,0],[2,1],[2,2],[2,3],[2,4],[3,2],[4,2]], center: [2,2]}},
             chiliDiag:{n:"对角辣椒",e:"✖️",cls:"chiliDiag-bomb",tip:"3x3对角线 +1",f:(r,c,v)=>{
                 const d=[[-1,-1],[-1,1],[0,0],[1,-1],[1,1]];

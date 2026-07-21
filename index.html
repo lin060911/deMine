@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>反向扫雷</title>
-    <link rel="icon" type="image/png" sizes="32*32" href="image/bomb.png">
+    <link rel="icon" type="image/png" sizes="32 * 32" href="image/bomb.png">
     <style>
         * {
             margin: 0;
@@ -20,7 +20,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            background: linear-gradient(180deg,#b1e4b3 60%, #e8f4f8);
+            background: linear-gradient(180deg,#c2e286 2%,#b1e4b3 60%, #e8f4f8);
             padding: 20px;
             min-height: 100vh;
             position: relative;
@@ -89,6 +89,16 @@
             box-shadow: 0 8px 24px #e9b55c;
             border-color: #ffd752;        
         }
+        #tutorialBtn{
+            background:#805ad5;
+            border:4px solid #9f7aea;
+        }
+        #tutorialBtn:hover {
+            background:#8a53ff;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px #9f7aea;
+            border-color: #b18bff;        
+        }
 
         .info {
             color: #4a5568;
@@ -144,7 +154,8 @@
         .mine-here:active { cursor: grabbing; }
         .n1{color:#3182ce} .n2{color:#38a169} .n3{color:#e53e3e} 
         .n4{color:#2c5282} .n5{color:#9b2c2c} .n6{color:#00a3af} 
-        .n7{color:#1a202c} .n8{color:#718096}
+        .n7{color:#1a202c} .n8{color:#718096} .n9{color:#7a31ce}
+        .n-1{color:#ce6b31} .n-2{color:#ce4b31} .n-3{color:#ce3131}
 
         .mine-slot-box {
             display: flex;
@@ -210,6 +221,7 @@
         .eight-bomb { font-size:24px; }
         .blackhole-bomb { font-size:24px; }
         .yin-yang-bomb { font-size:24px; }
+        .negative-mirror-bomb {font-size: 24px;}
 
         .mine-item::after {
             content: attr(data-tip);
@@ -331,7 +343,7 @@
         }
         .info-sidebar-toggle {
             position: fixed;
-            top: 50%;
+            top: 45%;
             left: 0;
             background: #4bc9ff;
             color: #fff;
@@ -373,7 +385,7 @@
         }
         .rule-sidebar-toggle {
             position: fixed;
-            top: 40%;
+            top: 35%;
             left: 0;
             background: #3da851;
             color: #fff;
@@ -746,6 +758,77 @@
         .auto-modal .close-btn:hover {
             color: #333;
         }
+
+        #tutorialProgressBar {
+            display: none;
+            margin: 10px auto;
+            width: 70%;
+            max-width: 450px;
+            background: #fff;
+            padding: 12px 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        #tutorialProgressBar .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        #tutorialProgressBar .progress-title {
+            font-weight: bold;
+            color: #2d3748;
+            font-size: 15px;
+        }
+        #tutorialProgressBar .progress-text {
+            color: #4a5568;
+            font-size: 14px;
+        }
+        #tutorialProgressBar .progress-track {
+            width: 100%;
+            height: 10px;
+            background-color: #e2e8f0;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        #tutorialProgressBar .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            transition: width 0.5s ease;
+            border-radius: 5px;
+        }
+
+        .tutorial-btn-inline {
+            margin-left: 20px;
+            padding: 2px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            border-radius: 6px;
+            border: 2px solid #4bc9ff;
+            background: #e6f7ff;
+            color: #2b6cb0;
+            transition: all 0.2s;
+        }
+        .tutorial-btn-inline:hover {
+            background: #bee3f8;
+            border-color: #3182ce;
+        }
+
+        .category-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 6px 0;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .category-header strong {
+            font-size: 17px;
+            color: #2d3748;
+        }
+        .category-section {
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
@@ -753,17 +836,51 @@
 
     <div class="auto-modal" id="welcomeModal">
         <div class="icon">🫡</div>
-        <h2>你好!</h2>
-        <p>欢迎来到<span>[反向💣扫雷]</span><br>初次游玩记得点击查看左侧的规则哦！</p>
-        <button onclick="closeAutoModal()">(≧∇≦)ﾉ了解</button>
+        <h2>欢迎回来!</h2>
+        <p>欢迎回到<span>『反向💣扫雷』</span><br>如果忘了咋玩，可以点击左侧的规则哦( ´◡‿ゝ◡`)</p>
+        <button onclick="closeWelcomeModal()">(≧∇≦)ﾉ了解</button>
     </div>
+
+    <div class="auto-modal" id="tutorialPrompt" style="display:none;">
+        <div class="icon">🤗</div>
+        <h2>你好!</h2>
+        <p>这是你第一次游玩<span>『反向💣扫雷』</span><br>看看左侧的规则，然后开始新手教程吧！</p>
+        <button id="tutorialConfirmBtn" class="confirm-btn" onclick="startTutorial()" disabled>开始新手教程<br>[GO!]ヾ(≧▽≦*)o</button>
+        <p style="font-size: 12px; color: #888; margin-top: 8px;" id="tutorialCountdown">按钮将在5秒后可用...</p>
+    </div>
+
+    <div class="auto-modal" id="tutorialCompleteModal" style="display:none;">
+        <div class="icon">🥳</div>
+        <h2>恭喜完成!</h2>
+        <p id="tutorialCompleteText">已完成该教程</p>
+        <button onclick="closeTutorialComplete()">我真厉害<br>( *︾▽︾)</button>
+    </div>
+
+    <div class="auto-modal" id="moreTutorialGuide" style="display:none;">
+        <div class="icon">🧐</div>
+        <h2>更多教程</h2>
+        <p>点击左侧炸弹信息栏，可开启更多教程</p>
+        <button onclick="closeMoreTutorialGuide()">知道了</button>
+    </div>
+
     <h1 class="game-title">反向💣扫雷</h1>
     <div class="rule">ℹ️操作tips:拖拽放置✅ / 右键删除🚫</div>
     <div class="timer-box" id="timer">00:00.00</div>
 
+    <div id="tutorialProgressBar">
+        <div class="progress-header">
+            <span class="progress-title" id="tutorialTitle">新手教程</span>
+            <span class="progress-text" id="tutorialProgressText">0/5</span>
+        </div>
+        <div class="progress-track">
+            <div class="progress-fill" id="tutorialProgressFill"></div>
+        </div>
+    </div>
+
     <div class="panel">
         <button id="reset">新游戏</button>
         <button id="clear">清空放置</button>
+        <button id="tutorialBtn" onclick="openTutorialSelector()">新手教程</button>
     </div>
 
     <div class="info">已放置：<span id="placed">0</span> / 总雷数：<span id="max">0</span></div>
@@ -862,10 +979,9 @@
         <div class="sidebar-version">v.4.2<br>作者:L1Nzy<br>邮箱:lin060911@qq.com
         </div>
     </div>
-
-    <script>
-        let S=10, T=6, TY=2, SP=3;
-        const LIMIT = { size:[6,20], total:[2,16], type:[0,14], spec:[0,99] }; 
+<script>
+        let S=10, T=6, TY=3, SP=4;
+        const LIMIT = { size:[7,20], total:[2,18], type:[0,15], spec:[0,99] }; 
 
         const PRE = {
             easy:   { size: 8,  total: 6,  type: 2,  spec: 4 },
@@ -886,34 +1002,43 @@
             easy: null, medium: null, hard: null
         };
 
+        // ===== 地雷分类定义 =====
+        const CATEGORY = {
+            basic: { name: "基础系列", order: 0 },
+            special: { name: "异形系列", order: 1 },
+            physics: { name: "物理律系列", order: 2 },
+            symmetry: { name: "对称系列", order: 3 }
+        };
+
         const M = {
-            normal:{n:"普通雷",e:"💣",cls:"normal-bomb",tip:"3x3范围 +1",f:(r,c,v)=>addVal(r,c,1,1,v,1),
+            // ===== 基础系列 =====
+            normal:{category:"basic", n:"普通雷",e:"💣",cls:"normal-bomb",tip:"3x3范围 +1",f:(r,c,v)=>addVal(r,c,1,1,v,1),
                 preview: {size:3, active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2]], center: [1,1]}},
-            big5:{n:"巨型雷",e:"💣",cls:"big-bomb",tip:"5x5范围 +1",f:(r,c,v)=>addVal(r,c,2,2,v,1),
+            big5:{category:"basic", n:"巨型雷",e:"💣",cls:"big-bomb",tip:"5x5范围 +1",f:(r,c,v)=>addVal(r,c,2,2,v,1),
                 preview: {size:5, active: [[0,0],[0,1],[0,2],[0,3],[0,4],[1,0],[1,1],[1,2],[1,3],[1,4],[2,0],[2,1],[2,2],[2,3],[2,4],[3,0],[3,1],[3,2],[3,3],[3,4],[4,0],[4,1],[4,2],[4,3],[4,4]], center: [2,2]}},
-            high:{n:"高爆雷",e:"💣",cls:"high-bomb",tip:"3x3范围 +2",f:(r,c,v)=>addVal(r,c,1,1,v,2),
+            high:{category:"basic", n:"高爆雷",e:"💣",cls:"high-bomb",tip:"3x3范围 +2",f:(r,c,v)=>addVal(r,c,1,1,v,2),
                 preview: {size:3, active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2]], center: [1,1], values: [[2,2,2],[2,2,2],[2,2,2]]}},
-            anti:{n:"反物质炸弹",e:"💥",cls:"anti-bomb",tip:"3x3范围 -1",f:(r,c,v)=>addVal(r,c,1,1,v,-1),
-                preview: {size:3, active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2]], center: [1,1], values: [[-1,-1,-1],[-1,-1,-1],[-1,-1,-1]]}},
-            chiliV:{n:"竖辣椒",e:"🌶️",cls:"chiliV-bomb",tip:"竖方向各2格 +1",f:(r,c,v)=>{
+            chiliV:{category:"basic", n:"竖辣椒",e:"🌶️",cls:"chiliV-bomb",tip:"竖方向各2格 +1",f:(r,c,v)=>{
                 for(let i=-2;i<=2;i++){let y=r+i;if(y>=0&&y<S)v[y][c]++;}
             }, preview: {size:5, active: [[0,2],[1,2],[2,2],[3,2],[4,2]], center: [2,2]}},
-            chiliH:{n:"横辣椒",e:"🌶️",cls:"chiliH-bomb",tip:"横方向各2格 +1",f:(r,c,v)=>{
+            chiliH:{category:"basic", n:"横辣椒",e:"🌶️",cls:"chiliH-bomb",tip:"横方向各2格 +1",f:(r,c,v)=>{
                 for(let i=-2;i<=2;i++){let x=c+i;if(x>=0&&x<S)v[r][x]++;}
             }, preview: {size:5, active: [[2,0],[2,1],[2,2],[2,3],[2,4]], center: [2,2]}},
-            chiliPlus:{n:"十字辣椒",e:"✖️",cls:"chiliPlus-bomb",tip:"横竖各2格 +1",f:(r,c,v)=>{
+            chiliPlus:{category:"basic", n:"十字辣椒",e:"✖️",cls:"chiliPlus-bomb",tip:"横竖各2格 +1",f:(r,c,v)=>{
                 const d=[[-2,0],[-1,0],[0,-1],[0,-2],[0,1],[0,2],[0,0],[2,0],[1,0]];
                 d.forEach(([dr,dc])=>{let y=r+dr,x=c+dc;if(y>=0&&y<S&&x>=0&&x<S)v[y][x]++;});
             }, preview: {size:5, active: [[0,2],[1,2],[2,0],[2,1],[2,2],[2,3],[2,4],[3,2],[4,2]], center: [2,2]}},
-            chiliDiag:{n:"对角辣椒",e:"✖️",cls:"chiliDiag-bomb",tip:"3x3对角线 +1",f:(r,c,v)=>{
+
+            // ===== 异形系列 =====
+            chiliDiag:{category:"special", n:"对角辣椒",e:"✖️",cls:"chiliDiag-bomb",tip:"3x3对角线 +1",f:(r,c,v)=>{
                 const d=[[-1,-1],[-1,1],[0,0],[1,-1],[1,1]];
                 d.forEach(([dr,dc])=>{let y=r+dr,x=c+dc;if(y>=0&&y<S&&x>=0&&x<S)v[y][x]++;});
             }, preview: {size:3, active: [[0,0],[0,2],[1,1],[2,0],[2,2]], center: [1,1]}},
-            chiliBigDiag:{n:"大对角辣椒",e:"✖️",cls:"chiliBigDiag-bomb",tip:"5x5对角线 +1",f:(r,c,v)=>{
+            chiliBigDiag:{category:"special", n:"大对角辣椒",e:"✖️",cls:"chiliBigDiag-bomb",tip:"5x5对角线 +1",f:(r,c,v)=>{
                 const d=[[-2,-2],[-2,2],[-1,-1],[1,1],[-1,1],[1,-1],[0,0],[2,-2],[2,2]];
                 d.forEach(([dr,dc])=>{let y=r+dr,x=c+dc;if(y>=0&&y<S&&x>=0&&x<S)v[y][x]++;});
             }, preview: {size:5, active: [[0,0],[0,4],[1,1],[1,3],[2,2],[3,1],[3,3],[4,0],[4,4]], center: [2,2]}},
-            ring:{n:"环形雷",e:"🔘",cls:"ring-bomb",tip:"5x5区域外圈 +1",f:(r,c,v)=>{
+            ring:{category:"special", n:"环形雷",e:"🔘",cls:"ring-bomb",tip:"5x5区域外圈 +1",f:(r,c,v)=>{
                 for(let nr=-2;nr<=2;nr++){
                     for(let nc=-2;nc<=2;nc++){
                         if(nr === -2 || nr === 2 || nc === -2 || nc === 2){
@@ -926,32 +1051,7 @@
                     }
                 }
             }, preview: {size:5, active: [[0,0],[0,1],[0,2],[0,3],[0,4],[1,0],[1,4],[2,0],[2,4],[3,0],[3,4],[4,0],[4,1],[4,2],[4,3],[4,4]], center: [2,2]}},
-            mirror:{n:"镜像双雷",e:"🪞",cls:"mirror-bomb",tip:"自身+对称点 3x3 +1",f:(r,c,v)=>{
-                let mr = S - 1 - r;
-                let mc = S - 1 - c;
-                addVal(r, c, 1,1,v,1);
-                addVal(mr, mc,1,1,v,1);
-            }, preview: {size:6, active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2],[3,3],[3,4],[3,5],[4,3],[4,4],[4,5],[5,3],[5,4],[5,5]], center: [1,1], split: true}},
-            radiation:{n:"辐射雷",e:"☢️",cls:"radiation-bomb",tip:"中心+3 内环+2 外环+1",f:(r,c,v)=>{
-                v[r][c] +=3;
-                for(let dr=-1;dr<=1;dr++){
-                    for(let dc=-1;dc<=1;dc++){
-                        if(dr===0 && dc===0) continue;
-                        let y = r+dr, x = c+dc;
-                        if(y>=0&&y<S&&x>=0&&x<S) v[y][x]+=2;
-                    }
-                }
-                for(let dr=-2;dr<=2;dr++){
-                    for(let dc=-2;dc<=2;dc++){
-                        if(Math.abs(dr)===2 || Math.abs(dc)===2){
-                            let y = r+dr, x = c+dc;
-                            if(y>=0&&y<S&&x>=0&&x<S) v[y][x]+=1;
-                        }
-                    }
-                }
-            }, preview: {size:5, active: [[0,0],[0,1],[0,2],[0,3],[0,4],[1,0],[1,1],[1,2],[1,3],[1,4],[2,0],[2,1],[2,2],[2,3],[2,4],[3,0],[3,1],[3,2],[3,3],[3,4],[4,0],[4,1],[4,2],[4,3],[4,4]], 
-                center: [2,2], values: [[1,1,1,1,1],[1,2,2,2,1],[1,2,3,2,1],[1,2,2,2,1],[1,1,1,1,1]]}},
-            eight:{n:"八向雷",e:"✳️",cls:"eight-bomb",tip:"8方向各2格+自身 +1",f:(r,c,v)=>{
+            eight:{category:"special", n:"八向雷",e:"✳️",cls:"eight-bomb",tip:"8方向各2格+自身 +1",f:(r,c,v)=>{
                 const dirs = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
                 v[r][c]++;
                 dirs.forEach(([dy,dx])=>{
@@ -972,7 +1072,30 @@
                 [3,1], [4,0],
                 [3,3], [4,4]
             ], center: [2,2]}},
-            blackhole:{n:"黑洞炸弹",e:"🕳️",cls:"blackhole-bomb",tip:"中心-1 十字不变 外圈8格+1",f:(r,c,v)=>{
+
+            // ===== 物理律系列 =====
+            anti:{category:"physics", n:"反物质炸弹",e:"💥",cls:"anti-bomb",tip:"3x3范围 -1",f:(r,c,v)=>addVal(r,c,1,1,v,-1),
+                preview: {size:3, active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2]], center: [1,1], values: [[-1,-1,-1],[-1,-1,-1],[-1,-1,-1]]}},
+            radiation:{category:"physics", n:"辐射雷",e:"☢️",cls:"radiation-bomb",tip:"中心+3 内环+2 外环+1",f:(r,c,v)=>{
+                v[r][c] +=3;
+                for(let dr=-1;dr<=1;dr++){
+                    for(let dc=-1;dc<=1;dc++){
+                        if(dr===0 && dc===0) continue;
+                        let y = r+dr, x = c+dc;
+                        if(y>=0&&y<S&&x>=0&&x<S) v[y][x]+=2;
+                    }
+                }
+                for(let dr=-2;dr<=2;dr++){
+                    for(let dc=-2;dc<=2;dc++){
+                        if(Math.abs(dr)===2 || Math.abs(dc)===2){
+                            let y = r+dr, x = c+dc;
+                            if(y>=0&&y<S&&x>=0&&x<S) v[y][x]+=1;
+                        }
+                    }
+                }
+            }, preview: {size:5, active: [[0,0],[0,1],[0,2],[0,3],[0,4],[1,0],[1,1],[1,2],[1,3],[1,4],[2,0],[2,1],[2,2],[2,3],[2,4],[3,0],[3,1],[3,2],[3,3],[3,4],[4,0],[4,1],[4,2],[4,3],[4,4]], 
+                center: [2,2], values: [[1,1,1,1,1],[1,2,2,2,1],[1,2,3,2,1],[1,2,2,2,1],[1,1,1,1,1]]}},
+            blackhole:{category:"physics", n:"黑洞炸弹",e:"🕳️",cls:"blackhole-bomb",tip:"中心-1 十字不变 外圈8格+1",f:(r,c,v)=>{
                 v[r][c] -= 1;
                 const outer = [[-1,-1],[-1,1],[1,-1],[1,1],[-2,0],[2,0],[0,-2],[0,2]];
                 outer.forEach(([dr, dc]) => {
@@ -983,16 +1106,44 @@
                     }
                 });
             }, preview: {size:5, active: [[0,2],[1,1],[1,3],[2,0],[2,2],[2,4],[3,1],[3,3],[4,2]], center: [2,2], values: [[, ,1, , ], [,1,,1, ], [1,,-1,,1], [,1,,1, ], [, ,1, , ]]}},
-            yinYang:{n:"阴阳炸弹",e:"☯️",cls:"yin-yang-bomb",tip:"自身3x3+1 对称点3x3-1",f:(r,c,v)=>{
+
+            // ===== 对称系列 =====
+            mirror:{category:"symmetry", n:"镜像双雷",e:"🪞",cls:"mirror-bomb",tip:"自身+对称点 3x3 +1",f:(r,c,v)=>{
+                let mr = S - 1 - r;
+                let mc = S - 1 - c;
+                addVal(r, c, 1,1,v,1);
+                addVal(mr, mc,1,1,v,1);
+            }, preview: {size:6, active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2],[3,3],[3,4],[3,5],[4,3],[4,4],[4,5],[5,3],[5,4],[5,5]], center: [1,1], split: true}},
+            yinYang:{category:"symmetry", n:"阴阳炸弹",e:"☯️",cls:"yin-yang-bomb",tip:"自身3x3+1 对称点3x3-1",f:(r,c,v)=>{
                 addVal(r, c, 1, 1, v, 1);
                 let mr = S - 1 - r;
                 let mc = S - 1 - c;
                 addVal(mr, mc, 1, 1, v, -1);
             }, preview: {size:6, active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2],[3,3],[3,4],[3,5],[4,3],[4,4],[4,5],[5,3],[5,4],[5,5]], 
-                center: [1,1], values: [[1,1,1,,,], [1,1,1,,,], [1,1,1,,,], [,,, -1,-1,-1], [,,, -1,-1,-1], [,,, -1,-1,-1]], split: true}}
+                center: [1,1], values: [[1,1,1,,,], [1,1,1,,,], [1,1,1,,,], [,,, -1,-1,-1], [,,, -1,-1,-1], [,,, -1,-1,-1]], split: true}},
+            negativeMirror:{category:"symmetry", n:"负镜像双雷",e:"‼️",cls:"negative-mirror-bomb",tip:"自身+对称点 3x3范围 -1",
+                f:(r,c,v)=>{
+                    let mr = S - 1 - r;
+                    let mc = S - 1 - c;
+                    addVal(r, c, 1, 1, v, -1);
+                    addVal(mr, mc, 1, 1, v, -1);
+                },
+                preview: {
+                    size:6,
+                    active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2],[3,3],[3,4],[3,5],[4,3],[4,4],[4,5],[5,3],[5,4],[5,5]],
+                    center: [1,1],
+                    values: [[-1,-1,-1,,,], [-1,-1,-1,,,], [-1,-1,-1,,,], [,,,-1,-1,-1], [,,,-1,-1,-1], [,,,-1,-1,-1]],
+                    split: true
+                }
+            },
         };
 
         let G={tar:[],p:[],placed:{},pool:{},max:0,drag:null};
+
+        // ===== 教程系统 =====
+        let currentTutorialType = null;
+        let tutorialStep = 0;
+        let isTutorialMode = false;
 
         document.getElementById('toggleRuleSidebar').onclick = () => {
             const ruleSb = document.getElementById('ruleSidebar');
@@ -1085,21 +1236,41 @@
         function renderMineInfo() {
             const list = document.getElementById('mineInfoList');
             let html = '';
-            for (const key in M) {
-                const mine = M[key];
-                html += `
-                <div class="mine-info-item">
-                    <div class="mine-info-header">
-                        <div class="mine-info-emoji ${mine.cls}">${mine.e}</div>
-                        <div class="mine-info-name">${mine.n}</div>
-                    </div>
-                    <div class="mine-info-desc">${mine.tip}</div>
-                    <div class="mine-info-tip">
-                        ℹ️查看影响范围
-                        <div class="mine-preview">${genPreHtml(key)}</div>
-                    </div>
-                </div>`;
-            }
+            
+            const catOrder = ['basic', 'special', 'physics', 'symmetry'];
+            catOrder.forEach(catKey => {
+                const cat = CATEGORY[catKey];
+                const bombs = Object.keys(M).filter(key => M[key].category === catKey);
+                if (bombs.length === 0) return;
+                
+                html += `<div class="category-section">`;
+                html += `<div class="category-header">`;
+                html += `<strong>${cat.name}</strong>`;
+                
+                if (catKey !== 'basic') {
+                    html += `<button class="tutorial-btn-inline" onclick="startCategoryTutorial('${catKey}')">❓教程</button>`;
+                }
+                html += `</div>`;
+                
+                bombs.forEach(key => {
+                    const mine = M[key];
+                    html += `
+                    <div class="mine-info-item">
+                        <div class="mine-info-header">
+                            <div class="mine-info-emoji ${mine.cls}">${mine.e}</div>
+                            <div class="mine-info-name">${mine.n}</div>
+                        </div>
+                        <div class="mine-info-desc">${mine.tip}</div>
+                        <div class="mine-info-tip">
+                            ℹ️查看影响范围
+                            <div class="mine-preview">${genPreHtml(key)}</div>
+                        </div>
+                    </div>`;
+                });
+                
+                html += `</div>`;
+            });
+            
             list.innerHTML = html;
         }
 
@@ -1237,7 +1408,7 @@
         }
 
         function genGame(){
-            let all=["big5","high","anti","chiliV","chiliH","chiliPlus","chiliDiag","chiliBigDiag","ring","mirror","radiation","eight","blackhole","yinYang"];
+            let all=["big5","high","anti","chiliV","chiliH","chiliPlus","chiliDiag","chiliBigDiag","ring","mirror","radiation","eight","blackhole","yinYang","negativeMirror"];
             let sel=all.sort(()=>Math.random()-0.5).slice(0,TY);
             let pool={};
             let normal = 0;
@@ -1284,6 +1455,64 @@
             G.max=T; 
             G.placed={}; 
             resetP();
+        }
+
+        function genTutorialGame(categoryKey) {
+            let allowedKeys = ['normal', 'big5', 'high', 'chiliV', 'chiliH', 'chiliPlus'];
+            
+            if (categoryKey) {
+                const catBombs = Object.keys(M).filter(key => M[key].category === categoryKey);
+                allowedKeys.push(...catBombs);
+            }
+            
+            let pool = {};
+            let normalCount = Math.max(1, Math.floor(T * 0.4));
+            pool.normal = normalCount;
+            
+            let specialCount = T - normalCount;
+            let specialTypes = allowedKeys.filter(k => k !== 'normal');
+            
+            let remaining = specialCount;
+            while (remaining > 0) {
+                let t = specialTypes[Math.floor(Math.random() * specialTypes.length)];
+                pool[t] = (pool[t] || 0) + 1;
+                remaining--;
+            }
+            
+            let mines = [];
+            for (let t in pool) {
+                for (let i = 0; i < pool[t]; i++) {
+                    mines.push(t);
+                }
+            }
+            
+            mines = mines.slice(0, T);
+            let pos = new Set(), ans = {};
+            
+            while (mines.length) {
+                let r = Math.floor(Math.random() * S), c = Math.floor(Math.random() * S), k = r + ',' + c;
+                if (!pos.has(k)) { pos.add(k); ans[k] = mines.pop(); }
+            }
+            
+            let tar = Array(S).fill().map(() => Array(S).fill(0));
+            for (let k in ans) {
+                let [r, c] = k.split(',');
+                M[ans[k]].f(+r, +c, tar);
+            }
+            
+            G.tar = tar;
+            G.pool = pool;
+            G.max = T;
+            G.placed = {};
+            resetP();
+        }
+
+        function setupTutorialParams() {
+            diff = null;
+            document.getElementById('size').textContent = S;
+            document.getElementById('total').textContent = T;
+            document.getElementById('type').textContent = TY;
+            document.getElementById('spec').textContent = SP;
         }
 
         function resetP(){
@@ -1430,13 +1659,21 @@
                 }
             }
             
-            stopTi(); 
+            stopTi();
+            
+            if (isTutorialMode) {
+                onTutorialWin();
+                return;
+            }
+            
             saveRec();
             document.getElementById('win').style.display='flex';
         }
 
         function newGame(){
             resetTi(); 
+            isTutorialMode = false;
+            document.getElementById('tutorialProgressBar').style.display = 'none';
             genGame(); 
             render(); 
             renderRec();
@@ -1452,6 +1689,139 @@
         document.getElementById('reset').onclick=newGame;
         document.getElementById('clear').onclick=clearAll;
 
+        // ===== 教程系统函数 =====
+
+        function startTutorial() {
+            document.getElementById('overlay').style.display = 'none';
+            document.getElementById('tutorialPrompt').style.display = 'none';
+            
+            currentTutorialType = null;
+            isTutorialMode = true;
+            
+            const savedStep = localStorage.getItem('tutorialStep');
+            tutorialStep = savedStep ? parseInt(savedStep) : 0;
+            
+            setupTutorialBoard(null);
+        }
+
+        function openTutorialSelector() {
+            if (isTutorialMode) {
+                return;
+            }
+            
+            const basicStep = localStorage.getItem('tutorialStep');
+            if (basicStep && parseInt(basicStep) > 0 && parseInt(basicStep) < 5) {
+                currentTutorialType = null;
+                isTutorialMode = true;
+                tutorialStep = parseInt(basicStep);
+                setupTutorialBoard(null);
+                return;
+            }
+            
+            startTutorial();
+        }
+
+        function setupTutorialBoard(categoryKey) {
+            setupTutorialParams();
+            
+            genTutorialGame(categoryKey);
+            
+            showTutorialProgress(categoryKey);
+            
+            render();
+            document.getElementById('win').style.display = 'none';
+        }
+
+        function showTutorialProgress(categoryKey) {
+            const bar = document.getElementById('tutorialProgressBar');
+            bar.style.display = 'block';
+            
+            const title = document.getElementById('tutorialTitle');
+            if (!categoryKey) {
+                title.textContent = '新手教程';
+                const savedStep = localStorage.getItem('tutorialStep');
+                tutorialStep = savedStep ? parseInt(savedStep) : 0;
+            } else {
+                title.textContent = CATEGORY[categoryKey].name + '教程';
+                const stepKey = 'tutorial_' + categoryKey;
+                const savedStep = localStorage.getItem(stepKey);
+                tutorialStep = savedStep ? parseInt(savedStep) : 0;
+            }
+            
+            updateTutorialProgress();
+        }
+
+        function updateTutorialProgress() {
+            const fill = document.getElementById('tutorialProgressFill');
+            const text = document.getElementById('tutorialProgressText');
+            const progress = (tutorialStep / 5) * 100;
+            fill.style.width = progress + '%';
+            text.textContent = tutorialStep + '/5';
+        }
+
+        function onTutorialWin() {
+            tutorialStep++;
+            
+            const categoryKey = currentTutorialType;
+            if (!categoryKey) {
+                localStorage.setItem('tutorialStep', tutorialStep.toString());
+            } else {
+                localStorage.setItem('tutorial_' + categoryKey, tutorialStep.toString());
+            }
+            
+            updateTutorialProgress();
+            
+            if (tutorialStep >= 5) {
+                document.getElementById('overlay').style.display = 'block';
+                document.getElementById('tutorialCompleteModal').style.display = 'block';
+                document.getElementById('tutorialCompleteText').textContent = '已完成该教程';
+                
+                document.getElementById('tutorialProgressBar').style.display = 'none';
+                isTutorialMode = false;
+                
+                if (!categoryKey) {
+                    localStorage.setItem('tutorialCompleted', 'true');
+                }
+            } else {
+                setTimeout(function() {
+                    alert('破解一关！目前第' + (tutorialStep + 1) + '/5关  o((>ω< ))o');
+                    setupTutorialBoard(categoryKey);
+                }, 100);
+            }
+        }
+
+        function closeTutorialComplete() {
+            document.getElementById('overlay').style.display = 'none';
+            document.getElementById('tutorialCompleteModal').style.display = 'none';
+            
+            if (!currentTutorialType) {
+                setTimeout(function() {
+                    document.getElementById('overlay').style.display = 'block';
+                    document.getElementById('moreTutorialGuide').style.display = 'block';
+                }, 300);
+            }
+        }
+
+        function closeMoreTutorialGuide() {
+            document.getElementById('overlay').style.display = 'none';
+            document.getElementById('moreTutorialGuide').style.display = 'none';
+        }
+
+        function startCategoryTutorial(categoryKey) {
+            currentTutorialType = categoryKey;
+            isTutorialMode = true;
+            
+            const stepKey = 'tutorial_' + categoryKey;
+            const savedStep = localStorage.getItem(stepKey);
+            tutorialStep = savedStep ? parseInt(savedStep) : 0;
+            
+            document.getElementById('overlay').style.display = 'none';
+            
+            setupTutorialBoard(categoryKey);
+        }
+
+        // ===== 弹窗控制 =====
+
         window.onload=()=>{
             renderRec();
             renderMineInfo();
@@ -1459,18 +1829,57 @@
         };
 
         window.addEventListener('load', function() {
-            setTimeout(function() { 
-                document.getElementById('overlay').style.display = 'block';
-                document.getElementById('welcomeModal').style.display = 'block';
-            }, 400);
+            const today = new Date().toDateString();
+            const lastShown = localStorage.getItem('welcomeLastShown');
+            const isFirstTime = !localStorage.getItem('hasVisitedBefore');
+            
+            if (isFirstTime) {
+                setTimeout(function() {
+                    document.getElementById('overlay').style.display = 'block';
+                    document.getElementById('tutorialPrompt').style.display = 'block';
+                    
+                    const confirmBtn = document.getElementById('tutorialConfirmBtn');
+                    confirmBtn.disabled = true;
+                    let countdown = 5;
+                    const countdownEl = document.getElementById('tutorialCountdown');
+                    
+                    const interval = setInterval(() => {
+                        countdown--;
+                        if (countdown > 0) {
+                            countdownEl.textContent = '按钮将在' + countdown + '秒后可用...';
+                        } else {
+                            countdownEl.textContent = '';
+                            confirmBtn.disabled = false;
+                            clearInterval(interval);
+                        }
+                    }, 1000);
+                }, 800);
+                
+                localStorage.setItem('hasVisitedBefore', 'true');
+                if (!localStorage.getItem('tutorialStep')) {
+                    localStorage.setItem('tutorialStep', '0');
+                }
+            } else if (lastShown !== today) {
+                setTimeout(function() {
+                    document.getElementById('overlay').style.display = 'block';
+                    document.getElementById('welcomeModal').style.display = 'block';
+                }, 500);
+                localStorage.setItem('welcomeLastShown', today);
+            }
         });
 
-        function closeAutoModal() {
+        function closeWelcomeModal() {
             document.getElementById('overlay').style.display = 'none';
             document.getElementById('welcomeModal').style.display = 'none';
         }
 
-        document.getElementById('overlay').addEventListener('click', closeAutoModal);
+        document.getElementById('overlay').addEventListener('click', function() {
+            document.getElementById('overlay').style.display = 'none';
+            document.getElementById('welcomeModal').style.display = 'none';
+            document.getElementById('tutorialPrompt').style.display = 'none';
+            document.getElementById('tutorialCompleteModal').style.display = 'none';
+            document.getElementById('moreTutorialGuide').style.display = 'none';
+        });
     </script>
 </body>
 </html>

@@ -222,6 +222,12 @@
         .blackhole-bomb { font-size:24px; }
         .yin-yang-bomb { font-size:24px; }
         .negative-mirror-bomb {font-size: 24px;}
+        .amplifier-bomb { font-size:24px; }
+        .locator-bomb { font-size:22px; }
+        .shield-bomb { font-size:24px; }
+        .siphon-bomb { font-size:24px; }
+        .big-blackhole-bomb { font-size:32px; }
+        .tri-sym-bomb { font-size:24px; }
 
         .mine-item::after {
             content: attr(data-tip);
@@ -277,7 +283,7 @@
             position: fixed;
             top: 0;
             right: 0;
-            width: 320px;
+            width: 340px;
             height: 100vh;
             background: #fff;
             box-shadow: -3px 0 15px rgba(0,0,0,0.1);
@@ -428,6 +434,9 @@
         .rule-sidebar .sidebar-title {
             border-left-color: #48c65f;
         }
+        .sidebar-title.lock-title {
+            border-left-color: #805ad5;
+        }
 
         .rule-content {
             color: #4a5568;
@@ -466,21 +475,31 @@
         .preset-medium { background: #dc7f33; }
         .preset-hard { background: #d73a3a; }        
         
-        .preset-easy:hover { background: #48d088;
+        .preset-easy:hover:not(.locked) { background: #48d088;
             transform: translateY(-4px);
             box-shadow: 0 8px 12px #0ca45d;
             border-color: #00d572;
         }
-        .preset-medium:hover  { background: #ff9743;
+        .preset-medium:hover:not(.locked)  { background: #ff9743;
             transform: translateY(-4px);
             box-shadow: 0 8px 12px #a46c0c;
             border-color: #ffc710;
         }
-        .preset-hard:hover  { background: #ff4949; 
+        .preset-hard:hover:not(.locked)  { background: #ff4949; 
             transform: translateY(-4px);
             box-shadow: 0 8px 12px #dd2810;
             border-color: #e93232;
         }
+        .preset-btn.locked {
+            opacity: 0.4;
+            cursor: not-allowed;
+            filter: grayscale(0.6);
+        }
+        .preset-btn.locked:hover {
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
         .custom-item {
             display: flex;
             align-items: center;
@@ -509,7 +528,7 @@
         }
         .num-btn:hover{
             background: #4aaeff; 
-            border-color:#3f84de;;
+            border-color:#3f84de;
             box-shadow: 0 8px 24px #1099dd;
         }
         
@@ -810,9 +829,16 @@
             color: #2b6cb0;
             transition: all 0.2s;
         }
-        .tutorial-btn-inline:hover {
+        .tutorial-btn-inline:hover:not(.locked) {
             background: #bee3f8;
             border-color: #3182ce;
+        }
+        .tutorial-btn-inline.locked {
+            opacity: 0.4;
+            cursor: not-allowed;
+            border-color: #ccc;
+            background: #f0f0f0;
+            color: #999;
         }
 
         .category-header {
@@ -829,6 +855,74 @@
         .category-section {
             margin-bottom: 20px;
         }
+
+        /* 系列开关样式 */
+        .switch-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 10px;
+            margin-bottom: 6px;
+            background: #f7fafc;
+            border-radius: 8px;
+            border-left: 3px solid #ccc;
+        }
+        .switch-row.unlocked {
+            border-left-color: #38a169;
+        }
+        .switch-row .switch-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+        .switch-row .lock-emoji {
+            font-size: 15px;
+        }
+        .switch-toggle {
+            position: relative;
+            width: 42px;
+            height: 22px;
+            background: #cbd5e0;
+            border-radius: 11px;
+            cursor: pointer;
+            transition: background 0.3s;
+            flex-shrink: 0;
+        }
+        .switch-toggle.on {
+            background: #48bb78;
+        }
+        .switch-toggle::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 18px;
+            height: 18px;
+            background: #fff;
+            border-radius: 50%;
+            transition: transform 0.3s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+        .switch-toggle.on::after {
+            transform: translateX(20px);
+        }
+        .switch-row.locked-row .switch-toggle {
+            cursor: not-allowed;
+            opacity: 0.45;
+        }
+        .switch-hint {
+            font-size: 11px;
+            color: #a0aec0;
+            margin-top: 4px;
+            line-height: 1.4;
+        }
+        .switch-hint.unlock-hint {
+            color: #38a169;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -844,23 +938,30 @@
     <div class="auto-modal" id="tutorialPrompt" style="display:none;">
         <div class="icon">🤗</div>
         <h2>你好!</h2>
-        <p>这是你第一次游玩<span>『反向💣扫雷』</span><br>看看左侧的规则，然后开始新手教程吧！</p>
-        <button id="tutorialConfirmBtn" class="confirm-btn" onclick="startTutorial()" disabled>开始新手教程<br>[GO!]ヾ(≧▽≦*)o</button>
+        <p>这是你第一次游玩<span>『反向💣扫雷』</span><br>看看左侧的规则，然后开始新手关卡吧！</p>
+        <button id="tutorialConfirmBtn" class="confirm-btn" onclick="startTutorial()" disabled>开始新手关卡<br>[GO!]ヾ(≧▽≦*)o</button>
         <p style="font-size: 12px; color: #888; margin-top: 8px;" id="tutorialCountdown">按钮将在5秒后可用...</p>
     </div>
 
     <div class="auto-modal" id="tutorialCompleteModal" style="display:none;">
         <div class="icon">🥳</div>
         <h2>恭喜完成!</h2>
-        <p id="tutorialCompleteText">已完成该教程</p>
+        <p id="tutorialCompleteText">已完成该关卡</p>
         <button onclick="closeTutorialComplete()">我真厉害<br>( *︾▽︾)</button>
     </div>
 
     <div class="auto-modal" id="moreTutorialGuide" style="display:none;">
         <div class="icon">🧐</div>
-        <h2>更多教程</h2>
-        <p>点击左侧炸弹信息栏，可开启更多教程</p>
+        <h2>更多关卡</h2>
+        <p>点击左侧💣炸弹信息栏<br>可开启更多系列关卡<br>通关后自动解锁该系列地雷！</p>
         <button onclick="closeMoreTutorialGuide()">知道了</button>
+    </div>
+
+    <div class="auto-modal" id="presetLockedModal" style="display:none;">
+        <div class="icon">😣</div>
+        <h2>无法使用!</h2>
+        <p id="presetLockedText">需要在⚙️菜单中开启至少3个系列开关<br>才能使用预设难度哦！</p>
+        <button onclick="closePresetLockedModal()">知道了</button>
     </div>
 
     <h1 class="game-title">反向💣扫雷</h1>
@@ -869,7 +970,7 @@
 
     <div id="tutorialProgressBar">
         <div class="progress-header">
-            <span class="progress-title" id="tutorialTitle">新手教程</span>
+            <span class="progress-title" id="tutorialTitle">新手关卡</span>
             <span class="progress-text" id="tutorialProgressText">0/5</span>
         </div>
         <div class="progress-track">
@@ -880,7 +981,7 @@
     <div class="panel">
         <button id="reset">新游戏</button>
         <button id="clear">清空放置</button>
-        <button id="tutorialBtn" onclick="openTutorialSelector()">新手教程</button>
+        <button id="tutorialBtn" onclick="openTutorialSelector()">新手关卡</button>
     </div>
 
     <div class="info">已放置：<span id="placed">0</span> / 总雷数：<span id="max">0</span></div>
@@ -914,6 +1015,13 @@
                     <li>🟨 偏低：该格子的当前影响值 [小于] 显示数字（还需在周围加雷）。</li>
                     <li>🟥 偏高：该格子的当前影响值 [大于] 显示数字（周围雷太多，需删除）。</li>
                 </ul>
+                <h3>🔓 系列开关机制</h3>
+                <ul>
+                    <li>基础系列始终开启</li>
+                    <li>其他系列需通过对应专项练习（5关）后自动解锁并开启</li>
+                    <li>预设难度（简单/中等/困难）要求开启≥3个系列开关</li>
+                    <li>自由模式（自定义参数）不受限制，但只从已开启系列选雷</li>
+                </ul>
             </div>
         </div>
     </div>
@@ -930,9 +1038,9 @@
         <div class="sidebar-section">
             <div class="sidebar-title">🎮 难度选择</div>
             <div class="preset-buttons">
-                <button class="preset-btn preset-easy" onclick="setPre('easy')">😎简单</button>
-                <button class="preset-btn preset-medium" onclick="setPre('medium')">😮中等</button>
-                <button class="preset-btn preset-hard" onclick="setPre('hard')">👿困难</button>
+                <button class="preset-btn preset-easy" id="btnEasy" onclick="setPre('easy')">😎简单</button>
+                <button class="preset-btn preset-medium" id="btnMedium" onclick="setPre('medium')">😮中等</button>
+                <button class="preset-btn preset-hard" id="btnHard" onclick="setPre('hard')">👿困难</button>
             </div>
 
             <div class="custom-item">
@@ -971,22 +1079,29 @@
         </div>
 
         <div class="sidebar-section">
+            <div class="sidebar-title lock-title">🔓 系列开关</div>
+            <div id="seriesSwitchList"></div>
+            <div class="switch-hint" id="seriesSwitchHint">完成对应关卡可解锁系列</div>
+        </div>
+
+        <div class="sidebar-section">
             <div class="sidebar-title">🏆 最快纪录</div>
             <div class="record-tip">使用预设难度开始计时挑战吧！ヾ(≧▽≦*)o</div>
             <div id="recordList"></div>
         </div>
         
-        <div class="sidebar-version">v.4.2<br>作者:L1Nzy<br>邮箱:lin060911@qq.com
+        <div class="sidebar-version">v.5.0<br>作者:L1Nzy<br>邮箱:lin060911@qq.com
         </div>
     </div>
-<script>
+
+    <script>
         let S=10, T=6, TY=3, SP=4;
-        const LIMIT = { size:[7,20], total:[2,18], type:[0,15], spec:[0,99] }; 
+        const LIMIT = { size:[8,20], total:[2,24], type:[0,22], spec:[0,99] }; 
 
         const PRE = {
             easy:   { size: 8,  total: 6,  type: 2,  spec: 4 },
             medium: { size: 10, total: 8,  type: 4,  spec: 6 },
-            hard:   { size: 12, total: 10, type: 6,  spec: 8 }
+            hard:   { size: 12, total: 12, type: 6,  spec: 8 }
         };
 
         let diff = null;
@@ -1002,16 +1117,43 @@
             easy: null, medium: null, hard: null
         };
 
-        // ===== 地雷分类定义 =====
+        function getSeriesState() {
+            let saved = localStorage.getItem('seriesState');
+            if (saved) {
+                try { return JSON.parse(saved); } catch(e) {}
+            }
+            return { basic: true, special: false, physics: false, symmetry: false, tactical: false };
+        }
+        function saveSeriesState(s) {
+            localStorage.setItem('seriesState', JSON.stringify(s));
+        }
+        function getSeriesUnlocked() {
+            let saved = localStorage.getItem('seriesUnlocked');
+            if (saved) {
+                try { return JSON.parse(saved); } catch(e) {}
+            }
+            return { basic: true, special: false, physics: false, symmetry: false, tactical: false };
+        }
+        function saveSeriesUnlocked(u) {
+            localStorage.setItem('seriesUnlocked', JSON.stringify(u));
+        }
+
+        let seriesState = getSeriesState();
+        let seriesUnlocked = getSeriesUnlocked();
+        seriesState.basic = true;
+        seriesUnlocked.basic = true;
+        saveSeriesState(seriesState);
+        saveSeriesUnlocked(seriesUnlocked);
+
         const CATEGORY = {
-            basic: { name: "基础系列", order: 0 },
-            special: { name: "异形系列", order: 1 },
-            physics: { name: "物理律系列", order: 2 },
-            symmetry: { name: "对称系列", order: 3 }
+            basic: { name: "基础系列", order: 0, emoji: "💣" },
+            special: { name: "异形系列", order: 1, emoji: "✖️" },
+            physics: { name: "物理律系列", order: 2, emoji: "☢️" },
+            symmetry: { name: "对称系列", order: 3, emoji: "🪞" },
+            tactical: { name: "战术武器系列", order: 4, emoji: "⚔️" }
         };
 
         const M = {
-            // ===== 基础系列 =====
             normal:{category:"basic", n:"普通雷",e:"💣",cls:"normal-bomb",tip:"3x3范围 +1",f:(r,c,v)=>addVal(r,c,1,1,v,1),
                 preview: {size:3, active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2]], center: [1,1]}},
             big5:{category:"basic", n:"巨型雷",e:"💣",cls:"big-bomb",tip:"5x5范围 +1",f:(r,c,v)=>addVal(r,c,2,2,v,1),
@@ -1029,7 +1171,6 @@
                 d.forEach(([dr,dc])=>{let y=r+dr,x=c+dc;if(y>=0&&y<S&&x>=0&&x<S)v[y][x]++;});
             }, preview: {size:5, active: [[0,2],[1,2],[2,0],[2,1],[2,2],[2,3],[2,4],[3,2],[4,2]], center: [2,2]}},
 
-            // ===== 异形系列 =====
             chiliDiag:{category:"special", n:"对角辣椒",e:"✖️",cls:"chiliDiag-bomb",tip:"3x3对角线 +1",f:(r,c,v)=>{
                 const d=[[-1,-1],[-1,1],[0,0],[1,-1],[1,1]];
                 d.forEach(([dr,dc])=>{let y=r+dr,x=c+dc;if(y>=0&&y<S&&x>=0&&x<S)v[y][x]++;});
@@ -1042,11 +1183,8 @@
                 for(let nr=-2;nr<=2;nr++){
                     for(let nc=-2;nc<=2;nc++){
                         if(nr === -2 || nr === 2 || nc === -2 || nc === 2){
-                            let y = r + nr;
-                            let x = c + nc;
-                            if(y >= 0 && y < S && x >= 0 && x < S){
-                                v[y][x]++;
-                            }
+                            let y = r + nr; let x = c + nc;
+                            if(y >= 0 && y < S && x >= 0 && x < S) v[y][x]++;
                         }
                     }
                 }
@@ -1055,92 +1193,152 @@
                 const dirs = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
                 v[r][c]++;
                 dirs.forEach(([dy,dx])=>{
-                    for(let i=1;i<=2;i++){
-                        let y = r + dy*i;
-                        let x = c + dx*i;
-                        if(y>=0&&y<S&&x>=0&&x<S) v[y][x]++;
-                    }
+                    for(let i=1;i<=2;i++){ let y=r+dy*i,x=c+dx*i; if(y>=0&&y<S&&x>=0&&x<S) v[y][x]++; }
                 });
-            }, preview: {size:5, active: [
-                [2,2],
-                [1,2], [0,2],
-                [3,2], [4,2],
-                [2,1], [2,0],
-                [2,3], [2,4],
-                [1,1], [0,0],
-                [1,3], [0,4],
-                [3,1], [4,0],
-                [3,3], [4,4]
-            ], center: [2,2]}},
+            }, preview: {size:5, active: [ [2,2],[1,2],[0,2],[3,2],[4,2],[2,1],[2,0],[2,3],[2,4],[1,1],[0,0],[1,3],[0,4],[3,1],[4,0],[3,3],[4,4] ], center: [2,2]}},
 
-            // ===== 物理律系列 =====
             anti:{category:"physics", n:"反物质炸弹",e:"💥",cls:"anti-bomb",tip:"3x3范围 -1",f:(r,c,v)=>addVal(r,c,1,1,v,-1),
                 preview: {size:3, active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2]], center: [1,1], values: [[-1,-1,-1],[-1,-1,-1],[-1,-1,-1]]}},
             radiation:{category:"physics", n:"辐射雷",e:"☢️",cls:"radiation-bomb",tip:"中心+3 内环+2 外环+1",f:(r,c,v)=>{
-                v[r][c] +=3;
-                for(let dr=-1;dr<=1;dr++){
-                    for(let dc=-1;dc<=1;dc++){
-                        if(dr===0 && dc===0) continue;
-                        let y = r+dr, x = c+dc;
-                        if(y>=0&&y<S&&x>=0&&x<S) v[y][x]+=2;
-                    }
-                }
-                for(let dr=-2;dr<=2;dr++){
-                    for(let dc=-2;dc<=2;dc++){
-                        if(Math.abs(dr)===2 || Math.abs(dc)===2){
-                            let y = r+dr, x = c+dc;
-                            if(y>=0&&y<S&&x>=0&&x<S) v[y][x]+=1;
-                        }
-                    }
-                }
+                v[r][c]+=3;
+                for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){ if(dr===0&&dc===0)continue; let y=r+dr,x=c+dc; if(y>=0&&y<S&&x>=0&&x<S) v[y][x]+=2; }
+                for(let dr=-2;dr<=2;dr++) for(let dc=-2;dc<=2;dc++){ if(Math.abs(dr)===2||Math.abs(dc)===2){ let y=r+dr,x=c+dc; if(y>=0&&y<S&&x>=0&&x<S) v[y][x]+=1; } }
             }, preview: {size:5, active: [[0,0],[0,1],[0,2],[0,3],[0,4],[1,0],[1,1],[1,2],[1,3],[1,4],[2,0],[2,1],[2,2],[2,3],[2,4],[3,0],[3,1],[3,2],[3,3],[3,4],[4,0],[4,1],[4,2],[4,3],[4,4]], 
                 center: [2,2], values: [[1,1,1,1,1],[1,2,2,2,1],[1,2,3,2,1],[1,2,2,2,1],[1,1,1,1,1]]}},
             blackhole:{category:"physics", n:"黑洞炸弹",e:"🕳️",cls:"blackhole-bomb",tip:"中心-1 十字不变 外圈8格+1",f:(r,c,v)=>{
-                v[r][c] -= 1;
-                const outer = [[-1,-1],[-1,1],[1,-1],[1,1],[-2,0],[2,0],[0,-2],[0,2]];
-                outer.forEach(([dr, dc]) => {
-                    let y = r + dr;
-                    let x = c + dc;
-                    if(y >= 0 && y < S && x >= 0 && x < S) {
-                        v[y][x] += 1;
+                v[r][c]-=1;
+                [[-1,-1],[-1,1],[1,-1],[1,1],[-2,0],[2,0],[0,-2],[0,2]].forEach(([dr,dc])=>{ let y=r+dr,x=c+dc; if(y>=0&&y<S&&x>=0&&x<S) v[y][x]+=1; });
+            }, preview: {size:5, active: [[0,2],[1,1],[1,3],[2,0],[2,2],[2,4],[3,1],[3,3],[4,2]], center: [2,2], values: [[0,0,1,0,0],[0,1,0,1,0],[1,0,-1,0,1],[0,1,0,1,0],[0,0,1,0,0]]}},
+            bigBlackhole:{category:"physics", n:"大黑洞炸弹",e:"🕳️",cls:"big-blackhole-bomb",tip:"中心-2 内环-1 外环+1",f:(r,c,v)=>{
+                v[r][c] -= 2;
+                for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
+                    if(dr===0 && dc===0) continue;
+                    let y=r+dr,x=c+dc; if(y>=0&&y<S&&x>=0&&x<S) v[y][x] -= 1;
+                }
+                for(let dr=-2;dr<=2;dr++) for(let dc=-2;dc<=2;dc++){
+                    if(Math.abs(dr)===2 || Math.abs(dc)===2){
+                        let y=r+dr,x=c+dc; if(y>=0&&y<S&&x>=0&&x<S) v[y][x] += 1;
                     }
-                });
-            }, preview: {size:5, active: [[0,2],[1,1],[1,3],[2,0],[2,2],[2,4],[3,1],[3,3],[4,2]], center: [2,2], values: [[, ,1, , ], [,1,,1, ], [1,,-1,,1], [,1,,1, ], [, ,1, , ]]}},
+                }
+            }, preview: {size:5, active: [[0,0],[0,1],[0,2],[0,3],[0,4],[1,0],[1,1],[1,2],[1,3],[1,4],[2,0],[2,1],[2,2],[2,3],[2,4],[3,0],[3,1],[3,2],[3,3],[3,4],[4,0],[4,1],[4,2],[4,3],[4,4]], 
+                center: [2,2], values: [[1,1,1,1,1],[1,-1,-1,-1,1],[1,-1,-2,-1,1],[1,-1,-1,-1,1],[1,1,1,1,1]]}},
 
-            // ===== 对称系列 =====
             mirror:{category:"symmetry", n:"镜像双雷",e:"🪞",cls:"mirror-bomb",tip:"自身+对称点 3x3 +1",f:(r,c,v)=>{
-                let mr = S - 1 - r;
-                let mc = S - 1 - c;
-                addVal(r, c, 1,1,v,1);
-                addVal(mr, mc,1,1,v,1);
+                addVal(r,c,1,1,v,1); addVal(S-1-r,S-1-c,1,1,v,1);
             }, preview: {size:6, active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2],[3,3],[3,4],[3,5],[4,3],[4,4],[4,5],[5,3],[5,4],[5,5]], center: [1,1], split: true}},
             yinYang:{category:"symmetry", n:"阴阳炸弹",e:"☯️",cls:"yin-yang-bomb",tip:"自身3x3+1 对称点3x3-1",f:(r,c,v)=>{
-                addVal(r, c, 1, 1, v, 1);
-                let mr = S - 1 - r;
-                let mc = S - 1 - c;
-                addVal(mr, mc, 1, 1, v, -1);
+                addVal(r,c,1,1,v,1); addVal(S-1-r,S-1-c,1,1,v,-1);
             }, preview: {size:6, active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2],[3,3],[3,4],[3,5],[4,3],[4,4],[4,5],[5,3],[5,4],[5,5]], 
-                center: [1,1], values: [[1,1,1,,,], [1,1,1,,,], [1,1,1,,,], [,,, -1,-1,-1], [,,, -1,-1,-1], [,,, -1,-1,-1]], split: true}},
-            negativeMirror:{category:"symmetry", n:"负镜像双雷",e:"‼️",cls:"negative-mirror-bomb",tip:"自身+对称点 3x3范围 -1",
-                f:(r,c,v)=>{
-                    let mr = S - 1 - r;
-                    let mc = S - 1 - c;
-                    addVal(r, c, 1, 1, v, -1);
-                    addVal(mr, mc, 1, 1, v, -1);
-                },
-                preview: {
-                    size:6,
-                    active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2],[3,3],[3,4],[3,5],[4,3],[4,4],[4,5],[5,3],[5,4],[5,5]],
-                    center: [1,1],
-                    values: [[-1,-1,-1,,,], [-1,-1,-1,,,], [-1,-1,-1,,,], [,,,-1,-1,-1], [,,,-1,-1,-1], [,,,-1,-1,-1]],
-                    split: true
-                }
-            },
+                center: [1,1], values: [[1,1,1,0,0,0],[1,1,1,0,0,0],[1,1,1,0,0,0],[0,0,0,-1,-1,-1],[0,0,0,-1,-1,-1],[0,0,0,-1,-1,-1]], split: true}},
+            negativeMirror:{category:"symmetry", n:"负镜像双雷",e:"‼️",cls:"negative-mirror-bomb",tip:"自身+对称点 3x3 -1",f:(r,c,v)=>{
+                addVal(r,c,1,1,v,-1); addVal(S-1-r,S-1-c,1,1,v,-1);
+            }, preview: {size:6, active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2],[3,3],[3,4],[3,5],[4,3],[4,4],[4,5],[5,3],[5,4],[5,5]],
+                center: [1,1], values: [[-1,-1,-1,0,0,0],[-1,-1,-1,0,0,0],[-1,-1,-1,0,0,0],[0,0,0,-1,-1,-1],[0,0,0,-1,-1,-1],[0,0,0,-1,-1,-1]], split: true}},
+            triSym:{category:"symmetry", n:"对称·叁雷",e:"3️⃣",cls:"tri-sym-bomb",tip:"自身3x3+1 水平对称点3x3+1 垂直对称点3x3+1",f:(r,c,v)=>{
+                addVal(r,c,1,1,v,1);
+                addVal(r,S-1-c,1,1,v,1);
+                addVal(S-1-r,c,1,1,v,1);
+            }, preview: {size:6, active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2],[0,3],[0,4],[0,5],[1,3],[1,4],[1,5],[2,3],[2,4],[2,5],[3,0],[3,1],[3,2],[4,0],[4,1],[4,2],[5,0],[5,1],[5,2]], 
+                center: [1,1], values: [[1,1,1,1,1,1],[1,1,1,1,1,1],[1,1,1,1,1,1],[1,1,1,0,0,0],[1,1,1,0,0,0],[1,1,1,0,0,0]], split: true}},
+
+            amplifier:{category:"tactical", n:"伤害放大器",e:"🔍",cls:"amplifier-bomb",tip:"本格+1；3x3内每有其他地雷→该地雷3x3额外+1",f:(r,c,v)=>{
+                v[r][c]++;
+            }, preview: {size:3, active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2]], center: [1,1]}},
+            locator:{category:"tactical", n:"坐标定位器",e:"🌐",cls:"locator-bomb",tip:"本格无效果；所在行/列的首尾各+1",f:(r,c,v)=>{
+                if(c!==0) v[r][0]++;
+                if(c!==S-1) v[r][S-1]++;
+                if(r!==0) v[0][c]++;
+                if(r!==S-1) v[S-1][c]++;
+            }, preview: {size:5, active: [[0,2],[2,0],[2,4],[4,2]], center: [2,2]}},
+            shield:{category:"tactical", n:"屏障生成器",e:"🛡️",cls:"shield-bomb",tip:"3x3范围内所有地块固定为0",f:(r,c,v)=>{
+            }, preview: {size:3, active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2]], center: [1,1], values: [[0,0,0],[0,0,0],[0,0,0]]}},
+            siphon:{category:"tactical", n:"能量虹吸器",e:"🌀",cls:"siphon-bomb",tip:"本格+1；5x5内每有1个其他地雷额外+1",f:(r,c,v)=>{
+                v[r][c]++;
+            }, preview: {size:5, active: [[0,0],[0,1],[0,2],[0,3],[0,4],[1,0],[1,1],[1,2],[1,3],[1,4],[2,0],[2,1],[2,2],[2,3],[2,4],[3,0],[3,1],[3,2],[3,3],[3,4],[4,0],[4,1],[4,2],[4,3],[4,4]], center: [2,2]}}
         };
+
+        function applyTacticalEffects(board, placed) {
+            for (let k in placed) {
+                if (placed[k] === 'shield') {
+                    let [r, c] = k.split(',').map(Number);
+                    for (let dr=-1; dr<=1; dr++) for (let dc=-1; dc<=1; dc++) {
+                        let y=r+dr, x=c+dc; if(y>=0&&y<S&&x>=0&&x<S) board[y][x]=0;
+                    }
+                }
+            }
+            let extra = Array(S).fill().map(()=>Array(S).fill(0));
+            for (let k in placed) {
+                if (placed[k] === 'amplifier') {
+                    let [r, c] = k.split(',').map(Number);
+                    for (let dr=-1; dr<=1; dr++) for (let dc=-1; dc<=1; dc++) {
+                        let y=r+dr, x=c+dc;
+                        if(y<0||y>=S||x<0||x>=S) continue;
+                        let nk = y+','+x;
+                        if (nk===k || !placed[nk]) continue;
+                        for (let d2r=-1;d2r<=1;d2r++) for (let d2c=-1;d2c<=1;d2c++) {
+                            let yy=y+d2r, xx=x+d2c; if(yy>=0&&yy<S&&xx>=0&&xx<S) extra[yy][xx]++;
+                        }
+                    }
+                }
+            }
+            for (let i=0;i<S;i++) for (let j=0;j<S;j++) board[i][j]+=extra[i][j];
+            for (let k in placed) {
+                if (placed[k] === 'siphon') {
+                    let [r, c] = k.split(',').map(Number);
+                    let cnt=0;
+                    for (let dr=-2;dr<=2;dr++) for (let dc=-2;dc<=2;dc++) {
+                        let y=r+dr,x=c+dc; if(y<0||y>=S||x<0||x>=S) continue;
+                        if (y+','+x !== k && placed[y+','+x]) cnt++;
+                    }
+                    board[r][c]+=cnt;
+                }
+            }
+            for (let k in placed) {
+                if (placed[k] === 'shield') {
+                    let [r, c] = k.split(',').map(Number);
+                    for (let dr=-1; dr<=1; dr++) for (let dc=-1; dc<=1; dc++) {
+                        let y=r+dr, x=c+dc; if(y>=0&&y<S&&x>=0&&x<S) board[y][x]=0;
+                    }
+                }
+            }
+        }
+
+        function addVal(r,c,dr,dc,v,n){
+            for(let nr=-dr;nr<=dr;nr++) for(let nc=-dc;nc<=dc;nc++){ let y=r+nr,x=c+nc; if(y>=0&&y<S&&x>=0&&x<S) v[y][x]+=n; }
+        }
+
+        function getEnabledMineKeys() {
+            let keys = [];
+            for (let k in M) {
+                if (seriesState[M[k].category]) keys.push(k);
+            }
+            return keys;
+        }
+
+        function pickMinesFromEnabled(count, excludeNormal) {
+            let enabled = getEnabledMineKeys();
+            let normalAvailable = enabled.includes('normal');
+            let specials = enabled.filter(k => k !== 'normal');
+            
+            let pool = {};
+            let normalCount = normalAvailable ? Math.max(1, Math.floor(count * 0.35)) : 0;
+            if (normalCount > 0) pool.normal = normalCount;
+            
+            let remain = count - normalCount;
+            while (remain > 0 && specials.length > 0) {
+                let t = specials[Math.floor(Math.random()*specials.length)];
+                pool[t] = (pool[t]||0)+1;
+                remain--;
+            }
+            while (remain > 0) {
+                pool.normal = (pool.normal||0)+1;
+                remain--;
+            }
+            return pool;
+        }
 
         let G={tar:[],p:[],placed:{},pool:{},max:0,drag:null};
 
-        // ===== 教程系统 =====
         let currentTutorialType = null;
         let tutorialStep = 0;
         let isTutorialMode = false;
@@ -1149,22 +1347,19 @@
             const ruleSb = document.getElementById('ruleSidebar');
             ruleSb.classList.toggle('open');
             const infoSb = document.getElementById('infoSidebar');
-            if (ruleSb.classList.contains('open') && infoSb.classList.contains('open')) {
-                infoSb.classList.remove('open');
-            }
+            if (ruleSb.classList.contains('open') && infoSb.classList.contains('open')) infoSb.classList.remove('open');
         };
 
         document.getElementById('toggleInfoSidebar').onclick = () => {
             const infoSb = document.getElementById('infoSidebar');
             infoSb.classList.toggle('open');
             const ruleSb = document.getElementById('ruleSidebar');
-            if (infoSb.classList.contains('open') && ruleSb.classList.contains('open')) {
-                ruleSb.classList.remove('open');
-            }
+            if (infoSb.classList.contains('open') && ruleSb.classList.contains('open')) ruleSb.classList.remove('open');
         };
 
         document.getElementById('toggleSidebar').onclick = () => {
             document.getElementById('sidebar').classList.toggle('open');
+            renderSeriesSwitches();
         };
 
         document.addEventListener('click', (e) => {
@@ -1174,120 +1369,93 @@
             const infoBtn = document.getElementById('toggleInfoSidebar');
             const sb = document.getElementById('sidebar');
             const btn = document.getElementById('toggleSidebar');
-            
-            if (!ruleSb.contains(e.target) && e.target !== ruleBtn && ruleSb.classList.contains('open')) {
-                ruleSb.classList.remove('open');
-            }
-            if (!infoSb.contains(e.target) && e.target !== infoBtn && infoSb.classList.contains('open')) {
-                infoSb.classList.remove('open');
-            }
-            if (!sb.contains(e.target) && e.target !== btn && sb.classList.contains('open')) {
-                sb.classList.remove('open');
-            }
+            if (!ruleSb.contains(e.target) && e.target !== ruleBtn && ruleSb.classList.contains('open')) ruleSb.classList.remove('open');
+            if (!infoSb.contains(e.target) && e.target !== infoBtn && infoSb.classList.contains('open')) infoSb.classList.remove('open');
+            if (!sb.contains(e.target) && e.target !== btn && sb.classList.contains('open')) sb.classList.remove('open');
         });
 
-        function genPreHtml(mk) {
-            const mine = M[mk];
-            const { size, active, center, values, split } = mine.preview;
-            const isPlus1 = !values;
-
-            let diagonal = '';
-            if (split) {
-                diagonal = `<svg class="diagonal-line" viewBox="0 0 ${size} ${size}">
-                                <line x1="${size}" y1="0" x2="0" y2="${size}" stroke="#666" stroke-width="0.2"/>
-                            </svg>`;
-            }
-
-            let html = `<div class="preview-grid" style="grid-template-columns: repeat(${size}, 20px);">`;
-            html += diagonal;
-
-            for (let i = 0; i < size; i++) {
-                for (let j = 0; j < size; j++) {
-                    let cellCls = 'preview-cell';
-                    let isCenter = (i === center[0] && j === center[1]);
-                    let isActive = active.some(([x, y]) => x === i && y === j);
-
-                    if (isCenter) {
-                        cellCls += ' center';
-                    } else if (isActive) {
-                        if (split) {
-                            if (i < 3 && j < 3) {
-                                cellCls += ' split-left';
-                            } else if (i >= 3 && j >= 3) {
-                                cellCls += ' split-right';
-                            }
-                        } else {
-                            cellCls += ' active';
-                        }
-                    }
-
-                    let cellVal = '';
-                    if (!isPlus1 && values && values[i] && values[i][j] !== undefined && values[i][j] !== '') {
-                        cellVal = values[i][j];
-                    }
-
-                    html += `<div class="${cellCls}">${cellVal}</div>`;
-                }
-            }
-            html += `</div>`;
-            return html;
-        }
-
-        function renderMineInfo() {
-            const list = document.getElementById('mineInfoList');
+        function renderSeriesSwitches() {
+            const container = document.getElementById('seriesSwitchList');
+            if (!container) return;
             let html = '';
-            
-            const catOrder = ['basic', 'special', 'physics', 'symmetry'];
+            const catOrder = ['basic','special','physics','symmetry','tactical'];
             catOrder.forEach(catKey => {
-                const cat = CATEGORY[catKey];
-                const bombs = Object.keys(M).filter(key => M[key].category === catKey);
-                if (bombs.length === 0) return;
-                
-                html += `<div class="category-section">`;
-                html += `<div class="category-header">`;
-                html += `<strong>${cat.name}</strong>`;
-                
-                if (catKey !== 'basic') {
-                    html += `<button class="tutorial-btn-inline" onclick="startCategoryTutorial('${catKey}')">❓教程</button>`;
+                let unlocked = seriesUnlocked[catKey];
+                let on = seriesState[catKey];
+                let cat = CATEGORY[catKey];
+                let lockEmoji = unlocked ? '🔓' : '🔒';
+                html += `<div class="switch-row ${unlocked?'unlocked':'locked-row'}">`;
+                html += `<div class="switch-label"><span class="lock-emoji">${lockEmoji}</span><span class="cat-name">${cat.emoji} ${cat.name}</span></div>`;
+                if (catKey === 'basic') {
+                    html += `<div class="switch-toggle on" style="cursor:default;opacity:0.7"></div>`;
+                } else {
+                    html += `<div class="switch-toggle ${on?'on':''} ${unlocked?'':'disabled'}" onclick="event.stopPropagation();${unlocked?'toggleSeries(\''+catKey+'\')':''}"></div>`;
                 }
-                html += `</div>`;
-                
-                bombs.forEach(key => {
-                    const mine = M[key];
-                    html += `
-                    <div class="mine-info-item">
-                        <div class="mine-info-header">
-                            <div class="mine-info-emoji ${mine.cls}">${mine.e}</div>
-                            <div class="mine-info-name">${mine.n}</div>
-                        </div>
-                        <div class="mine-info-desc">${mine.tip}</div>
-                        <div class="mine-info-tip">
-                            ℹ️查看影响范围
-                            <div class="mine-preview">${genPreHtml(key)}</div>
-                        </div>
-                    </div>`;
-                });
-                
                 html += `</div>`;
             });
+            container.innerHTML = html;
             
-            list.innerHTML = html;
+            let hint = document.getElementById('seriesSwitchHint');
+            let onCount = Object.values(seriesState).filter(v=>v).length;
+            if (onCount < 3) {
+                hint.className = 'switch-hint';
+                hint.innerHTML = `当前开启 ${onCount}/5 个系列<br>开启≥3个才能使用预设难度<br>💡通关系列专项练习可自动解锁`;
+            } else {
+                hint.className = 'switch-hint unlock-hint';
+                hint.textContent = `当前开启 ${onCount}/5 个系列 ✅ 预设难度可用`;
+            }
+            
+            updatePresetButtons();
+        }
+
+        function toggleSeries(catKey) {
+            if (catKey === 'basic') return;
+            if (!seriesUnlocked[catKey]) return;
+            seriesState[catKey] = !seriesState[catKey];
+            saveSeriesState(seriesState);
+            renderSeriesSwitches();
+        }
+
+        function unlockSeries(catKey) {
+            seriesUnlocked[catKey] = true;
+            seriesState[catKey] = true; 
+            saveSeriesUnlocked(seriesUnlocked);
+            saveSeriesState(seriesState);
+            renderSeriesSwitches();
+        }
+
+        function updatePresetButtons() {
+            let onCount = Object.values(seriesState).filter(v=>v).length;
+            let locked = onCount < 3;
+            ['btnEasy','btnMedium','btnHard'].forEach(id => {
+                let btn = document.getElementById(id);
+                if (!btn) return;
+                if (locked) {
+                    btn.classList.add('locked');
+                } else {
+                    btn.classList.remove('locked');
+                }
+            });
+        }
+
+        function checkPresetAllowed() {
+            let onCount = Object.values(seriesState).filter(v=>v).length;
+            return onCount >= 3;
         }
 
         function setPre(d) {
+            if (!checkPresetAllowed()) {
+                document.getElementById('overlay').style.display = 'block';
+                document.getElementById('presetLockedModal').style.display = 'block';
+                return;
+            }
             const p = PRE[d];
-            S = p.size; 
-            T = p.total; 
-            TY = p.type; 
-            SP = p.spec;
-            SP = Math.min(SP, T); 
-            TY = Math.min(TY, SP);
-            
+            S = p.size; T = p.total; TY = p.type; SP = p.spec;
+            SP = Math.min(SP, T); TY = Math.min(TY, SP);
             document.getElementById('size').textContent = S;
             document.getElementById('total').textContent = T;
             document.getElementById('type').textContent = TY;
             document.getElementById('spec').textContent = SP;
-            
             diff = d;
             applySet();
         }
@@ -1296,321 +1464,227 @@
             let [min,max]=LIMIT[key];
             let val = (key==='size'?S:key==='total'?T:key==='type'?TY:SP);
             val = Math.max(min, Math.min(max, val+dir));
-            
-            if(key==='size') S=val; 
-            if(key==='total') T=val;
-            if(key==='type') TY=val; 
-            if(key==='spec') SP=val;
-            
-            SP=Math.min(SP,T); 
-            TY=Math.min(TY,SP);
-            
+            if(key==='size') S=val; if(key==='total') T=val; if(key==='type') TY=val; if(key==='spec') SP=val;
+            SP=Math.min(SP,T); TY=Math.min(TY,SP);
             document.getElementById('size').textContent=S;
             document.getElementById('total').textContent=T;
             document.getElementById('type').textContent=TY;
             document.getElementById('spec').textContent=SP;
-            
             diff = null;
         }
 
         function applySet(){
-            SP=Math.min(SP,T); 
-            TY=Math.min(TY,SP);
+            SP=Math.min(SP,T); TY=Math.min(TY,SP);
             newGame();
         }
 
         function startTiOnFirst() {
             if (!diff || ts) return;
-            ts = true;
-            startTi();
+            ts = true; startTi();
         }
-
-        function startTi() {
-            stopTi();
-            st = Date.now();
-            ti = setInterval(updateTi, 10);
-            document.getElementById('timer').style.display = 'block';
-        }
-
-        function stopTi() {
-            if (ti) clearInterval(ti);
-        }
-
+        function startTi() { stopTi(); st=Date.now(); ti=setInterval(updateTi,10); document.getElementById('timer').style.display='block'; }
+        function stopTi() { if(ti) clearInterval(ti); }
         function updateTi() {
-            const elapsed = Date.now() - st;
-            ct = elapsed;
-            const ms = elapsed % 1000;
-            const sec = Math.floor(elapsed / 1000) % 60;
-            const min = Math.floor(elapsed / 60000);
-            
-            document.getElementById('timer').textContent = 
-                `${min.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}.${(ms/10|0).toString().padStart(2,'0')}`;
+            const e=Date.now()-st; ct=e;
+            document.getElementById('timer').textContent=`${String(Math.floor(e/60000)).padStart(2,'0')}:${String(Math.floor(e/1000)%60).padStart(2,'0')}.${String(Math.floor(e%1000/10)).padStart(2,'0')}`;
         }
-
-        function resetTi() {
-            stopTi();
-            ts = false;
-            ct = 0;
-            document.getElementById('timer').textContent = '00:00.00';
-            document.getElementById('timer').style.display = 'none';
-        }
+        function resetTi() { stopTi(); ts=false; ct=0; document.getElementById('timer').textContent='00:00.00'; document.getElementById('timer').style.display='none'; }
 
         function saveRec() {
             if (!diff) return;
-            lt[diff] = ct;
-            localStorage.setItem('mineLastTimes', JSON.stringify(lt));
-            
-            if (rec[diff] === null || ct < rec[diff]) {
-                rec[diff] = ct;
-                localStorage.setItem('mineRecords', JSON.stringify(rec));
-            }
+            lt[diff]=ct; localStorage.setItem('mineLastTimes',JSON.stringify(lt));
+            if (rec[diff]===null||ct<rec[diff]) { rec[diff]=ct; localStorage.setItem('mineRecords',JSON.stringify(rec)); }
             renderRec();
         }
-
         function fmtTime(ms) {
-            if (ms == null) return '暂无纪录';
-            const min = Math.floor(ms / 60000);
-            const sec = Math.floor(ms / 1000) % 60;
-            const msec = Math.floor((ms % 1000) / 10);
-            
-            return `${min.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}.${msec.toString().padStart(2,'0')}`;
+            if (ms==null) return '暂无纪录';
+            return `${String(Math.floor(ms/60000)).padStart(2,'0')}:${String(Math.floor(ms/1000)%60).padStart(2,'0')}.${String(Math.floor(ms%1000/10)).padStart(2,'0')}`;
         }
-
         function renderRec() {
             const list = document.getElementById('recordList');
-            list.innerHTML = `
-                <div class="record-item"><div class="record-label">简单</div>
-                    最快：<span class="record-best">${fmtTime(rec.easy)}</span><br>
-                    本次：<span class="record-current">${fmtTime(lt.easy)}</span>
-                </div>
-                <div class="record-item"><div class="record-label">中等</div>
-                    最快：<span class="record-best">${fmtTime(rec.medium)}</span><br>
-                    本次：<span class="record-current">${fmtTime(lt.medium)}</span>
-                </div>
-                <div class="record-item"><div class="record-label">困难</div>
-                    最快：<span class="record-best">${fmtTime(rec.hard)}</span><br>
-                    本次：<span class="record-current">${fmtTime(lt.hard)}</span>
-                </div>
-            `;
+            list.innerHTML = ['easy','medium','hard'].map(d=>`<div class="record-item"><div class="record-label">${d==='easy'?'简单':d==='medium'?'中等':'困难'}</div>最快：<span class="record-best">${fmtTime(rec[d])}</span><br>本次：<span class="record-current">${fmtTime(lt[d])}</span></div>`).join('');
         }
 
-        document.addEventListener('dragstart', e => {
-            e.dataTransfer.setDragImage(new Image(), 0, 0);
-        }, false);
-
-        function addVal(r,c,dr,dc,v,n){
-            for(let nr=-dr;nr<=dr;nr++) {
-                for(let nc=-dc;nc<=dc;nc++){
-                    let y=r+nr,x=c+nc; 
-                    if(y>=0&&y<S&&x>=0&&x<S) v[y][x]+=n;
-                }
-            }
-        }
+        document.addEventListener('dragstart', e => { e.dataTransfer.setDragImage(new Image(),0,0); }, false);
 
         function genGame(){
-            let all=["big5","high","anti","chiliV","chiliH","chiliPlus","chiliDiag","chiliBigDiag","ring","mirror","radiation","eight","blackhole","yinYang","negativeMirror"];
-            let sel=all.sort(()=>Math.random()-0.5).slice(0,TY);
-            let pool={};
-            let normal = 0;
+            let enabled = getEnabledMineKeys();
+            if (!enabled.includes('normal')) enabled.unshift('normal');
             
-            if (SP < T) {
-                normal = Math.max(1, T - SP);
-            }
-            if (normal > 0) {
-                pool.normal = normal;
-            }
+            let specials = enabled.filter(k => k !== 'normal');
+            specials.sort(()=>Math.random()-0.5);
+            let sel = specials.slice(0, Math.min(TY, specials.length));
             
-            let rem=SP; 
-            sel.forEach(t=>{pool[t]=1;rem--});
-            
-            while(rem>0){
-                let t=sel[Math.random()*sel.length|0];
-                pool[t]++;
-                rem--;
+            while (sel.length < TY && specials.length > 0) {
+                sel.push(specials[Math.floor(Math.random()*specials.length)]);
             }
             
-            let mines=[]; 
-            for(let t in pool){
-                for(let i=0;i<pool[t];i++){
-                    mines.push(t);
-                }
+            let pool = {};
+            let normalNeeded = Math.max(1, T - SP);
+            pool.normal = normalNeeded;
+            
+            let rem = SP;
+            sel.forEach(t=>{ pool[t]=(pool[t]||0)+1; rem--; });
+            while (rem>0 && sel.length>0) {
+                let t=sel[Math.floor(Math.random()*sel.length)];
+                pool[t]++; rem--;
             }
+            while (rem>0) { pool.normal++; rem--; }
             
-            mines=mines.slice(0,T);
-            let pos=new Set(),ans={};
+            let mines=[];
+            for (let t in pool) for (let i=0;i<pool[t];i++) mines.push(t);
+            mines = mines.slice(0,T);
             
+            let pos=new Set(), ans={};
             while(mines.length){
                 let r=Math.random()*S|0,c=Math.random()*S|0,k=r+','+c;
                 if(!pos.has(k)){pos.add(k);ans[k]=mines.pop();}
             }
             
             let tar=Array(S).fill().map(()=>Array(S).fill(0));
-            for(let k in ans){
-                let [r,c]=k.split(',');
-                M[ans[k]].f(+r,+c,tar);
-            }
+            for (let k in ans) { let [r,c]=k.split(','); M[ans[k]].f(+r,+c,tar); }
+            applyTacticalEffects(tar, ans);
             
-            G.tar=tar; 
-            G.pool=pool; 
-            G.max=T; 
-            G.placed={}; 
+            G.tar=tar; G.pool=pool; G.max=T; G.placed={};
             resetP();
         }
 
         function genTutorialGame(categoryKey) {
-            let allowedKeys = ['normal', 'big5', 'high', 'chiliV', 'chiliH', 'chiliPlus'];
-            
+            let allowed = ['normal','big5','high','chiliV','chiliH','chiliPlus'];
             if (categoryKey) {
-                const catBombs = Object.keys(M).filter(key => M[key].category === categoryKey);
-                allowedKeys.push(...catBombs);
+                let catBombs = Object.keys(M).filter(k => M[k].category === categoryKey);
+                allowed = allowed.concat(catBombs);
             }
+            let pool={};
+            pool.normal = Math.max(1, Math.floor(T*0.4));
+            let specials = allowed.filter(k=>k!=='normal');
+            let remain = T - pool.normal;
+            while (remain>0) { let t=specials[Math.floor(Math.random()*specials.length)]; pool[t]=(pool[t]||0)+1; remain--; }
             
-            let pool = {};
-            let normalCount = Math.max(1, Math.floor(T * 0.4));
-            pool.normal = normalCount;
+            let mines=[];
+            for (let t in pool) for (let i=0;i<pool[t];i++) mines.push(t);
+            mines=mines.slice(0,T);
             
-            let specialCount = T - normalCount;
-            let specialTypes = allowedKeys.filter(k => k !== 'normal');
+            let pos=new Set(), ans={};
+            while(mines.length){ let r=Math.random()*S|0,c=Math.random()*S|0,k=r+','+c; if(!pos.has(k)){pos.add(k);ans[k]=mines.pop();} }
             
-            let remaining = specialCount;
-            while (remaining > 0) {
-                let t = specialTypes[Math.floor(Math.random() * specialTypes.length)];
-                pool[t] = (pool[t] || 0) + 1;
-                remaining--;
-            }
+            let tar=Array(S).fill().map(()=>Array(S).fill(0));
+            for (let k in ans) { let [r,c]=k.split(','); M[ans[k]].f(+r,+c,tar); }
+            applyTacticalEffects(tar, ans);
             
-            let mines = [];
-            for (let t in pool) {
-                for (let i = 0; i < pool[t]; i++) {
-                    mines.push(t);
-                }
-            }
-            
-            mines = mines.slice(0, T);
-            let pos = new Set(), ans = {};
-            
-            while (mines.length) {
-                let r = Math.floor(Math.random() * S), c = Math.floor(Math.random() * S), k = r + ',' + c;
-                if (!pos.has(k)) { pos.add(k); ans[k] = mines.pop(); }
-            }
-            
-            let tar = Array(S).fill().map(() => Array(S).fill(0));
-            for (let k in ans) {
-                let [r, c] = k.split(',');
-                M[ans[k]].f(+r, +c, tar);
-            }
-            
-            G.tar = tar;
-            G.pool = pool;
-            G.max = T;
-            G.placed = {};
+            G.tar=tar; G.pool=pool; G.max=T; G.placed={};
             resetP();
         }
 
         function setupTutorialParams() {
-            diff = null;
-            document.getElementById('size').textContent = S;
-            document.getElementById('total').textContent = T;
-            document.getElementById('type').textContent = TY;
-            document.getElementById('spec').textContent = SP;
+            diff=null;
+            document.getElementById('size').textContent=S;
+            document.getElementById('total').textContent=T;
+            document.getElementById('type').textContent=TY;
+            document.getElementById('spec').textContent=SP;
+        }
+
+        function genPreHtml(mk) {
+            const mine = M[mk];
+            if (!mine.preview) return '<div>无预览</div>';
+            const { size, active, center, values, split } = mine.preview;
+            const isPlus1 = !values;
+            let diagonal = '';
+            if (split) diagonal = `<svg class="diagonal-line" viewBox="0 0 ${size} ${size}"><line x1="${size}" y1="0" x2="0" y2="${size}" stroke="#666" stroke-width="0.2"/></svg>`;
+            let html = `<div class="preview-grid" style="grid-template-columns: repeat(${size}, 20px);">${diagonal}`;
+            for (let i=0;i<size;i++) for (let j=0;j<size;j++) {
+                let cls='preview-cell';
+                let isC=(i===center[0]&&j===center[1]);
+                let isA=active.some(([x,y])=>x===i&&y===j);
+                if (isC) cls+=' center';
+                else if (isA) { if (split) { if(i<3&&j<3) cls+=' split-left'; else if(i>=3&&j>=3) cls+=' split-right'; } else cls+=' active'; }
+                let cv='';
+                if (!isPlus1 && values && values[i] && values[i][j]!==undefined && values[i][j]!=='') cv=values[i][j];
+                html+=`<div class="${cls}">${cv}</div>`;
+            }
+            html+='</div>';
+            return html;
+        }
+
+        function renderMineInfo() {
+            const list = document.getElementById('mineInfoList');
+            let html='';
+            const catOrder = ['basic','special','physics','symmetry','tactical'];
+            catOrder.forEach(catKey => {
+                let unlocked = seriesUnlocked[catKey];
+                let cat = CATEGORY[catKey];
+                let bombs = Object.keys(M).filter(k => M[k].category===catKey);
+                if (bombs.length===0) return;
+                html += `<div class="category-section">`;
+                html += `<div class="category-header"><strong>${cat.emoji} ${cat.name}</strong>`;
+                if (catKey==='basic') {
+                    html += `<span style="margin-left:auto;font-size:12px;color:#38a169;">✅始终开启</span>`;
+                } else if (unlocked) {
+                    html += `<button class="tutorial-btn-inline" onclick="startCategoryTutorial('${catKey}')">练习</button>`;
+                    html += `<span style="margin-left:8px;font-size:12px;color:#38a169;">🔓已解锁</span>`;
+                } else {
+                    html += `<button class="tutorial-btn-inline" onclick="startCategoryTutorial('${catKey}')" style="border-color:#805ad5;color:#805ad5;background:#f5f0ff;">挑战</button>`;
+                    html += `<span style="margin-left:8px;font-size:12px;color:#a0aec0;">🔒未解锁</span>`;
+                }
+                html += `</div>`;
+                bombs.forEach(key => {
+                    let m = M[key];
+                    let wrapStyle = unlocked ? '' : 'opacity:0.75;';
+                    html += `<div class="mine-info-item" style="${wrapStyle}">
+                        <div class="mine-info-header">
+                            <div class="mine-info-emoji ${m.cls}">${m.e}</div>
+                            <div class="mine-info-name">${m.n}</div>
+                            ${unlocked?'':'<span style="margin-left:auto;font-size:11px;color:#a0aec0;">🔒</span>'}
+                        </div>
+                        <div class="mine-info-desc">${m.tip}</div>
+                        <div class="mine-info-tip">
+                            ℹ️查看影响范围
+                            <div class="mine-preview">${genPreHtml(key)}</div>
+                        </div>
+                    </div>`;
+                });
+                html += `</div>`;
+            });
+            list.innerHTML = html;
         }
 
         function resetP(){
             G.p=Array(S).fill().map(()=>Array(S).fill(0));
-            for(let k in G.placed){
-                let [r,c]=k.split(',');
-                M[G.placed[k]].f(+r,+c,G.p);
-            }
+            for (let k in G.placed) { let [r,c]=k.split(','); M[G.placed[k]].f(+r,+c,G.p); }
+            applyTacticalEffects(G.p, G.placed);
         }
 
         function render(){
-            let b=document.getElementById('board'); 
-            b.innerHTML='';
-            b.style.gridTemplateRows=`repeat(${S},40px)`;
-            b.style.gridTemplateColumns=`repeat(${S},40px)`;
-            
-            for(let r=0;r<S;r++) {
-                for(let c=0;c<S;c++){
-                    let d=document.createElement('div'); 
-                    d.className='cell';
-                    d.dataset.r=r; 
-                    d.dataset.c=c;
-                    
-                    let t=G.tar[r][c],p=G.p[r][c],k=r+','+c;
-                    
-                    if(p===t) d.classList.add('cell-valid');
-                    else if(p<t) d.classList.add('cell-low');
-                    else d.classList.add('cell-over');
-                    
-                    if(t!==0){
-                        d.textContent=t;
-                        d.classList.add('n'+Math.min(t,8));
-                    }
-                    
-                    if(G.placed[k]){
-                        d.classList.add('mine-here');
-                        let ty=G.placed[k];
-                        d.innerHTML=`<span class="${M[ty].cls}">${M[ty].e}</span>`;
-                        d.draggable=true;
-                        d.ondragstart=e=>{
-                            G.drag=k; 
-                            e.dataTransfer.setData('text/plain','');
-                        };
-                    }
-                    
-                    d.ondragover=e=>{
-                        e.preventDefault();
-                        d.style.boxShadow='inset 0 0 0 2px #4299e1';
-                    };
-                    
-                    d.ondragleave=()=>{
-                        if(!G.placed[d.dataset.r+','+d.dataset.c]) 
-                            d.style.boxShadow='';
-                    };
-                    
-                    d.ondrop=e=>{
-                        e.preventDefault();
-                        d.style.boxShadow='';
-                        drop.call(d,e);
-                    };
-                    
-                    d.oncontextmenu=e=>{
-                        e.preventDefault();
-                        del(r,c);
-                    };
-                    
-                    b.appendChild(d);
+            let b=document.getElementById('board'); b.innerHTML='';
+            b.style.gridTemplateRows=`repeat(${S},40px)`; b.style.gridTemplateColumns=`repeat(${S},40px)`;
+            for(let r=0;r<S;r++) for(let c=0;c<S;c++){
+                let d=document.createElement('div'); d.className='cell'; d.dataset.r=r; d.dataset.c=c;
+                let t=G.tar[r][c], p=G.p[r][c], k=r+','+c;
+                if(p===t) d.classList.add('cell-valid'); else if(p<t) d.classList.add('cell-low'); else d.classList.add('cell-over');
+                if(t!==0){ d.textContent=t; d.classList.add('n'+Math.min(t,8)); }
+                if(G.placed[k]){ d.classList.add('mine-here'); let ty=G.placed[k]; d.innerHTML=`<span class="${M[ty].cls}">${M[ty].e}</span>`; d.draggable=true;
+                    d.ondragstart=e=>{G.drag=k; e.dataTransfer.setData('text/plain','');};
                 }
+                d.ondragover=e=>{e.preventDefault(); d.style.boxShadow='inset 0 0 0 2px #4299e1';};
+                d.ondragleave=()=>{if(!G.placed[d.dataset.r+','+d.dataset.c]) d.style.boxShadow='';};
+                d.ondrop=e=>{e.preventDefault(); d.style.boxShadow=''; drop.call(d,e);};
+                d.oncontextmenu=e=>{e.preventDefault(); del(r,c);};
+                b.appendChild(d);
             }
-            
             document.getElementById('placed').textContent=Object.keys(G.placed).length;
             document.getElementById('max').textContent=G.max;
-            
-            renderSlot(); 
-            checkWin();
+            renderSlot(); checkWin();
         }
 
         function renderSlot(){
-            let s=document.getElementById('slot');
-            s.innerHTML='';
-            
-            for(let t in G.pool){
-                let max=G.pool[t],use=Object.values(G.placed).filter(x=>x===t).length;
+            let s=document.getElementById('slot'); s.innerHTML='';
+            for (let t in G.pool) {
+                let max=G.pool[t], use=Object.values(G.placed).filter(x=>x===t).length;
                 let div=document.createElement('div');
-                
                 div.className='mine-item'+(use>=max?' disabled':'');
                 div.dataset.tip=M[t].tip;
                 div.innerHTML=`<div class="emoji-drag ${M[t].cls}" draggable="${use<max}">${M[t].e}</div><div>${M[t].n}</div><div>${use}/${max}</div>`;
-                
-                div.querySelector('.emoji-drag').ondragstart=e=>{
-                    if(use>=max){
-                        e.preventDefault();
-                        return;
-                    }
-                    G.drag=null; 
-                    e.dataTransfer.setData('t',t);
-                };
-                
+                div.querySelector('.emoji-drag').ondragstart=e=>{ if(use>=max){e.preventDefault();return;} G.drag=null; e.dataTransfer.setData('t',t); };
                 s.appendChild(div);
             }
         }
@@ -1618,267 +1692,162 @@
         function drop(e){
             startTiOnFirst();
             let r=+this.dataset.r,c=+this.dataset.c,k=r+','+c;
-            
             if(G.placed[k]) return;
-            
-            if(G.drag){
-                let t=G.placed[G.drag];
-                delete G.placed[G.drag];
-                G.placed[k]=t;
-                G.drag=null;
-            } else {
-                let t=e.dataTransfer.getData('t');
-                if(!t) return;
-                
-                let use=Object.values(G.placed).filter(x=>x===t).length;
-                if(use>=G.pool[t]) return;
-                
-                G.placed[k]=t;
-            }
-            
-            resetP();
-            render();
+            if(G.drag){ let t=G.placed[G.drag]; delete G.placed[G.drag]; G.placed[k]=t; G.drag=null; }
+            else { let t=e.dataTransfer.getData('t'); if(!t) return; if(Object.values(G.placed).filter(x=>x===t).length>=G.pool[t]) return; G.placed[k]=t; }
+            resetP(); render();
         }
 
         function del(r,c){
             startTiOnFirst();
-            let k=r+','+c; 
-            if(!G.placed[k]) return;
-            
-            delete G.placed[k]; 
-            resetP(); 
-            render();
+            let k=r+','+c; if(!G.placed[k]) return;
+            delete G.placed[k]; resetP(); render();
         }
 
         function checkWin(){
             if(Object.keys(G.placed).length!==G.max) return;
-            
-            for(let r=0;r<S;r++) {
-                for(let c=0;c<S;c++) {
-                    if(G.p[r][c]!==G.tar[r][c]) return;
-                }
-            }
-            
+            for(let r=0;r<S;r++) for(let c=0;c<S;c++) if(G.p[r][c]!==G.tar[r][c]) return;
             stopTi();
-            
-            if (isTutorialMode) {
-                onTutorialWin();
-                return;
-            }
-            
+            if (isTutorialMode) { onTutorialWin(); return; }
             saveRec();
             document.getElementById('win').style.display='flex';
         }
 
-        function newGame(){
-            resetTi(); 
-            isTutorialMode = false;
-            document.getElementById('tutorialProgressBar').style.display = 'none';
-            genGame(); 
-            render(); 
-            renderRec();
-            document.getElementById('win').style.display='none';
+        function onTutorialWin() {
+            tutorialStep++;
+            let cat = currentTutorialType;
+            if (!cat) localStorage.setItem('tutorialStep', tutorialStep.toString());
+            else localStorage.setItem('tutorial_'+cat, tutorialStep.toString());
+            updateTutorialProgress();
+
+            if (tutorialStep >= 5) {
+                if (cat && !seriesUnlocked[cat]) {
+                    unlockSeries(cat);
+                    renderMineInfo();
+                    renderSeriesSwitches();
+                }
+                if (!cat && !seriesUnlocked['special']) {
+                    unlockSeries('special');
+                    renderMineInfo();
+                    renderSeriesSwitches();
+                }
+                document.getElementById('overlay').style.display='block';
+                document.getElementById('tutorialCompleteModal').style.display='block';
+                let txt;
+                if (!cat) {
+                    txt = '🎉 新手关卡全部完成！<br>已自动解锁「异形系列」作为奖励 ✅<br>快去💣炸弹信息栏开启它的关卡吧';
+                } else {
+                    txt = `🎉 已解锁「${CATEGORY[cat].name}」！<br>该系列地雷已加入题库 ✅`;
+                }
+                document.getElementById('tutorialCompleteText').innerHTML = txt;
+                document.getElementById('tutorialProgressBar').style.display='none';
+                isTutorialMode = false;
+                if (!cat) localStorage.setItem('tutorialCompleted','true');
+            } else {
+                setTimeout(()=>{ alert(`破解一关！目前第${tutorialStep+1}/5关  o((>ω< ))o`); setupTutorialBoard(cat); }, 100);
+            }
         }
-
-        function clearAll(){
-            G.placed={};
-            resetP();
-            render();
-        }
-
-        document.getElementById('reset').onclick=newGame;
-        document.getElementById('clear').onclick=clearAll;
-
-        // ===== 教程系统函数 =====
 
         function startTutorial() {
-            document.getElementById('overlay').style.display = 'none';
-            document.getElementById('tutorialPrompt').style.display = 'none';
-            
-            currentTutorialType = null;
-            isTutorialMode = true;
-            
-            const savedStep = localStorage.getItem('tutorialStep');
-            tutorialStep = savedStep ? parseInt(savedStep) : 0;
-            
+            document.getElementById('overlay').style.display='none';
+            document.getElementById('tutorialPrompt').style.display='none';
+            currentTutorialType = null; isTutorialMode = true;
+            tutorialStep = parseInt(localStorage.getItem('tutorialStep'))||0;
             setupTutorialBoard(null);
         }
 
         function openTutorialSelector() {
-            if (isTutorialMode) {
-                return;
+            if (isTutorialMode) return;
+            let bs = localStorage.getItem('tutorialStep');
+            if (bs && parseInt(bs)>0 && parseInt(bs)<5) {
+                currentTutorialType=null; isTutorialMode=true; tutorialStep=parseInt(bs);
+                setupTutorialBoard(null); return;
             }
-            
-            const basicStep = localStorage.getItem('tutorialStep');
-            if (basicStep && parseInt(basicStep) > 0 && parseInt(basicStep) < 5) {
-                currentTutorialType = null;
-                isTutorialMode = true;
-                tutorialStep = parseInt(basicStep);
-                setupTutorialBoard(null);
-                return;
-            }
-            
             startTutorial();
         }
 
-        function setupTutorialBoard(categoryKey) {
+        function setupTutorialBoard(catKey) {
+            S=10; T=6; TY=3; SP=4;
             setupTutorialParams();
-            
-            genTutorialGame(categoryKey);
-            
-            showTutorialProgress(categoryKey);
-            
+            genTutorialGame(catKey);
+            showTutorialProgress(catKey);
             render();
-            document.getElementById('win').style.display = 'none';
+            document.getElementById('win').style.display='none';
         }
 
-        function showTutorialProgress(categoryKey) {
-            const bar = document.getElementById('tutorialProgressBar');
-            bar.style.display = 'block';
-            
-            const title = document.getElementById('tutorialTitle');
-            if (!categoryKey) {
-                title.textContent = '新手教程';
-                const savedStep = localStorage.getItem('tutorialStep');
-                tutorialStep = savedStep ? parseInt(savedStep) : 0;
-            } else {
-                title.textContent = CATEGORY[categoryKey].name + '教程';
-                const stepKey = 'tutorial_' + categoryKey;
-                const savedStep = localStorage.getItem(stepKey);
-                tutorialStep = savedStep ? parseInt(savedStep) : 0;
-            }
-            
+        function showTutorialProgress(catKey) {
+            let bar=document.getElementById('tutorialProgressBar'); bar.style.display='block';
+            let title=document.getElementById('tutorialTitle');
+            if (!catKey) { title.textContent='新手关卡'; tutorialStep=parseInt(localStorage.getItem('tutorialStep'))||0; }
+            else { title.textContent=CATEGORY[catKey].name+'关卡'; tutorialStep=parseInt(localStorage.getItem('tutorial_'+catKey))||0; }
             updateTutorialProgress();
         }
 
         function updateTutorialProgress() {
-            const fill = document.getElementById('tutorialProgressFill');
-            const text = document.getElementById('tutorialProgressText');
-            const progress = (tutorialStep / 5) * 100;
-            fill.style.width = progress + '%';
-            text.textContent = tutorialStep + '/5';
+            document.getElementById('tutorialProgressFill').style.width = (tutorialStep/5*100)+'%';
+            document.getElementById('tutorialProgressText').textContent = tutorialStep+'/5';
         }
 
-        function onTutorialWin() {
-            tutorialStep++;
-            
-            const categoryKey = currentTutorialType;
-            if (!categoryKey) {
-                localStorage.setItem('tutorialStep', tutorialStep.toString());
-            } else {
-                localStorage.setItem('tutorial_' + categoryKey, tutorialStep.toString());
-            }
-            
-            updateTutorialProgress();
-            
-            if (tutorialStep >= 5) {
-                document.getElementById('overlay').style.display = 'block';
-                document.getElementById('tutorialCompleteModal').style.display = 'block';
-                document.getElementById('tutorialCompleteText').textContent = '已完成该教程';
-                
-                document.getElementById('tutorialProgressBar').style.display = 'none';
-                isTutorialMode = false;
-                
-                if (!categoryKey) {
-                    localStorage.setItem('tutorialCompleted', 'true');
-                }
-            } else {
-                setTimeout(function() {
-                    alert('破解一关！目前第' + (tutorialStep + 1) + '/5关  o((>ω< ))o');
-                    setupTutorialBoard(categoryKey);
-                }, 100);
-            }
+        function startCategoryTutorial(catKey) {
+            currentTutorialType=catKey; isTutorialMode=true;
+            tutorialStep = seriesUnlocked[catKey]
+                ? (parseInt(localStorage.getItem('tutorial_'+catKey))||0)
+                : 0;
+            document.getElementById('overlay').style.display='none';
+            setupTutorialBoard(catKey);
         }
 
-        function closeTutorialComplete() {
-            document.getElementById('overlay').style.display = 'none';
-            document.getElementById('tutorialCompleteModal').style.display = 'none';
-            
-            if (!currentTutorialType) {
-                setTimeout(function() {
-                    document.getElementById('overlay').style.display = 'block';
-                    document.getElementById('moreTutorialGuide').style.display = 'block';
-                }, 300);
-            }
+        function closeWelcomeModal(){ document.getElementById('overlay').style.display='none'; document.getElementById('welcomeModal').style.display='none'; }
+        function closeTutorialComplete(){
+            document.getElementById('overlay').style.display='none'; document.getElementById('tutorialCompleteModal').style.display='none';
+            if (!currentTutorialType) setTimeout(()=>{ document.getElementById('overlay').style.display='block'; document.getElementById('moreTutorialGuide').style.display='block'; },300);
         }
+        function closeMoreTutorialGuide(){ document.getElementById('overlay').style.display='none'; document.getElementById('moreTutorialGuide').style.display='none'; }
+        function closePresetLockedModal(){ document.getElementById('overlay').style.display='none'; document.getElementById('presetLockedModal').style.display='none'; }
 
-        function closeMoreTutorialGuide() {
-            document.getElementById('overlay').style.display = 'none';
-            document.getElementById('moreTutorialGuide').style.display = 'none';
+        document.getElementById('overlay').addEventListener('click', ()=>{
+            document.getElementById('overlay').style.display='none';
+            document.getElementById('welcomeModal').style.display='none';
+            document.getElementById('tutorialPrompt').style.display='none';
+            document.getElementById('tutorialCompleteModal').style.display='none';
+            document.getElementById('moreTutorialGuide').style.display='none';
+            document.getElementById('presetLockedModal').style.display='none';
+        });
+
+        function newGame(){
+            resetTi(); isTutorialMode=false; document.getElementById('tutorialProgressBar').style.display='none';
+            genGame(); render(); renderRec(); document.getElementById('win').style.display='none';
         }
+        function clearAll(){ G.placed={}; resetP(); render(); }
 
-        function startCategoryTutorial(categoryKey) {
-            currentTutorialType = categoryKey;
-            isTutorialMode = true;
-            
-            const stepKey = 'tutorial_' + categoryKey;
-            const savedStep = localStorage.getItem(stepKey);
-            tutorialStep = savedStep ? parseInt(savedStep) : 0;
-            
-            document.getElementById('overlay').style.display = 'none';
-            
-            setupTutorialBoard(categoryKey);
-        }
-
-        // ===== 弹窗控制 =====
+        document.getElementById('reset').onclick=newGame;
+        document.getElementById('clear').onclick=clearAll;
 
         window.onload=()=>{
             renderRec();
             renderMineInfo();
+            renderSeriesSwitches();
             newGame();
         };
 
         window.addEventListener('load', function() {
-            const today = new Date().toDateString();
-            const lastShown = localStorage.getItem('welcomeLastShown');
-            const isFirstTime = !localStorage.getItem('hasVisitedBefore');
-            
+            let today=new Date().toDateString();
+            let lastShown=localStorage.getItem('welcomeLastShown');
+            let isFirstTime=!localStorage.getItem('hasVisitedBefore');
             if (isFirstTime) {
-                setTimeout(function() {
-                    document.getElementById('overlay').style.display = 'block';
-                    document.getElementById('tutorialPrompt').style.display = 'block';
-                    
-                    const confirmBtn = document.getElementById('tutorialConfirmBtn');
-                    confirmBtn.disabled = true;
-                    let countdown = 5;
-                    const countdownEl = document.getElementById('tutorialCountdown');
-                    
-                    const interval = setInterval(() => {
-                        countdown--;
-                        if (countdown > 0) {
-                            countdownEl.textContent = '按钮将在' + countdown + '秒后可用...';
-                        } else {
-                            countdownEl.textContent = '';
-                            confirmBtn.disabled = false;
-                            clearInterval(interval);
-                        }
-                    }, 1000);
-                }, 800);
-                
-                localStorage.setItem('hasVisitedBefore', 'true');
-                if (!localStorage.getItem('tutorialStep')) {
-                    localStorage.setItem('tutorialStep', '0');
-                }
-            } else if (lastShown !== today) {
-                setTimeout(function() {
-                    document.getElementById('overlay').style.display = 'block';
-                    document.getElementById('welcomeModal').style.display = 'block';
-                }, 500);
-                localStorage.setItem('welcomeLastShown', today);
+                setTimeout(()=>{
+                    document.getElementById('overlay').style.display='block';
+                    document.getElementById('tutorialPrompt').style.display='block';
+                    let btn=document.getElementById('tutorialConfirmBtn'); btn.disabled=true; let cd=5;
+                    let cdEl=document.getElementById('tutorialCountdown');
+                    let iv=setInterval(()=>{ cd--; if(cd>0) cdEl.textContent='按钮将在'+cd+'秒后可用...'; else{cdEl.textContent='';btn.disabled=false;clearInterval(iv);} },1000);
+                },800);
+                localStorage.setItem('hasVisitedBefore','true');
+                if(!localStorage.getItem('tutorialStep')) localStorage.setItem('tutorialStep','0');
+            } else if (lastShown!==today) {
+                setTimeout(()=>{ document.getElementById('overlay').style.display='block'; document.getElementById('welcomeModal').style.display='block'; },500);
+                localStorage.setItem('welcomeLastShown',today);
             }
-        });
-
-        function closeWelcomeModal() {
-            document.getElementById('overlay').style.display = 'none';
-            document.getElementById('welcomeModal').style.display = 'none';
-        }
-
-        document.getElementById('overlay').addEventListener('click', function() {
-            document.getElementById('overlay').style.display = 'none';
-            document.getElementById('welcomeModal').style.display = 'none';
-            document.getElementById('tutorialPrompt').style.display = 'none';
-            document.getElementById('tutorialCompleteModal').style.display = 'none';
-            document.getElementById('moreTutorialGuide').style.display = 'none';
         });
     </script>
 </body>

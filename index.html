@@ -184,6 +184,10 @@
             color: #2d3748;
             transition: all 0.2s;
             border: 3px solid #bebebe;
+            cursor: grab;
+        }
+        .mine-item:active {
+            cursor: grabbing;
         }
         .mine-item:hover {
             transform: translateY(-4px);
@@ -283,7 +287,7 @@
             position: fixed;
             top: 0;
             right: 0;
-            width: 340px;
+            width: 500px;
             height: 100vh;
             background: #fff;
             box-shadow: -3px 0 15px rgba(0,0,0,0.1);
@@ -460,6 +464,7 @@
             display: flex;
             gap: 8px;
             margin-bottom: 15px;
+            flex-wrap: wrap;
         }
         .preset-btn {
             flex: 1;
@@ -470,10 +475,12 @@
             cursor: pointer;
             border: 4px solid #f8f8f8;
             transition: transform 0.5s ease;
+            min-width: 60px;
         }
         .preset-easy { background: #38a169; }
         .preset-medium { background: #dc7f33; }
         .preset-hard { background: #d73a3a; }        
+        .preset-hell { background: #6b21a8; }
         
         .preset-easy:hover:not(.locked) { background: #48d088;
             transform: translateY(-4px);
@@ -489,6 +496,11 @@
             transform: translateY(-4px);
             box-shadow: 0 8px 12px #dd2810;
             border-color: #e93232;
+        }
+        .preset-hell:hover:not(.locked) { background: #8b2fc4;
+            transform: translateY(-4px);
+            box-shadow: 0 8px 12px #5b1290;
+            border-color: #c77dff;
         }
         .preset-btn.locked {
             opacity: 0.4;
@@ -570,6 +582,7 @@
         .record-label { font-weight: bold; margin-bottom: 4px; }
         .record-best { color: #38a169; font-weight: bold; }
         .record-current { color: #ed8936; font-weight: bold; }
+        .record-count { color: #4c6ef5; font-weight: bold; }
         .record-new { color: #e53e3e; font-weight: bold; margin-left: 6px; }
         
         .sidebar-version {
@@ -856,7 +869,6 @@
             margin-bottom: 20px;
         }
 
-        /* 系列开关样式 */
         .switch-row {
             display: flex;
             align-items: center;
@@ -914,14 +926,19 @@
             opacity: 0.45;
         }
         .switch-hint {
-            font-size: 11px;
+            font-size: 12px;
             color: #a0aec0;
             margin-top: 4px;
             line-height: 1.4;
+            font-weight: 500;
+
+        }
+        .switch-hint strong{
+            font-size: 14px;
+            color: #7c8794;
         }
         .switch-hint.unlock-hint {
             color: #38a169;
-            font-weight: 600;
         }
     </style>
 </head>
@@ -962,6 +979,13 @@
         <h2>无法使用!</h2>
         <p id="presetLockedText">需要在⚙️菜单中开启至少3个系列开关<br>才能使用预设难度哦！</p>
         <button onclick="closePresetLockedModal()">知道了</button>
+    </div>
+
+    <div class="auto-modal" id="hellLockedModal" style="display:none;">
+        <div class="icon">🫣</div>
+        <h2>地狱之门紧闭</h2>
+        <p>需要开启<b>全部5个</b>系列开关<br>才能挑战地狱难度！<br>当前已开启 <span id="hellLockedCount">0</span>/5 个</p>
+        <button onclick="closeHellLockedModal()">知道了</button>
     </div>
 
     <h1 class="game-title">反向💣扫雷</h1>
@@ -1019,7 +1043,8 @@
                 <ul>
                     <li>基础系列始终开启</li>
                     <li>其他系列需通过对应专项练习（5关）后自动解锁并开启</li>
-                    <li>预设难度（简单/中等/困难）要求开启≥3个系列开关</li>
+                    <li>简单/中等/困难：需开启≥3个系列开关</li>
+                    <li>地狱🫣：需开启<b>全部5个</b>系列开关</li>
                     <li>自由模式（自定义参数）不受限制，但只从已开启系列选雷</li>
                 </ul>
             </div>
@@ -1040,7 +1065,8 @@
             <div class="preset-buttons">
                 <button class="preset-btn preset-easy" id="btnEasy" onclick="setPre('easy')">😎简单</button>
                 <button class="preset-btn preset-medium" id="btnMedium" onclick="setPre('medium')">😮中等</button>
-                <button class="preset-btn preset-hard" id="btnHard" onclick="setPre('hard')">👿困难</button>
+                <button class="preset-btn preset-hard" id="btnHard" onclick="setPre('hard')">🫣困难</button>
+                <button class="preset-btn preset-hell" id="btnHell" onclick="setPre('hell')">👿地狱</button>
             </div>
 
             <div class="custom-item">
@@ -1085,12 +1111,12 @@
         </div>
 
         <div class="sidebar-section">
-            <div class="sidebar-title">🏆 最快纪录</div>
+            <div class="sidebar-title">🏆 纪录</div>
             <div class="record-tip">使用预设难度开始计时挑战吧！ヾ(≧▽≦*)o</div>
             <div id="recordList"></div>
         </div>
         
-        <div class="sidebar-version">v.5.0<br>作者:L1Nzy<br>邮箱:lin060911@qq.com
+        <div class="sidebar-version">v.7.1<br>作者:L1Nzy<br>邮箱:lin060911@qq.com
         </div>
     </div>
 
@@ -1099,9 +1125,14 @@
         const LIMIT = { size:[8,20], total:[2,24], type:[0,22], spec:[0,99] }; 
 
         const PRE = {
-            easy:   { size: 8,  total: 6,  type: 2,  spec: 4 },
+            easy:   { size: 8,  total: 4,  type: 2,  spec: 3 },
             medium: { size: 10, total: 8,  type: 4,  spec: 6 },
-            hard:   { size: 12, total: 12, type: 6,  spec: 8 }
+            hard:   { size: 12, total: 12, type: 6,  spec: 9 },
+            hell:   { size: 14, total: 14, type: 8,  spec: 12 }
+        };
+
+        const DIFF_LABEL = {
+            easy: '简单', medium: '中等', hard: '困难', hell: '地狱'
         };
 
         let diff = null;
@@ -1111,10 +1142,13 @@
         let ts = false; 
 
         let lt = JSON.parse(localStorage.getItem('mineLastTimes')) || {
-            easy: null, medium: null, hard: null
+            easy: null, medium: null, hard: null, hell: null
         };
         let rec = JSON.parse(localStorage.getItem('mineRecords')) || {
-            easy: null, medium: null, hard: null
+            easy: null, medium: null, hard: null, hell: null
+        };
+        let wins = JSON.parse(localStorage.getItem('mineWins')) || {
+            easy: 0, medium: 0, hard: 0, hell: 0
         };
 
         function getSeriesState() {
@@ -1397,12 +1431,13 @@
             
             let hint = document.getElementById('seriesSwitchHint');
             let onCount = Object.values(seriesState).filter(v=>v).length;
-            if (onCount < 3) {
+            if (onCount < 5) {
                 hint.className = 'switch-hint';
-                hint.innerHTML = `当前开启 ${onCount}/5 个系列<br>开启≥3个才能使用预设难度<br>💡通关系列专项练习可自动解锁`;
+                let need = onCount < 3 ? '≥3个才能使用<strong>简单/中等/困难</strong>' : '<strong>简单/中等/困难</strong>已可用✅<br>所有系列全开才能挑战<strong>地狱</strong>👿';
+                hint.innerHTML = `当前开启<strong> ${onCount}/5 </strong>个系列<br>${need}<br>💡通关系列专项练习可自动解锁`;
             } else {
                 hint.className = 'switch-hint unlock-hint';
-                hint.textContent = `当前开启 ${onCount}/5 个系列 ✅ 预设难度可用`;
+                hint.textContent = `全部 ${onCount}/5 个系列已开启 ✅ 地狱难度可用`;
             }
             
             updatePresetButtons();
@@ -1424,29 +1459,43 @@
             renderSeriesSwitches();
         }
 
+        function getSeriesOnCount() {
+            return Object.values(seriesState).filter(v=>v).length;
+        }
+
         function updatePresetButtons() {
-            let onCount = Object.values(seriesState).filter(v=>v).length;
-            let locked = onCount < 3;
+            let onCount = getSeriesOnCount();
+            let normalLocked = onCount < 3;
+            let hellLocked = onCount < 5;
             ['btnEasy','btnMedium','btnHard'].forEach(id => {
                 let btn = document.getElementById(id);
                 if (!btn) return;
-                if (locked) {
-                    btn.classList.add('locked');
-                } else {
-                    btn.classList.remove('locked');
-                }
+                if (normalLocked) btn.classList.add('locked');
+                else btn.classList.remove('locked');
             });
+            let btnHell = document.getElementById('btnHell');
+            if (btnHell) {
+                if (hellLocked) btnHell.classList.add('locked');
+                else btnHell.classList.remove('locked');
+            }
         }
 
-        function checkPresetAllowed() {
-            let onCount = Object.values(seriesState).filter(v=>v).length;
+        function checkPresetAllowed(d) {
+            let onCount = getSeriesOnCount();
+            if (d === 'hell') return onCount >= 5;
             return onCount >= 3;
         }
 
         function setPre(d) {
-            if (!checkPresetAllowed()) {
-                document.getElementById('overlay').style.display = 'block';
-                document.getElementById('presetLockedModal').style.display = 'block';
+            if (!checkPresetAllowed(d)) {
+                if (d === 'hell') {
+                    document.getElementById('hellLockedCount').textContent = getSeriesOnCount();
+                    document.getElementById('overlay').style.display = 'block';
+                    document.getElementById('hellLockedModal').style.display = 'block';
+                } else {
+                    document.getElementById('overlay').style.display = 'block';
+                    document.getElementById('presetLockedModal').style.display = 'block';
+                }
                 return;
             }
             const p = PRE[d];
@@ -1494,6 +1543,8 @@
             if (!diff) return;
             lt[diff]=ct; localStorage.setItem('mineLastTimes',JSON.stringify(lt));
             if (rec[diff]===null||ct<rec[diff]) { rec[diff]=ct; localStorage.setItem('mineRecords',JSON.stringify(rec)); }
+            wins[diff] = (wins[diff]||0) + 1;
+            localStorage.setItem('mineWins', JSON.stringify(wins));
             renderRec();
         }
         function fmtTime(ms) {
@@ -1502,7 +1553,18 @@
         }
         function renderRec() {
             const list = document.getElementById('recordList');
-            list.innerHTML = ['easy','medium','hard'].map(d=>`<div class="record-item"><div class="record-label">${d==='easy'?'简单':d==='medium'?'中等':'困难'}</div>最快：<span class="record-best">${fmtTime(rec[d])}</span><br>本次：<span class="record-current">${fmtTime(lt[d])}</span></div>`).join('');
+            let html = '';
+            ['easy','medium','hard','hell'].forEach(d => {
+                let label = DIFF_LABEL[d] || d;
+                let icon = d==='hell' ? '👿' : (d==='hard'?'🫣':(d==='medium'?'😮':'😎'));
+                html += `<div class="record-item">`;
+                html += `<div class="record-label">${icon}${label}</div>`;
+                html += `最快：<span class="record-best">${fmtTime(rec[d])}</span><br>`;
+                html += `本次：<span class="record-current">${fmtTime(lt[d])}</span><br>`;
+                html += `通关次数：<span class="record-count">${wins[d]||0} 次</span>`;
+                html += `</div>`;
+            });
+            list.innerHTML = html;
         }
 
         document.addEventListener('dragstart', e => { e.dataTransfer.setDragImage(new Image(),0,0); }, false);
@@ -1556,7 +1618,7 @@
                 allowed = allowed.concat(catBombs);
             }
             let pool={};
-            pool.normal = Math.max(1, Math.floor(T*0.4));
+            pool.normal = Math.max(1, T - SP);
             let specials = allowed.filter(k=>k!=='normal');
             let remain = T - pool.normal;
             while (remain>0) { let t=specials[Math.floor(Math.random()*specials.length)]; pool[t]=(pool[t]||0)+1; remain--; }
@@ -1683,8 +1745,14 @@
                 let div=document.createElement('div');
                 div.className='mine-item'+(use>=max?' disabled':'');
                 div.dataset.tip=M[t].tip;
-                div.innerHTML=`<div class="emoji-drag ${M[t].cls}" draggable="${use<max}">${M[t].e}</div><div>${M[t].n}</div><div>${use}/${max}</div>`;
-                div.querySelector('.emoji-drag').ondragstart=e=>{ if(use>=max){e.preventDefault();return;} G.drag=null; e.dataTransfer.setData('t',t); };
+                div.draggable=(use<max);
+                div.dataset.mineType=t;
+                div.ondragstart=e=>{
+                    if(use>=max){e.preventDefault();return;}
+                    G.drag=null;
+                    e.dataTransfer.setData('t',t);
+                };
+                div.innerHTML=`<div class="emoji-drag ${M[t].cls}">${M[t].e}</div><div>${M[t].n}</div><div>${use}/${max}</div>`;
                 s.appendChild(div);
             }
         }
@@ -1767,7 +1835,7 @@
         }
 
         function setupTutorialBoard(catKey) {
-            S=10; T=6; TY=3; SP=4;
+            S=10; T=5; TY=3; SP=3;
             setupTutorialParams();
             genTutorialGame(catKey);
             showTutorialProgress(catKey);
@@ -1804,6 +1872,7 @@
         }
         function closeMoreTutorialGuide(){ document.getElementById('overlay').style.display='none'; document.getElementById('moreTutorialGuide').style.display='none'; }
         function closePresetLockedModal(){ document.getElementById('overlay').style.display='none'; document.getElementById('presetLockedModal').style.display='none'; }
+        function closeHellLockedModal(){ document.getElementById('overlay').style.display='none'; document.getElementById('hellLockedModal').style.display='none'; }
 
         document.getElementById('overlay').addEventListener('click', ()=>{
             document.getElementById('overlay').style.display='none';
@@ -1812,6 +1881,7 @@
             document.getElementById('tutorialCompleteModal').style.display='none';
             document.getElementById('moreTutorialGuide').style.display='none';
             document.getElementById('presetLockedModal').style.display='none';
+            document.getElementById('hellLockedModal').style.display='none';
         });
 
         function newGame(){

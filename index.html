@@ -540,7 +540,7 @@
         }
         .num-btn:hover{
             background: #4aaeff; 
-            border-color:#3f84de;
+            border-color: #3f84de;
             box-shadow: 0 8px 24px #1099dd;
         }
         
@@ -927,7 +927,7 @@
         }
         .switch-hint {
             font-size: 12px;
-            color: #a0aec0;
+            color: #85909f;
             margin-top: 4px;
             line-height: 1.4;
             font-weight: 500;
@@ -935,12 +935,219 @@
         }
         .switch-hint strong{
             font-size: 14px;
-            color: #7c8794;
+            color: #66707c;
         }
         .switch-hint.unlock-hint {
             color: #38a169;
         }
     </style>
+    <script>
+        const AudioFX = (function() {
+            let ctx = null;
+            let masterGain = null;
+            let muted = false;
+            let lastHoverTime = 0;
+
+            function init() {
+                if (ctx) return;
+                try {
+                    ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    masterGain = ctx.createGain();
+                    masterGain.gain.value = 0.35;
+                    masterGain.connect(ctx.destination);
+                } catch(e) {
+                    console.warn('Web Audio API not supported');
+                }
+            }
+
+            function resume() {
+                init();
+                if (ctx && ctx.state === 'suspended') ctx.resume();
+            }
+
+            function playPop() {
+                if (muted) return;
+                resume();
+                if (!ctx) return;
+                let now = ctx.currentTime;
+                if (now - lastHoverTime < 0.06) return;
+                lastHoverTime = now;
+
+                let osc = ctx.createOscillator();
+                let gain = ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(680, now);
+                osc.frequency.exponentialRampToValueAtTime(280, now + 0.12);
+                gain.gain.setValueAtTime(0.18, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                osc.connect(gain);
+                gain.connect(masterGain);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            }
+
+            function playModalOpen() {
+                if (muted) return;
+                resume();
+                if (!ctx) return;
+                let now = ctx.currentTime;
+
+                [392, 523.25, 659.25].forEach((freq, i) => {
+                    let osc = ctx.createOscillator();
+                    let gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+                    let t = now + i * 0.06;
+                    gain.gain.setValueAtTime(0, t);
+                    gain.gain.linearRampToValueAtTime(0.2, t + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+                    osc.connect(gain);
+                    gain.connect(masterGain);
+                    osc.start(t);
+                    osc.stop(t + 0.45);
+                });
+            }
+
+            function playConfirm() {
+                if (muted) return;
+                resume();
+                if (!ctx) return;
+                let now = ctx.currentTime;
+
+                let osc = ctx.createOscillator();
+                let gain = ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.exponentialRampToValueAtTime(1046.5, now + 0.08);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                osc.connect(gain);
+                gain.connect(masterGain);
+                osc.start(now);
+                osc.stop(now + 0.3);
+
+                let osc2 = ctx.createOscillator();
+                let gain2 = ctx.createGain();
+                osc2.type = 'sine';
+                osc2.frequency.value = 261.63;
+                gain2.gain.setValueAtTime(0.15, now);
+                gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                osc2.connect(gain2);
+                gain2.connect(masterGain);
+                osc2.start(now);
+                osc2.stop(now + 0.35);
+            }
+
+            function playWin() {
+                if (muted) return;
+                resume();
+                if (!ctx) return;
+                let now = ctx.currentTime;
+                let notes = [
+                    { f: 523.25, t: 0.0,  d: 0.18 },
+                    { f: 659.25, t: 0.16, d: 0.18 },
+                    { f: 783.99, t: 0.32, d: 0.18 },
+                    { f: 1046.5, t: 0.48, d: 0.28 },
+                    { f: 880.0,  t: 0.78, d: 0.18 },
+                    { f: 1046.5, t: 0.96, d: 0.4 }
+                ];
+                notes.forEach(n => {
+                    let osc = ctx.createOscillator();
+                    let gain = ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.value = n.f;
+                    let t = now + n.t;
+                    gain.gain.setValueAtTime(0, t);
+                    gain.gain.linearRampToValueAtTime(0.28, t + 0.02);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + n.d);
+                    osc.connect(gain);
+                    gain.connect(masterGain);
+                    osc.start(t);
+                    osc.stop(t + n.d + 0.05);
+                });
+                let sparkle = ctx.createOscillator();
+                let sg = ctx.createGain();
+                sparkle.type = 'sine';
+                sparkle.frequency.setValueAtTime(1568, now + 0.48);
+                sparkle.frequency.exponentialRampToValueAtTime(2093, now + 0.9);
+                sg.gain.setValueAtTime(0.1, now + 0.48);
+                sg.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+                sparkle.connect(sg);
+                sg.connect(masterGain);
+                sparkle.start(now + 0.48);
+                sparkle.stop(now + 0.65);
+            }
+
+            function playToggle(on) {
+                if (muted) return;
+                resume();
+                if (!ctx) return;
+                let now = ctx.currentTime;
+                let osc = ctx.createOscillator();
+                let gain = ctx.createGain();
+                osc.type = 'square';
+                osc.frequency.value = on ? 440 : 330;
+                gain.gain.setValueAtTime(0.12, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+                osc.connect(gain);
+                gain.connect(masterGain);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            }
+
+            function playPlace() {
+                if (muted) return;
+                resume();
+                if (!ctx) return;
+                let now = ctx.currentTime;
+                let osc = ctx.createOscillator();
+                let gain = ctx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(220, now);
+                osc.frequency.exponentialRampToValueAtTime(280, now + 0.1);
+                gain.gain.setValueAtTime(0.18, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                osc.connect(gain);
+                gain.connect(masterGain);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            }
+
+            function playRemove() {
+                if (muted) return;
+                resume();
+                if (!ctx) return;
+                let now = ctx.currentTime;
+                let osc = ctx.createOscillator();
+                let gain = ctx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(330, now);
+                osc.frequency.exponentialRampToValueAtTime(165, now + 0.1);
+                gain.gain.setValueAtTime(0.18, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                osc.connect(gain);
+                gain.connect(masterGain);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            }
+
+            return {
+                init, resume,
+                pop: playPop,
+                modalOpen: playModalOpen,
+                confirm: playConfirm,
+                win: playWin,
+                toggle: playToggle,
+                place: playPlace,
+                remove: playRemove,
+                setMuted: (m) => { muted = m; },
+                isMuted: () => muted
+            };
+        })();
+
+        document.addEventListener('click', () => AudioFX.resume(), { once: true });
+        document.addEventListener('keydown', () => AudioFX.resume(), { once: true });
+    </script>
 </head>
 <body>
     <div class="auto-modal-overlay" id="overlay"></div>
@@ -982,7 +1189,7 @@
     </div>
 
     <div class="auto-modal" id="hellLockedModal" style="display:none;">
-        <div class="icon">🫣</div>
+        <div class="icon">👿</div>
         <h2>地狱之门紧闭</h2>
         <p>需要开启<b>全部5个</b>系列开关<br>才能挑战地狱难度！<br>当前已开启 <span id="hellLockedCount">0</span>/5 个</p>
         <button onclick="closeHellLockedModal()">知道了</button>
@@ -1371,13 +1578,14 @@
             return pool;
         }
 
-        let G={tar:[],p:[],placed:{},pool:{},max:0,drag:null};
+        let G={tar:[],p:[],placed:{},pool:{},max:0,drag:null,lastDragType:null};
 
         let currentTutorialType = null;
         let tutorialStep = 0;
         let isTutorialMode = false;
 
         document.getElementById('toggleRuleSidebar').onclick = () => {
+            AudioFX.confirm();
             const ruleSb = document.getElementById('ruleSidebar');
             ruleSb.classList.toggle('open');
             const infoSb = document.getElementById('infoSidebar');
@@ -1385,6 +1593,7 @@
         };
 
         document.getElementById('toggleInfoSidebar').onclick = () => {
+            AudioFX.confirm();
             const infoSb = document.getElementById('infoSidebar');
             infoSb.classList.toggle('open');
             const ruleSb = document.getElementById('ruleSidebar');
@@ -1392,6 +1601,7 @@
         };
 
         document.getElementById('toggleSidebar').onclick = () => {
+            AudioFX.confirm();
             document.getElementById('sidebar').classList.toggle('open');
             renderSeriesSwitches();
         };
@@ -1406,6 +1616,15 @@
             if (!ruleSb.contains(e.target) && e.target !== ruleBtn && ruleSb.classList.contains('open')) ruleSb.classList.remove('open');
             if (!infoSb.contains(e.target) && e.target !== infoBtn && infoSb.classList.contains('open')) infoSb.classList.remove('open');
             if (!sb.contains(e.target) && e.target !== btn && sb.classList.contains('open')) sb.classList.remove('open');
+        });
+
+        document.addEventListener('dragend', () => {
+            G.drag = null;
+            G.lastDragType = null;
+        });
+
+        document.addEventListener('dragover', (e) => {
+            e.preventDefault();
         });
 
         function renderSeriesSwitches() {
@@ -1448,6 +1667,7 @@
             if (!seriesUnlocked[catKey]) return;
             seriesState[catKey] = !seriesState[catKey];
             saveSeriesState(seriesState);
+            AudioFX.toggle(seriesState[catKey]);
             renderSeriesSwitches();
         }
 
@@ -1492,9 +1712,11 @@
                     document.getElementById('hellLockedCount').textContent = getSeriesOnCount();
                     document.getElementById('overlay').style.display = 'block';
                     document.getElementById('hellLockedModal').style.display = 'block';
+                    AudioFX.modalOpen();
                 } else {
                     document.getElementById('overlay').style.display = 'block';
                     document.getElementById('presetLockedModal').style.display = 'block';
+                    AudioFX.modalOpen();
                 }
                 return;
             }
@@ -1506,6 +1728,7 @@
             document.getElementById('type').textContent = TY;
             document.getElementById('spec').textContent = SP;
             diff = d;
+            AudioFX.confirm();
             applySet();
         }
 
@@ -1519,10 +1742,12 @@
             document.getElementById('total').textContent=T;
             document.getElementById('type').textContent=TY;
             document.getElementById('spec').textContent=SP;
+            AudioFX.pop();
             diff = null;
         }
 
         function applySet(){
+            AudioFX.confirm();
             SP=Math.min(SP,T); TY=Math.min(TY,SP);
             newGame();
         }
@@ -1569,6 +1794,15 @@
 
         document.addEventListener('dragstart', e => { e.dataTransfer.setDragImage(new Image(),0,0); }, false);
 
+        document.addEventListener('mouseover', (e) => {
+            let el = e.target;
+            if (el.closest('.switch-toggle') || el.closest('.switch-row')) return;
+            if (el.matches && el.matches('button, .preset-btn, .num-btn, .apply-btn, .sidebar-toggle, .info-sidebar-toggle, .rule-sidebar-toggle, .tutorial-btn-inline, .mine-item, .win button, .auto-modal button')) {
+                if (el.classList.contains('disabled') || el.classList.contains('locked') || el.classList.contains('locked-row')) return;
+                AudioFX.pop();
+            }
+        }, true);
+
         function genGame(){
             let enabled = getEnabledMineKeys();
             if (!enabled.includes('normal')) enabled.unshift('normal');
@@ -1592,6 +1826,10 @@
                 pool[t]++; rem--;
             }
             while (rem>0) { pool.normal++; rem--; }
+            
+            for (let k of Object.keys(M)) {
+                if (pool[k] === undefined) pool[k] = 0;
+            }
             
             let mines=[];
             for (let t in pool) for (let i=0;i<pool[t];i++) mines.push(t);
@@ -1622,6 +1860,10 @@
             let specials = allowed.filter(k=>k!=='normal');
             let remain = T - pool.normal;
             while (remain>0) { let t=specials[Math.floor(Math.random()*specials.length)]; pool[t]=(pool[t]||0)+1; remain--; }
+            
+            for (let k of Object.keys(M)) {
+                if (pool[k] === undefined) pool[k] = 0;
+            }
             
             let mines=[];
             for (let t in pool) for (let i=0;i<pool[t];i++) mines.push(t);
@@ -1741,7 +1983,9 @@
         function renderSlot(){
             let s=document.getElementById('slot'); s.innerHTML='';
             for (let t in G.pool) {
-                let max=G.pool[t], use=Object.values(G.placed).filter(x=>x===t).length;
+                let max=G.pool[t];
+                if (max <= 0) continue;
+                let use=Object.values(G.placed).filter(x=>x===t).length;
                 let div=document.createElement('div');
                 div.className='mine-item'+(use>=max?' disabled':'');
                 div.dataset.tip=M[t].tip;
@@ -1750,7 +1994,9 @@
                 div.ondragstart=e=>{
                     if(use>=max){e.preventDefault();return;}
                     G.drag=null;
-                    e.dataTransfer.setData('t',t);
+                    G.lastDragType=t;
+                    e.dataTransfer.setData('text/plain', t);
+                    e.dataTransfer.effectAllowed='move';
                 };
                 div.innerHTML=`<div class="emoji-drag ${M[t].cls}">${M[t].e}</div><div>${M[t].n}</div><div>${use}/${max}</div>`;
                 s.appendChild(div);
@@ -1762,13 +2008,23 @@
             let r=+this.dataset.r,c=+this.dataset.c,k=r+','+c;
             if(G.placed[k]) return;
             if(G.drag){ let t=G.placed[G.drag]; delete G.placed[G.drag]; G.placed[k]=t; G.drag=null; }
-            else { let t=e.dataTransfer.getData('t'); if(!t) return; if(Object.values(G.placed).filter(x=>x===t).length>=G.pool[t]) return; G.placed[k]=t; }
+            else { 
+                let t = e.dataTransfer.getData('text/plain') || G.lastDragType;
+                if(!t) return; 
+                let used = Object.values(G.placed).filter(x=>x===t).length || 0;
+                let max = G.pool[t] || 0;
+                if(used>=max) return; 
+                G.placed[k]=t; 
+                G.lastDragType=null;
+            }
+            AudioFX.place();
             resetP(); render();
         }
 
         function del(r,c){
             startTiOnFirst();
             let k=r+','+c; if(!G.placed[k]) return;
+            AudioFX.remove();
             delete G.placed[k]; resetP(); render();
         }
 
@@ -1776,6 +2032,7 @@
             if(Object.keys(G.placed).length!==G.max) return;
             for(let r=0;r<S;r++) for(let c=0;c<S;c++) if(G.p[r][c]!==G.tar[r][c]) return;
             stopTi();
+            AudioFX.win();
             if (isTutorialMode) { onTutorialWin(); return; }
             saveRec();
             document.getElementById('win').style.display='flex';
@@ -1801,6 +2058,7 @@
                 }
                 document.getElementById('overlay').style.display='block';
                 document.getElementById('tutorialCompleteModal').style.display='block';
+                AudioFX.modalOpen();
                 let txt;
                 if (!cat) {
                     txt = '🎉 新手关卡全部完成！<br>已自动解锁「异形系列」作为奖励 ✅<br>快去💣炸弹信息栏开启它的关卡吧';
@@ -1817,6 +2075,7 @@
         }
 
         function startTutorial() {
+            AudioFX.confirm();
             document.getElementById('overlay').style.display='none';
             document.getElementById('tutorialPrompt').style.display='none';
             currentTutorialType = null; isTutorialMode = true;
@@ -1826,6 +2085,7 @@
 
         function openTutorialSelector() {
             if (isTutorialMode) return;
+            AudioFX.confirm();
             let bs = localStorage.getItem('tutorialStep');
             if (bs && parseInt(bs)>0 && parseInt(bs)<5) {
                 currentTutorialType=null; isTutorialMode=true; tutorialStep=parseInt(bs);
@@ -1857,6 +2117,7 @@
         }
 
         function startCategoryTutorial(catKey) {
+            AudioFX.confirm();
             currentTutorialType=catKey; isTutorialMode=true;
             tutorialStep = seriesUnlocked[catKey]
                 ? (parseInt(localStorage.getItem('tutorial_'+catKey))||0)
@@ -1865,16 +2126,18 @@
             setupTutorialBoard(catKey);
         }
 
-        function closeWelcomeModal(){ document.getElementById('overlay').style.display='none'; document.getElementById('welcomeModal').style.display='none'; }
+        function closeWelcomeModal(){ AudioFX.confirm(); document.getElementById('overlay').style.display='none'; document.getElementById('welcomeModal').style.display='none'; }
         function closeTutorialComplete(){
+            AudioFX.confirm();
             document.getElementById('overlay').style.display='none'; document.getElementById('tutorialCompleteModal').style.display='none';
-            if (!currentTutorialType) setTimeout(()=>{ document.getElementById('overlay').style.display='block'; document.getElementById('moreTutorialGuide').style.display='block'; },300);
+            if (!currentTutorialType) setTimeout(()=>{ document.getElementById('overlay').style.display='block'; document.getElementById('moreTutorialGuide').style.display='block'; AudioFX.modalOpen(); },300);
         }
-        function closeMoreTutorialGuide(){ document.getElementById('overlay').style.display='none'; document.getElementById('moreTutorialGuide').style.display='none'; }
-        function closePresetLockedModal(){ document.getElementById('overlay').style.display='none'; document.getElementById('presetLockedModal').style.display='none'; }
-        function closeHellLockedModal(){ document.getElementById('overlay').style.display='none'; document.getElementById('hellLockedModal').style.display='none'; }
+        function closeMoreTutorialGuide(){ AudioFX.confirm(); document.getElementById('overlay').style.display='none'; document.getElementById('moreTutorialGuide').style.display='none'; }
+        function closePresetLockedModal(){ AudioFX.confirm(); document.getElementById('overlay').style.display='none'; document.getElementById('presetLockedModal').style.display='none'; }
+        function closeHellLockedModal(){ AudioFX.confirm(); document.getElementById('overlay').style.display='none'; document.getElementById('hellLockedModal').style.display='none'; }
 
         document.getElementById('overlay').addEventListener('click', ()=>{
+            AudioFX.confirm();
             document.getElementById('overlay').style.display='none';
             document.getElementById('welcomeModal').style.display='none';
             document.getElementById('tutorialPrompt').style.display='none';
@@ -1885,10 +2148,11 @@
         });
 
         function newGame(){
+            AudioFX.confirm();
             resetTi(); isTutorialMode=false; document.getElementById('tutorialProgressBar').style.display='none';
             genGame(); render(); renderRec(); document.getElementById('win').style.display='none';
         }
-        function clearAll(){ G.placed={}; resetP(); render(); }
+        function clearAll(){ AudioFX.confirm(); G.placed={}; resetP(); render(); }
 
         document.getElementById('reset').onclick=newGame;
         document.getElementById('clear').onclick=clearAll;
@@ -1908,6 +2172,7 @@
                 setTimeout(()=>{
                     document.getElementById('overlay').style.display='block';
                     document.getElementById('tutorialPrompt').style.display='block';
+                    AudioFX.modalOpen();
                     let btn=document.getElementById('tutorialConfirmBtn'); btn.disabled=true; let cd=5;
                     let cdEl=document.getElementById('tutorialCountdown');
                     let iv=setInterval(()=>{ cd--; if(cd>0) cdEl.textContent='按钮将在'+cd+'秒后可用...'; else{cdEl.textContent='';btn.disabled=false;clearInterval(iv);} },1000);
@@ -1915,7 +2180,7 @@
                 localStorage.setItem('hasVisitedBefore','true');
                 if(!localStorage.getItem('tutorialStep')) localStorage.setItem('tutorialStep','0');
             } else if (lastShown!==today) {
-                setTimeout(()=>{ document.getElementById('overlay').style.display='block'; document.getElementById('welcomeModal').style.display='block'; },500);
+                setTimeout(()=>{ document.getElementById('overlay').style.display='block'; document.getElementById('welcomeModal').style.display='block'; AudioFX.modalOpen(); },500);
                 localStorage.setItem('welcomeLastShown',today);
             }
         });

@@ -1630,66 +1630,6 @@
             e.preventDefault();
         });
 
-        function setupBoardDragDrop() {
-            const board = document.getElementById('board');
-            if (!board || board._dragDropBound) return;
-            board._dragDropBound = true;
-
-            board.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'move';
-                const cell = e.target.closest('.cell');
-                if (cell && !cell.classList.contains('mine-here')) {
-                    cell.style.boxShadow = 'inset 0 0 0 2px #4299e1';
-                }
-            }, true);
-
-            board.addEventListener('dragleave', (e) => {
-                const cell = e.target.closest('.cell');
-                if (cell) {
-                    const related = e.relatedTarget;
-                    if (!related || !cell.contains(related)) {
-                        cell.style.boxShadow = '';
-                    }
-                }
-            });
-
-            board.addEventListener('drop', (e) => {
-                e.preventDefault();
-                board.querySelectorAll('.cell').forEach(c => {
-                    if (!c.classList.contains('mine-here')) c.style.boxShadow = '';
-                });
-
-                const cell = e.target.closest('.cell');
-                if (!cell) return;
-                const r = +cell.dataset.r;
-                const c = +cell.dataset.c;
-                const k = r + ',' + c;
-
-                if (G.placed[k]) return;
-
-                startTiOnFirst();
-
-                if (G.drag) {
-                    let t = G.placed[G.drag];
-                    delete G.placed[G.drag];
-                    G.placed[k] = t;
-                    G.drag = null;
-                } else {
-                    let t = e.dataTransfer.getData('text/plain') || G.lastDragType;
-                    if (!t) return;
-                    let used = Object.values(G.placed).filter(x => x === t).length || 0;
-                    let max = G.pool[t] || 0;
-                    if (used >= max) return;
-                    G.placed[k] = t;
-                    G.lastDragType = null;
-                }
-                AudioFX.place();
-                resetP();
-                render();
-            }, true); 
-        }
-
         function renderSeriesSwitches() {
             const container = document.getElementById('seriesSwitchList');
             if (!container) return;
@@ -1855,8 +1795,7 @@
             list.innerHTML = html;
         }
 
-        document.addEventListener('dragstart', e => { 
-        }, false);
+        document.addEventListener('dragstart', e => { e.dataTransfer.setDragImage(new Image(),0,0); }, false);
 
         document.addEventListener('mouseover', (e) => {
             let el = e.target;
@@ -2041,20 +1980,17 @@
                 if(p===t) d.classList.add('cell-valid'); else if(p<t) d.classList.add('cell-low'); else d.classList.add('cell-over');
                 if(t!==0){ d.textContent=t; d.classList.add('n'+Math.min(t,8)); }
                 if(G.placed[k]){ d.classList.add('mine-here'); let ty=G.placed[k]; d.innerHTML=`<span class="${M[ty].cls}">${M[ty].e}</span>`; d.draggable=true;
-                    d.ondragstart=e=>{
-                        G.drag=k; 
-                        e.dataTransfer.setData('text/plain', 'mine:'+k);
-                        e.dataTransfer.effectAllowed='move';
-                    };
+                    d.ondragstart=e=>{G.drag=k; e.dataTransfer.setData('text/plain','');};
                 }
+                d.ondragover=e=>{e.preventDefault(); d.style.boxShadow='inset 0 0 0 2px #4299e1';};
+                d.ondragleave=()=>{if(!G.placed[d.dataset.r+','+d.dataset.c]) d.style.boxShadow='';};
+                d.ondrop=e=>{e.preventDefault(); d.style.boxShadow=''; drop.call(d,e);};
                 d.oncontextmenu=e=>{e.preventDefault(); del(r,c);};
                 b.appendChild(d);
             }
             document.getElementById('placed').textContent=Object.keys(G.placed).length;
             document.getElementById('max').textContent=G.max;
             renderSlot(); checkWin();
-
-            setupBoardDragDrop();
         }
 
         function renderSlot(){
@@ -2078,6 +2014,24 @@
                 div.innerHTML=`<div class="emoji-drag ${M[t].cls}">${M[t].e}</div><div>${M[t].n}</div><div>${use}/${max}</div>`;
                 s.appendChild(div);
             }
+        }
+
+        function drop(e){
+            startTiOnFirst();
+            let r=+this.dataset.r,c=+this.dataset.c,k=r+','+c;
+            if(G.placed[k]) return;
+            if(G.drag){ let t=G.placed[G.drag]; delete G.placed[G.drag]; G.placed[k]=t; G.drag=null; }
+            else { 
+                let t = e.dataTransfer.getData('text/plain') || G.lastDragType;
+                if(!t) return; 
+                let used = Object.values(G.placed).filter(x=>x===t).length || 0;
+                let max = G.pool[t] || 0;
+                if(used>=max) return; 
+                G.placed[k]=t; 
+                G.lastDragType=null;
+            }
+            AudioFX.place();
+            resetP(); render();
         }
 
         function del(r,c){

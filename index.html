@@ -1626,22 +1626,15 @@
             G.lastDragType = null;
         });
 
-        // ============================================================
-        // 修复：在 board 容器上统一处理 dragover / drop（事件委托）
-        // 解决 Edge / QQ 浏览器中子元素不冒泡导致 drop 不触发的问题
-        // ============================================================
         document.addEventListener('dragover', (e) => {
             e.preventDefault();
         });
 
-        // board 上的事件委托：统一处理所有单元格的拖放
         function setupBoardDragDrop() {
             const board = document.getElementById('board');
             if (!board || board._dragDropBound) return;
             board._dragDropBound = true;
 
-            // dragover 在 board 上捕获阶段就 preventDefault
-            // 这样不管鼠标在 cell 还是 cell 内的 span/emoji 上，都能放行 drop
             board.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = 'move';
@@ -1649,12 +1642,11 @@
                 if (cell && !cell.classList.contains('mine-here')) {
                     cell.style.boxShadow = 'inset 0 0 0 2px #4299e1';
                 }
-            }, true); // 捕获阶段
+            }, true);
 
             board.addEventListener('dragleave', (e) => {
                 const cell = e.target.closest('.cell');
                 if (cell) {
-                    // 只在真正离开 cell 时才清除高亮
                     const related = e.relatedTarget;
                     if (!related || !cell.contains(related)) {
                         cell.style.boxShadow = '';
@@ -1664,7 +1656,6 @@
 
             board.addEventListener('drop', (e) => {
                 e.preventDefault();
-                // 清除所有 cell 的高亮
                 board.querySelectorAll('.cell').forEach(c => {
                     if (!c.classList.contains('mine-here')) c.style.boxShadow = '';
                 });
@@ -1675,19 +1666,16 @@
                 const c = +cell.dataset.c;
                 const k = r + ',' + c;
 
-                // 已有地雷的格子不能放
                 if (G.placed[k]) return;
 
                 startTiOnFirst();
 
                 if (G.drag) {
-                    // 从棋盘上拖拽已放置的地雷到新位置
                     let t = G.placed[G.drag];
                     delete G.placed[G.drag];
                     G.placed[k] = t;
                     G.drag = null;
                 } else {
-                    // 从下方地雷槽拖入
                     let t = e.dataTransfer.getData('text/plain') || G.lastDragType;
                     if (!t) return;
                     let used = Object.values(G.placed).filter(x => x === t).length || 0;
@@ -1699,7 +1687,7 @@
                 AudioFX.place();
                 resetP();
                 render();
-            }, true); // 捕获阶段
+            }, true); 
         }
 
         function renderSeriesSwitches() {
@@ -1868,8 +1856,6 @@
         }
 
         document.addEventListener('dragstart', e => { 
-            // 修复：不再使用空 Image 隐藏拖拽影像，改为用实际元素
-            // e.dataTransfer.setDragImage(new Image(),0,0); // 注释掉，让浏览器显示默认拖拽效果
         }, false);
 
         document.addEventListener('mouseover', (e) => {
@@ -2068,7 +2054,6 @@
             document.getElementById('max').textContent=G.max;
             renderSlot(); checkWin();
 
-            // 每次 render 后重新绑定 board 的事件委托
             setupBoardDragDrop();
         }
 

@@ -678,13 +678,16 @@
             background: #9fdf9f;
         }
         .preview-cell.center {
-            background: #fca5a5 !important;
+            background: #4299e1 !important;
         }
         .preview-cell.split-left {
             background: #9fdf9f;
         }
         .preview-cell.split-right {
             background: #9fdf9f;
+        }
+        .preview-cell.negative {
+            background: #fecaca;
         }
         .diagonal-line {
             position: absolute;
@@ -1900,10 +1903,20 @@
                 let cls='preview-cell';
                 let isC=(i===center[0]&&j===center[1]);
                 let isA=active.some(([x,y])=>x===i&&y===j);
-                if (isC) cls+=' center';
-                else if (isA) { if (split) { if(i<3&&j<3) cls+=' split-left'; else if(i>=3&&j>=3) cls+=' split-right'; } else cls+=' active'; }
-                let cv='';
-                if (!isPlus1 && values && values[i] && values[i][j]!==undefined && values[i][j]!=='') cv=values[i][j];
+                let val = (!isPlus1 && values && values[i] && values[i][j]!==undefined) ? values[i][j] : null;
+                if (isC) {
+                    cls+=' center';
+                } else if (isA) {
+                    if (val !== null && val < 0) {
+                        cls+=' negative';
+                    } else if (split) {
+                        if(i<3&&j<3) cls+=' split-left';
+                        else if(i>=3&&j>=3) cls+=' split-right';
+                    } else {
+                        cls+=' active';
+                    }
+                }
+                let cv = (val !== null && val !== '') ? val : '';
                 html+=`<div class="${cls}">${cv}</div>`;
             }
             html+='</div>';

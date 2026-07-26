@@ -578,9 +578,6 @@
         }
         .custom-panel { display: none; margin-bottom: 15px; padding: 12px; background: #f0f9ff; border-radius: 10px; border: 2px dashed #0891b2; }
         .custom-panel.visible { display: block; }
-        .test-panel { margin-bottom: 15px; padding: 10px; background: #fef3c7; border-radius: 10px; border: 2px dashed #f59e0b; }
-        .test-btn { padding: 8px 16px; background: #f59e0b; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; margin-right: 8px; }
-        .test-btn:hover { background: #d97706; transform: translateY(-2px); }
         .series-locked-notice { display: none; padding: 8px 12px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626; font-size: 13px; margin-bottom: 10px; }
         .series-locked-notice.visible { display: block; }
         
@@ -1634,7 +1631,7 @@
 
         <div class="sidebar-section">
             <div class="sidebar-title lock-title">🔓 系列开关</div>
-            <div class="series-locked-notice" id="seriesLockedNotice">⚠️ 系列开关已锁定 🔒，切换到🔧自由模式可重新调整</div>
+            <div class="series-locked-notice" id="seriesLockedNotice">⚠️ 系列开关已锁定🔒，切换到<strong>[🔧自由]</strong>模式可重新调整</div>
             <div id="seriesSwitchList"></div>
             <div class="switch-hint" id="seriesSwitchHint">完成对应关卡可解锁系列</div>
         </div>
@@ -1645,7 +1642,7 @@
             <div id="recordList"></div>
         </div>
         
-        <div class="sidebar-version">v.7.2.6<br>作者:L1Nzy<br>邮箱:lin060911@qq.com
+        <div class="sidebar-version">v.7.3<br>作者:L1Nzy<br>邮箱:lin060911@qq.com
         </div>
     </div>
 
@@ -1979,7 +1976,7 @@
             container.innerHTML = html;
             
             let hint = document.getElementById('seriesSwitchHint');
-            let onCount = Object.values(seriesState).filter(v=>v).length;
+            let onCount = getSeriesOnCount();
             if (onCount < 5) {
                 hint.className = 'switch-hint';
                 let need = onCount < 3 ? '≥3个才能使用<strong>简单/中等/困难</strong>' : '<strong>简单/中等/困难</strong>已可用✅<br>所有系列全开才能挑战<strong>地狱/脑王</strong>';

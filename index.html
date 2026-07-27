@@ -1443,7 +1443,7 @@
     <div class="falling-container" id="fallingContainer"></div>
 
     <div class="auto-modal" id="welcomeModal">
-        <div class="icon">🫡</div>
+        <div class="icon">👋</div>
         <h2>欢迎回来!</h2>
         <p>欢迎回到<span>『反向💣扫雷』</span><br>如果忘了咋玩，可以点击左侧的规则哦( ´◡‿ゝ◡`)</p>
         <button onclick="closeWelcomeModal()">(≧∇≦)ﾉ了解</button>
@@ -1584,7 +1584,7 @@
             <div class="preset-row">
                 <button class="preset-btn preset-easy" id="btnEasy" onclick="setPre('easy')">😎简单</button>
                 <button class="preset-btn preset-medium" id="btnMedium" onclick="setPre('medium')">😮中等</button>
-                <button class="preset-btn preset-hard" id="btnHard" onclick="setPre('hard')">🫣困难</button>
+                <button class="preset-btn preset-hard" id="btnHard" onclick="setPre('hard')">😤困难</button>
             </div>
             <div class="preset-row">
                 <button class="preset-btn preset-hell" id="btnHell" onclick="setPre('hell')">👿地狱</button>
@@ -1717,8 +1717,8 @@
             basic: { name: "基础系列", order: 0, emoji: "💣" },
             special: { name: "异形系列", order: 1, emoji: "✖️" },
             physics: { name: "物理律系列", order: 2, emoji: "☢️" },
-            symmetry: { name: "对称系列", order: 3, emoji: "🪞" },
-            tactical: { name: "战术武器系列", order: 4, emoji: "⚔️" }
+            symmetry: { name: "对称系列", order: 3, emoji: "‼️" },
+            tactical: { name: "战术武器系列", order: 4, emoji: "🔫" }
         };
 
         const M = {
@@ -1791,7 +1791,7 @@
             }, preview: {size:5, active: [[0,0],[0,1],[0,2],[0,3],[0,4],[1,0],[1,1],[1,2],[1,3],[1,4],[2,0],[2,1],[2,2],[2,3],[2,4],[3,0],[3,1],[3,2],[3,3],[3,4],[4,0],[4,1],[4,2],[4,3],[4,4]], 
                 center: [2,2], values: [[1,1,1,1,1],[1,-1,-1,-1,1],[1,-1,-2,-1,1],[1,-1,-1,-1,1],[1,1,1,1,1]]}},
 
-            mirror:{category:"symmetry", n:"镜像双雷",e:"🪞",cls:"mirror-bomb",tip:"自身+中心对称点 3x3 +1",f:(r,c,v)=>{
+            mirror:{category:"symmetry", n:"镜像双雷",e:"🥂",cls:"mirror-bomb",tip:"自身+中心对称点 3x3 +1",f:(r,c,v)=>{
                 addVal(r,c,1,1,v,1); addVal(S-1-r,S-1-c,1,1,v,1);
             }, preview: {size:6, active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2],[3,3],[3,4],[3,5],[4,3],[4,4],[4,5],[5,3],[5,4],[5,5]], center: [1,1], split: true}},
             yinYang:{category:"symmetry", n:"阴阳炸弹",e:"☯️",cls:"yin-yang-bomb",tip:"自身3x3+1 中心对称点3x3-1",f:(r,c,v)=>{
@@ -2175,7 +2175,7 @@
             let html = '';
             ['easy','medium','hard','hell','brain'].forEach(d => {
                 let label = DIFF_LABEL[d] || d;
-                let icon = d==='brain' ? '🤯' : (d==='hell' ? '👿' : (d==='hard'?'🫣':(d==='medium'?'😮':'😎')));
+                let icon = d==='brain' ? '🤯' : (d==='hell' ? '👿' : (d==='hard'?'😤':(d==='medium'?'😮':'😎')));
                 let extraStyle = d==='brain' ? 'border-left:3px solid #ffd700;' : '';
                 html += `<div class="record-item" style="${extraStyle}">`;
                 html += `<div class="record-label">${icon}${label}</div>`;
@@ -2201,7 +2201,7 @@
 
         let _fallingInterval = null;
         let _fallingActive = false;
-        const _FALLING_EMOJIS = ['💣','💡','🎉','🤯','😎','🕶️','🏆','⭐','✨','🎊','🥳','🤩','🧐','✌️','💪','🤙','👌','🤟','👏','🎖️','👑'];
+        const _FALLING_EMOJIS = ['💣','💡','🎉','🤯','😎','❤️','🏆','🎊','🥳','🤩','🧐','✌️','💪','🤙','👌','🤟','👏','🎖️','👑'];
         const _MAX_FALLING_NODES = 120;
 
         function startFallingEmoji() {

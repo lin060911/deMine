@@ -683,6 +683,7 @@
             border-radius: 8px;
             margin-bottom: 8px;
             background: #f7fafc;
+            border-left:3px solid #e2e8f0;
         }
         .record-label { font-weight: bold; margin-bottom: 4px; }
         .record-best { color: #38a169; font-weight: bold; }
@@ -2176,8 +2177,8 @@
             ['easy','medium','hard','hell','brain'].forEach(d => {
                 let label = DIFF_LABEL[d] || d;
                 let icon = d==='brain' ? '🤯' : (d==='hell' ? '👿' : (d==='hard'?'😤':(d==='medium'?'😮':'😎')));
-                let extraStyle = d==='brain' ? 'border-left:3px solid #ffd700;' : '';
-                html += `<div class="record-item" style="${extraStyle}">`;
+                let extraStyle = d==='brain' ? '#ffd700;background: linear-gradient(135deg, #fffcbb 0%, #c0f1ff 25%, #c0d7ff 50%, #ddbfff 75%, #f8bfff 100%);' : (d==='hell' ? '#6b21a8;' : (d==='hard'?'#d73a3a;':(d==='medium'?'#dc7f33;':'#38a169;')));
+                html += `<div class="record-item" style="border-color:${extraStyle}">`;
                 html += `<div class="record-label">${icon}${label}</div>`;
                 html += `最快：<span class="record-best">${fmtTime(rec[d])}</span><br>`;
                 html += `本次：<span class="record-current">${fmtTime(lt[d])}</span><br>`;

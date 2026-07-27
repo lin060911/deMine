@@ -48,12 +48,12 @@
         }
 
         .timer-box {
-            font-size: 20px;
+            font-size: 16px;
             font-weight: bold;
-            color: #e53e3e;
+            color: #e25e5e;
             margin: 10px 0;
             background: #fff;
-            padding: 6px 14px;
+            padding: 6px 10px;
             border-radius: 10px;
             box-shadow: 0 2px 6px rgba(0,0,0,0.1);
             display: none;
@@ -375,7 +375,7 @@
             position: fixed;
             top: 0;
             right: 0;
-            width: 500px;
+            width: 400px;
             height: 100vh;
             background: #fff;
             box-shadow: -3px 0 15px rgba(0,0,0,0.1);
@@ -443,7 +443,7 @@
             position: fixed;
             top: 45%;
             left: 0;
-            background: #4bc9ff;
+            background: #348df9;
             color: #fff;
             border: none;
             padding: 20px 12px;
@@ -459,7 +459,7 @@
         }
 
         .info-sidebar-toggle:hover{
-            background: #348df9;
+            background: #3bc4ff;
             transform: translateY(-6px);
         }
 
@@ -882,6 +882,100 @@
         .auto-modal button:hover {
             transform: scale(1.05);
             box-shadow: 0 5px 15px #589eff;
+        }
+
+        #presetStartBtn {
+            font-size: 22px !important;
+            padding: 16px 56px !important;
+            border-radius: 20px !important;
+            background: linear-gradient(135deg, #6bb3ff, #245aee) !important;
+            box-shadow: 0 6px 20px rgba(36, 120, 238, 0.4) !important;
+            letter-spacing: 4px;
+        }
+        #presetStartBtn:hover {
+            background: linear-gradient(135deg, #5ee37d, #20cf43) !important;
+            box-shadow: 0 8px 28px rgba(36, 238, 80, 0.6) !important;
+            transform: scale(1.08) !important;
+        }
+
+        .preset-start-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #ffffff;
+            border: 3px dashed #90cdf4;
+            border-radius: 20px;
+            padding: 48px 36px 36px;
+            margin: 12px auto 20px;
+            box-shadow: 0 6px 24px rgba(66, 153, 225, 0.18);
+            max-width: 520px;
+            min-height: 320px;
+            text-align: center;
+            position: relative;
+        }
+        .preset-start-icon {
+            font-size: 88px;
+            margin-bottom: 18px;
+            filter: drop-shadow(0 6px 12px rgba(0,0,0,0.15));
+            animation: startIcon 1s ease infinite;
+        }
+        @keyframes startIcon {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            25% { transform: translateY(-15px) rotate(-5deg); }
+            75% { transform: translateY(-5px) rotate(15deg); }
+        }
+        .preset-start-title {
+            font-size: 30px;
+            font-weight: 900;
+            color: #2d3748;
+            margin-bottom: 12px;
+        }
+        .preset-start-desc {
+            font-size: 16px;
+            color: #718096;
+            line-height: 1.7;
+            margin-bottom: 28px;
+        }
+        .preset-start-btn {
+            background: linear-gradient(135deg, #4299e1, #3182ce) !important;
+            color: #fff;
+            border: none;
+            padding: 14px 52px;
+            border-radius: 16px;
+            font-size: 20px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.25s;
+            box-shadow: 0 6px 18px rgba(66, 153, 225, 0.4);
+            letter-spacing: 2px;
+        }
+        .preset-start-btn:hover {
+            background: linear-gradient(135deg, #63b3ed, #4299e1) !important;
+            transform: translateY(-3px) scale(1.04);
+            box-shadow: 0 10px 28px rgba(66, 153, 225, 0.55);
+        }
+        .preset-start-tag {
+            margin-top: 24px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: linear-gradient(135deg, #48bb78, #38a169);
+            color: #fff;
+            padding: 6px 18px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 700;
+            box-shadow: 0 3px 10px rgba(72, 187, 120, 0.35);
+        }
+        .preset-start-tag .tag-icon { font-size: 16px; display:none; }
+
+        .preset-start-tag.tag-easy   { background: linear-gradient(135deg, #68d391, #38a169); }
+        .preset-start-tag.tag-medium { background: linear-gradient(135deg, #f6ad55, #dd6b20); }
+        .preset-start-tag.tag-hard   { background: linear-gradient(135deg, #fc8181, #e53e3e); }
+        .preset-start-tag.tag-hell   { background: linear-gradient(135deg, #b794f4, #6b21a8); }
+        .preset-start-tag.tag-brain  {
+            background: linear-gradient(135deg, #fff654 0%, #56daff 25%, #5694ff 50%, #a455ff 75%, #ea4fff 100%);
         }
 
         .auto-modal .close-btn {
@@ -1494,7 +1588,7 @@
     </div>
 
     <div class="auto-modal" id="brainLockedModal" style="display:none;">
-        <div class="icon">🔒</div>
+        <div class="icon">😓</div>
         <h2>脑王难度锁定中</h2>
         <p>需要同时满足以下条件：<br>1️⃣ 地狱难度通关≥<b>10</b>次（当前 <span id="brainHellWins">0</span>/10）<br>2️⃣ 开启<b>全部5个</b>系列开关（当前 <span id="brainSeriesCount">0</span>/5）</p>
         <button onclick="closeBrainLockedModal()">知道了</button>
@@ -1509,7 +1603,7 @@
 
     <h1 class="game-title">反向💣扫雷</h1>
     <div class="rule">ℹ️操作tips:拖拽放置✅ / 右键删除🚫</div>
-    <div class="timer-box" id="timer">00:00.00</div>
+
 
     <div id="tutorialProgressBar">
         <div class="progress-header">
@@ -1527,9 +1621,19 @@
         <button id="tutorialBtn" onclick="openTutorialSelector()">新手关卡</button>
     </div>
 
+    <div class="timer-box" id="timer">00:00.00</div>
+
     <div class="info">已放置：<span id="placed">0</span> / 总雷数：<span id="max">0</span></div>
     <div id="board" class="board"></div>
     <div class="mine-slot-box" id="slot"></div>
+
+    <div class="preset-start-card" id="presetStartCard" style="display:none;">
+        <div class="preset-start-icon" id="presetStartIcon">👌</div>
+        <div class="preset-start-title" id="presetStartTitle">准备好了吗？</div>
+        <div class="preset-start-desc" id="presetStartDesc">点击开始后题目将展现并启动计时(≧▽≦)</div>
+        <button class="preset-start-btn" id="presetStartBtn" onclick="beginPresetGame()">开始</button>
+        <div class="preset-start-tag" id="presetStartTag"><span id="presetStartTagText">简单</span></div>
+    </div>
 
     <div class="win" id="win">
         <div>🎉 恭喜通关！</div>
@@ -1537,8 +1641,8 @@
     </div>
 
     <div class="left-sidebar-container">
-        <button class="rule-sidebar-toggle" id="toggleRuleSidebar">📖 规则</button>
-        <button class="info-sidebar-toggle" id="toggleInfoSidebar">ℹ️信息</button>
+        <button class="rule-sidebar-toggle" id="toggleRuleSidebar">📖规则</button>
+        <button class="info-sidebar-toggle" id="toggleInfoSidebar">💣信息</button>
     </div>
 
     <div class="rule-sidebar" id="ruleSidebar">
@@ -1672,7 +1776,9 @@
         let ct = 0;
         let ts = false;
         let isFreeMode = false;
-        let seriesLocked = false; 
+        let seriesLocked = false;
+        let isPresetPending = false;
+        let pendingDiff = null; 
 
         let lt = JSON.parse(localStorage.getItem('mineLastTimes')) || {
             easy: null, medium: null, hard: null, hell: null, brain: null
@@ -1981,7 +2087,7 @@
             if (onCount < 5) {
                 hint.className = 'switch-hint';
                 let need = onCount < 3 ? '≥3个才能使用<strong>简单/中等/困难</strong>' : '<strong>简单/中等/困难</strong>已可用✅<br>所有系列全开才能挑战<strong>地狱/脑王</strong>';
-                hint.innerHTML = `当前开启<strong> ${onCount}/5 </strong>个系列<br>${need}<br>💡前往<strong>页面左侧[ℹ️信息]</strong>通关系列<strong>挑战</strong>可解锁`;
+                hint.innerHTML = `当前开启<strong> ${onCount}/5 </strong>个系列<br>${need}<br>💡前往<strong>页面左侧[💣信息]</strong>通关系列<strong>挑战</strong>可解锁`;
             } else {
                 hint.className = 'switch-hint unlock-hint';
                 let brainReady = (wins.hell || 0) >= BRAIN_HELL_WINS_REQ;
@@ -2061,7 +2167,13 @@
             return onCount >= 3;
         }
 
+        function isPresetDifficulty(d) {
+            return d === 'easy' || d === 'medium' || d === 'hard' || d === 'hell' || d === 'brain';
+        }
+
         function setPre(d) {
+            fullReset();
+
             if (d === 'free') {
                 isFreeMode = true;
                 seriesLocked = false;
@@ -2070,7 +2182,10 @@
                 document.getElementById('seriesLockedNotice').classList.remove('visible');
                 updatePresetButtons();
                 renderSeriesSwitches();
+                resetTi();
+                document.getElementById('timer').style.display = 'none';
                 AudioFX.confirm();
+                applySet();
                 return;
             }
             if (!checkPresetAllowed(d)) {
@@ -2102,10 +2217,40 @@
             document.getElementById('type').textContent = TY;
             document.getElementById('spec').textContent = SP;
             diff = d;
+            pendingDiff = d;
             document.getElementById('customPanel').classList.remove('visible');
             document.getElementById('seriesLockedNotice').classList.add('visible');
+            updatePresetButtons();
+            renderSeriesSwitches();
             AudioFX.confirm();
-            applySet();
+
+            if (isPresetDifficulty(d)) {
+                enterPresetPending(d);
+            }
+        }
+
+        function enterPresetPending(d) {
+            isPresetPending = true;
+            pendingDiff = d;
+            var board = document.getElementById('board');
+            board.innerHTML = '';
+            board.style.display = 'none';
+            var slot = document.getElementById('slot');
+            slot.innerHTML = '';
+            slot.style.display = 'none';
+            document.getElementById('timer').style.display = 'none';
+            document.getElementById('placed').textContent = '0';
+            document.getElementById('max').textContent = '0';
+            document.getElementById('win').style.display = 'none';
+            var labelMap = { easy:'😎简单', medium:'😮中等', hard:'😤困难', hell:'👿地狱', brain:'🤯脑王' };
+            document.getElementById('presetStartIcon').textContent =  '👌';
+            document.getElementById('presetStartTitle').textContent = '准备好了吗?';
+            document.getElementById('presetStartDesc').textContent = '点击开始后题目将展现并启动计时(≧▽≦)';
+            var tag = document.getElementById('presetStartTag');
+            tag.className = 'preset-start-tag tag-' + d;
+            document.getElementById('presetStartTagText').textContent = labelMap[d] || d;
+            document.getElementById('presetStartCard').style.display = 'flex';
+            AudioFX.modalOpen();
         }
 
         function setVal(key,dir){
@@ -2127,12 +2272,19 @@
             SP=Math.min(SP,T); TY=Math.min(TY,SP);
             if (isFreeMode) {
                 diff = 'free';
+                newGame();
+                return;
             }
-            newGame();
+            if (isPresetPending && pendingDiff) {
+                beginPresetGame();
+            } else {
+                newGame();
+            }
         }
 
         function startTiOnFirst() {
             if (!diff || ts) return;
+            if (isFreeMode) return;
             ts = true; startTi();
         }
         function startTi() { stopTi(); st=Date.now(); ti=setInterval(updateTi,10); document.getElementById('timer').style.display='block'; }
@@ -2586,7 +2738,7 @@
                 AudioFX.modalOpen();
                 let txt;
                 if (!cat) {
-                    txt = '🎉 新手关卡全部完成！<br>已自动解锁「异形系列」作为奖励 ✅<br>快去💣炸弹信息栏开启它的关卡吧';
+                    txt = '🎉 新手关卡完成！<br>已自动解锁「异形系列」作为奖励 ✅<br>快去💣炸弹信息栏开启它的关卡吧';
                 } else {
                     txt = `🎉 已解锁「${CATEGORY[cat].name}」！<br>该系列地雷已加入题库 ✅`;
                 }
@@ -2620,12 +2772,14 @@
         }
 
         function setupTutorialBoard(catKey) {
+            fullReset();
             S=10; T=5; TY=3; SP=3;
             setupTutorialParams();
             genTutorialGame(catKey);
             showTutorialProgress(catKey);
             render();
             document.getElementById('win').style.display='none';
+            isTutorialMode = true;
         }
 
         function showTutorialProgress(catKey) {
@@ -2653,12 +2807,47 @@
 
         function newGame(){
             AudioFX.confirm();
-            resetTi(); isTutorialMode=false; document.getElementById('tutorialProgressBar').style.display='none';
-            document.getElementById('brainWinModal').style.display='none';
-            stopFallingEmoji();
-            document.body.classList.remove('brain-golden');
+            fullReset();
+            if (isPresetDifficulty(diff) && !isFreeMode && !isTutorialMode) {
+                enterPresetPending(diff);
+                return;
+            }
             genGame(); render(); renderRec(); document.getElementById('win').style.display='none';
         }
+
+        function fullReset() {
+            resetTi();
+            isTutorialMode = false;
+            isPresetPending = false;
+            pendingDiff = null;
+            currentTutorialType = null;
+            document.getElementById('tutorialProgressBar').style.display = 'none';
+            document.getElementById('brainWinModal').style.display = 'none';
+            document.getElementById('presetStartCard').style.display = 'none';
+            document.getElementById('board').style.display = '';
+            document.getElementById('slot').style.display = '';
+            document.getElementById('win').style.display = 'none';
+            stopFallingEmoji();
+            document.body.classList.remove('brain-golden');
+            document.querySelectorAll('.auto-modal').forEach(m => { m.style.display = 'none'; });
+            document.getElementById('timer').style.display = isFreeMode ? 'none' : 'none';
+        }
+
+        function beginPresetGame() {
+            AudioFX.confirm();
+            document.getElementById('presetStartCard').style.display = 'none';
+            document.getElementById('board').style.display = '';
+            document.getElementById('slot').style.display = '';
+            isPresetPending = false;
+            isTutorialMode = false;
+            document.getElementById('tutorialProgressBar').style.display = 'none';
+            genGame();
+            render();
+            renderRec();
+            document.getElementById('win').style.display = 'none';
+            if (!isFreeMode) { ts = true; startTi(); }
+        }
+
         function clearAll(){ AudioFX.confirm(); G.placed={}; resetP(); render(); }
 
         document.getElementById('reset').onclick=newGame;

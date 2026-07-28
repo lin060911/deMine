@@ -104,6 +104,16 @@
             box-shadow: 0 8px 24px #9f7aea;
             border-color: #b18bff;        
         }
+        #createBtn {
+            background:#21ca94;
+            border:4px solid #7aeac1;
+        }
+        #createBtn:hover {
+            background:#1bda9e;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px #7aead0;
+            border-color: #8bffea;        
+        }
 
         .info {
             color: #4a5568;
@@ -918,12 +928,6 @@
             font-size: 88px;
             margin-bottom: 18px;
             filter: drop-shadow(0 6px 12px rgba(0,0,0,0.15));
-            animation: startIcon 1s ease infinite;
-        }
-        @keyframes startIcon {
-            0%, 100% { transform: translateY(0) rotate(0deg); }
-            25% { transform: translateY(-15px) rotate(-5deg); }
-            75% { transform: translateY(-5px) rotate(15deg); }
         }
         .preset-start-title {
             font-size: 30px;
@@ -1142,6 +1146,310 @@
         }
         .switch-hint.unlock-hint {
             color: #38a169;
+        }
+        .puzzle-input-group {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .puzzle-input-group input {
+            flex: 1;
+            padding: 9px 12px;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+            font-size: 14px;
+            color: #2d3748;
+            background: #fff;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            font-family: inherit;
+        }
+        .puzzle-input-group input:focus {
+            outline: none;
+            border-color: #4299e1;
+            box-shadow: 0 0 0 3px rgba(66,153,225,0.15);
+        }
+        .puzzle-input-group button {
+            padding: 9px 18px;
+            border: 3px solid #63b3ed;
+            border-radius: 8px;
+            background: #4299e1;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+        .puzzle-input-group button:hover {
+            background: #3182ce;
+            border-color: #2b6cb0;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(66,153,225,0.35);
+        }
+
+        .create-mode-panel {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 15px;
+            width: 100%;
+            max-width: 900px;
+        }
+        .create-mode-panel.visible {
+            display: flex;
+        }
+
+        .create-card {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 22px 26px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+            border: 2px solid #e8f4ff;
+            width: 100%;
+            max-width: 480px;
+        }
+        .create-card-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .create-card-title .title-icon {
+            font-size: 20px;
+        }
+
+        .create-size-row {
+            display: flex;
+            gap: 16px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .create-size-field {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+        .create-size-field label {
+            font-weight: 600;
+            color: #4a5568;
+            font-size: 14px;
+        }
+        .create-size-control {
+            display: flex;
+            align-items: center;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 3px solid #e2e8f0;
+            background: #f7fafc;
+        }
+        .create-size-btn {
+            width: 38px;
+            height: 38px;
+            border: none;
+            background: #4299e1;
+            color: white;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .create-size-btn:hover { background: #3182ce; }
+        .create-size-btn:active { background: #2b6cb0; }
+        .create-size-btn.minus { border-radius: 7px 0 0 7px; }
+        .create-size-btn.plus  { border-radius: 0 7px 7px 0; }
+        .create-size-display {
+            width: 52px;
+            height: 38px;
+            text-align: center;
+            line-height: 38px;
+            background: #fff;
+            border: none;
+            border-left: 1px solid #e2e8f0;
+            border-right: 1px solid #e2e8f0;
+            color: #2d3748;
+            font-weight: 700;
+            font-size: 16px;
+            font-family: inherit;
+        }
+        .create-size-display:focus {
+            outline: none;
+            background: #ebf8ff;
+        }
+        .create-size-x {
+            font-size: 22px;
+            font-weight: 900;
+            color: #a0aec0;
+            margin-bottom: 8px;
+        }
+        .create-size-hint {
+            font-size: 12px;
+            color: #a0aec0;
+            margin-top: 4px;
+        }
+
+        .create-info-bar {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+            font-size: 14px;
+            color: #4a5568;
+        }
+        .create-info-bar .info-chip {
+            background: #edf2f7;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+        .create-info-bar .info-chip strong {
+            color: #4299e1;
+        }
+
+        .create-error {
+            color: #e53e3e;
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 6px;
+            min-height: 18px;
+            text-align: center;
+        }
+
+        .create-btn-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .create-btn {
+            padding: 10px 28px;
+            border: 4px solid #68d391;
+            border-radius: 10px;
+            background: #48bb78;
+            color: white;
+            font-weight: 700;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 6px rgba(72,187,120,0.25);
+        }
+        .create-btn:hover {
+            background: #38a169;
+            border-color: #2f855a;
+            transform: translateY(-3px);
+            box-shadow: 0 6px 18px rgba(56,161,105,0.4);
+        }
+        .create-btn:active { transform: translateY(-1px); }
+
+        .create-btn-primary {
+            padding: 10px 20px;
+            border: 4px solid #68cfd3;
+            border-radius: 10px;
+            background: #48b5bb;
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 6px rgba(90, 100, 213, 0.25);
+        }
+        .create-btn-primary:hover {
+            background: #3891a1;
+            border-color: #2f7485;
+            transform: translateY(-3px);
+            box-shadow: 0 6px 18px rgba(56, 94, 161, 0.4);
+        }
+
+        .share-btn {
+            padding: 10px 22px;
+            border: 4px solid #f6ad55;
+            border-radius: 10px;
+            background: #ed8936;
+            color: white;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 6px rgba(237,137,54,0.25);
+        }
+        .share-btn:hover:not(:disabled) {
+            background: #dd6b20;
+            border-color: #c05621;
+            transform: translateY(-3px);
+            box-shadow: 0 6px 18px rgba(221,107,32,0.4);
+        }
+        .share-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            filter: grayscale(0.5);
+        }
+
+        .back-btn {
+            padding: 10px 28px;
+            border: 4px solid #cbd5e0;
+            border-radius: 10px;
+            background: #a0aec0;
+            color: white;
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 4px;
+        }
+        .back-btn:hover {
+            background: #718096;
+            border-color: #4a5568;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(113,128,150,0.35);
+        }
+
+        #createBoardArea {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+            border: 2px solid #e8f4ff;
+            margin-bottom: 14px;
+        }
+
+        #createMineSlot {
+            width: 1100px;
+            margin-top: 0;
+            background: #f7fafc;
+            border: 2px dashed #cbd5e0;
+            margin-bottom: 12px;
+        }
+
+        .generate-code-area {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-top: 14px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .code-output {
+            padding: 14px 16px;
+            background: #f0f9ff;
+            border: 2px dashed #4299e1;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            word-break: break-all;
+            max-width: 260px;
+            color: #2b6cb0;
+            min-height: 20px;
+            display: flex;
+            align-items: center;
         }
     </style>
     <script>
@@ -1588,7 +1896,7 @@
     </div>
 
     <div class="auto-modal" id="brainLockedModal" style="display:none;">
-        <div class="icon">😓</div>
+        <div class="icon">🔒</div>
         <h2>脑王难度锁定中</h2>
         <p>需要同时满足以下条件：<br>1️⃣ 地狱难度通关≥<b>10</b>次（当前 <span id="brainHellWins">0</span>/10）<br>2️⃣ 开启<b>全部5个</b>系列开关（当前 <span id="brainSeriesCount">0</span>/5）</p>
         <button onclick="closeBrainLockedModal()">知道了</button>
@@ -1619,16 +1927,71 @@
         <button id="reset">新游戏</button>
         <button id="clear">清空放置</button>
         <button id="tutorialBtn" onclick="openTutorialSelector()">新手关卡</button>
+        <button id="createBtn" onclick="enterCreateMode()">创造✍️</button>
     </div>
 
     <div class="timer-box" id="timer">00:00.00</div>
 
     <div class="info">已放置：<span id="placed">0</span> / 总雷数：<span id="max">0</span></div>
     <div id="board" class="board"></div>
+    <div class="create-mode-panel" id="createModePanel">
+        <div class="create-card">
+            <div class="create-card-title">
+                <span class="title-icon">📐</span> 棋盘尺寸
+            </div>
+            <div class="create-size-row">
+                <div class="create-size-field">
+                    <label>横·行数</label>
+                    <div class="create-size-control">
+                        <button class="create-size-btn minus" onclick="createSizeStep('rows',-1)">−</button>
+                        <input class="create-size-display" id="createSize" type="number" value="10" min="4" max="20" onchange="createSizeInput('rows',this.value)">
+                        <button class="create-size-btn plus" onclick="createSizeStep('rows',1)">+</button>
+                    </div>
+                </div>
+                <div class="create-size-x">×</div>
+                <div class="create-size-field">
+                    <label>竖·列数</label>
+                    <div class="create-size-control">
+                        <button class="create-size-btn minus" onclick="createSizeStep('cols',-1)">−</button>
+                        <input class="create-size-display" id="createSize2" type="number" value="10" min="4" max="20" onchange="createSizeInput('cols',this.value)">
+                        <button class="create-size-btn plus" onclick="createSizeStep('cols',1)">+</button>
+                    </div>
+                </div>
+            </div>
+            <div class="create-size-hint">范围 4~20 行/列</div>
+            <div class="create-error" id="createError"></div>
+            <div class="create-btn-group" style="margin-top:14px;">
+                <button class="create-btn" onclick="initCreateBoard()">🛠️ 生成空棋盘</button>
+            </div>
+        </div>
+
+        <div class="create-info-bar" id="createInfoBar" style="display:none;">
+            <span class="info-chip">棋盘 <strong id="infoRows">-</strong> 行 × <strong id="infoCols">-</strong> 列</span>
+            <span class="info-chip">已放地雷 <strong id="infoPlaced">0</strong></span>
+            <span class="info-chip">可用类型 <strong id="infoTypes">-</strong></span>
+        </div>
+
+        <div id="createBoardArea" style="position:relative;display:none;"></div>
+
+        <div id="createMineSlot" class="mine-slot-box" style="display:none;"></div>
+
+        <div class="create-card" id="createCodeCard" style="display:none;">
+            <div class="create-card-title">
+                <span class="title-icon">🔗</span>题库码
+            </div>
+            <div class="generate-code-area">
+                <button class="create-btn-primary" onclick="generatePuzzleCode()">🔧生成题库码</button>
+                <div class="code-output" id="puzzleCodeOutput">点击生成后显示</div>
+                <button class="share-btn" id="shareCodeBtn" onclick="copyPuzzleCode()" disabled>🫴分享</button><br>
+
+
+            </div>
+        </div>                <button class="back-btn" onclick="exitCreateMode()">🔙退出创造模式</button>
+    </div>
     <div class="mine-slot-box" id="slot"></div>
 
     <div class="preset-start-card" id="presetStartCard" style="display:none;">
-        <div class="preset-start-icon" id="presetStartIcon">👌</div>
+        <div class="preset-start-icon" id="presetStartIcon">😎</div>
         <div class="preset-start-title" id="presetStartTitle">准备好了吗？</div>
         <div class="preset-start-desc" id="presetStartDesc">点击开始后题目将展现并启动计时(≧▽≦)</div>
         <button class="preset-start-btn" id="presetStartBtn" onclick="beginPresetGame()">开始</button>
@@ -1684,6 +2047,13 @@
 
     <button class="sidebar-toggle" id="toggleSidebar">⚙️ 菜单</button>
     <div class="sidebar" id="sidebar">
+        <div class="sidebar-section">
+            <div class="sidebar-title">✍️ 创造工坊</div>
+            <div class="puzzle-input-group">
+                <input type="text" id="puzzleCodeInput" placeholder="粘贴题库码">
+                <button onclick="applyPuzzleCode()">应用</button>
+            </div>
+        </div>
         <div class="sidebar-section">
             <div class="sidebar-title">🎮 难度选择</div>
             <div class="preset-row">
@@ -1752,7 +2122,7 @@
     </div>
 
     <script>
-        let S=10, T=6, TY=3, SP=4;
+        let S=10, SR=10, SC=10, T=6, TY=3, SP=4;
         const LIMIT = { size:[8,20], total:[2,24], type:[0,22], spec:[0,99] }; 
 
         const PRE = {
@@ -1836,30 +2206,30 @@
             high:{category:"basic", n:"高爆雷",e:"💣",cls:"high-bomb",tip:"3x3范围 +2",f:(r,c,v)=>addVal(r,c,1,1,v,2),
                 preview: {size:3, active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2]], center: [1,1], values: [[2,2,2],[2,2,2],[2,2,2]]}},
             chiliV:{category:"basic", n:"竖辣椒",e:"🌶️",cls:"chiliV-bomb",tip:"竖方向各2格 +1",f:(r,c,v)=>{
-                for(let i=-2;i<=2;i++){let y=r+i;if(y>=0&&y<S)v[y][c]++;}
+                for(let i=-2;i<=2;i++){let y=r+i;if(y>=0&&y<SR)v[y][c]++;}
             }, preview: {size:5, active: [[0,2],[1,2],[2,2],[3,2],[4,2]], center: [2,2]}},
             chiliH:{category:"basic", n:"横辣椒",e:"🌶️",cls:"chiliH-bomb",tip:"横方向各2格 +1",f:(r,c,v)=>{
-                for(let i=-2;i<=2;i++){let x=c+i;if(x>=0&&x<S)v[r][x]++;}
+                for(let i=-2;i<=2;i++){let x=c+i;if(x>=0&&x<SC)v[r][x]++;}
             }, preview: {size:5, active: [[2,0],[2,1],[2,2],[2,3],[2,4]], center: [2,2]}},
             chiliPlus:{category:"basic", n:"十字辣椒",e:"✖️",cls:"chiliPlus-bomb",tip:"横竖各2格 +1",f:(r,c,v)=>{
                 const d=[[-2,0],[-1,0],[0,-1],[0,-2],[0,1],[0,2],[0,0],[2,0],[1,0]];
-                d.forEach(([dr,dc])=>{let y=r+dr,x=c+dc;if(y>=0&&y<S&&x>=0&&x<S)v[y][x]++;});
+                d.forEach(([dr,dc])=>{let y=r+dr,x=c+dc;if(y>=0&&y<SR&&x>=0&&x<SC)v[y][x]++;});
             }, preview: {size:5, active: [[0,2],[1,2],[2,0],[2,1],[2,2],[2,3],[2,4],[3,2],[4,2]], center: [2,2]}},
 
             chiliDiag:{category:"special", n:"对角辣椒",e:"✖️",cls:"chiliDiag-bomb",tip:"3x3对角线 +1",f:(r,c,v)=>{
                 const d=[[-1,-1],[-1,1],[0,0],[1,-1],[1,1]];
-                d.forEach(([dr,dc])=>{let y=r+dr,x=c+dc;if(y>=0&&y<S&&x>=0&&x<S)v[y][x]++;});
+                d.forEach(([dr,dc])=>{let y=r+dr,x=c+dc;if(y>=0&&y<SR&&x>=0&&x<SC)v[y][x]++;});
             }, preview: {size:3, active: [[0,0],[0,2],[1,1],[2,0],[2,2]], center: [1,1]}},
             chiliBigDiag:{category:"special", n:"大对角辣椒",e:"✖️",cls:"chiliBigDiag-bomb",tip:"5x5对角线 +1",f:(r,c,v)=>{
                 const d=[[-2,-2],[-2,2],[-1,-1],[1,1],[-1,1],[1,-1],[0,0],[2,-2],[2,2]];
-                d.forEach(([dr,dc])=>{let y=r+dr,x=c+dc;if(y>=0&&y<S&&x>=0&&x<S)v[y][x]++;});
+                d.forEach(([dr,dc])=>{let y=r+dr,x=c+dc;if(y>=0&&y<SR&&x>=0&&x<SC)v[y][x]++;});
             }, preview: {size:5, active: [[0,0],[0,4],[1,1],[1,3],[2,2],[3,1],[3,3],[4,0],[4,4]], center: [2,2]}},
             ring:{category:"special", n:"环形雷",e:"🔘",cls:"ring-bomb",tip:"5x5区域外圈 +1",f:(r,c,v)=>{
                 for(let nr=-2;nr<=2;nr++){
                     for(let nc=-2;nc<=2;nc++){
                         if(nr === -2 || nr === 2 || nc === -2 || nc === 2){
                             let y = r + nr; let x = c + nc;
-                            if(y >= 0 && y < S && x >= 0 && x < S) v[y][x]++;
+                            if(y >= 0 && y < SR && x >= 0 && x < SC) v[y][x]++;
                         }
                     }
                 }
@@ -1868,7 +2238,7 @@
                 const dirs = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
                 v[r][c]++;
                 dirs.forEach(([dy,dx])=>{
-                    for(let i=1;i<=2;i++){ let y=r+dy*i,x=c+dx*i; if(y>=0&&y<S&&x>=0&&x<S) v[y][x]++; }
+                    for(let i=1;i<=2;i++){ let y=r+dy*i,x=c+dx*i; if(y>=0&&y<SR&&x>=0&&x<SC) v[y][x]++; }
                 });
             }, preview: {size:5, active: [ [2,2],[1,2],[0,2],[3,2],[4,2],[2,1],[2,0],[2,3],[2,4],[1,1],[0,0],[1,3],[0,4],[3,1],[4,0],[3,3],[4,4] ], center: [2,2]}},
 
@@ -1876,43 +2246,43 @@
                 preview: {size:3, active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2]], center: [1,1], values: [[-1,-1,-1],[-1,-1,-1],[-1,-1,-1]]}},
             radiation:{category:"physics", n:"辐射雷",e:"☢️",cls:"radiation-bomb",tip:"中心+3 内环+2 外环+1",f:(r,c,v)=>{
                 v[r][c]+=3;
-                for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){ if(dr===0&&dc===0)continue; let y=r+dr,x=c+dc; if(y>=0&&y<S&&x>=0&&x<S) v[y][x]+=2; }
-                for(let dr=-2;dr<=2;dr++) for(let dc=-2;dc<=2;dc++){ if(Math.abs(dr)===2||Math.abs(dc)===2){ let y=r+dr,x=c+dc; if(y>=0&&y<S&&x>=0&&x<S) v[y][x]+=1; } }
+                for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){ if(dr===0&&dc===0)continue; let y=r+dr,x=c+dc; if(y>=0&&y<SR&&x>=0&&x<SC) v[y][x]+=2; }
+                for(let dr=-2;dr<=2;dr++) for(let dc=-2;dc<=2;dc++){ if(Math.abs(dr)===2||Math.abs(dc)===2){ let y=r+dr,x=c+dc; if(y>=0&&y<SR&&x>=0&&x<SC) v[y][x]+=1; } }
             }, preview: {size:5, active: [[0,0],[0,1],[0,2],[0,3],[0,4],[1,0],[1,1],[1,2],[1,3],[1,4],[2,0],[2,1],[2,2],[2,3],[2,4],[3,0],[3,1],[3,2],[3,3],[3,4],[4,0],[4,1],[4,2],[4,3],[4,4]], 
                 center: [2,2], values: [[1,1,1,1,1],[1,2,2,2,1],[1,2,3,2,1],[1,2,2,2,1],[1,1,1,1,1]]}},
             blackhole:{category:"physics", n:"黑洞炸弹",e:"🕳️",cls:"blackhole-bomb",tip:"中心-1 十字不变 外圈8格+1",f:(r,c,v)=>{
                 v[r][c]-=1;
-                [[-1,-1],[-1,1],[1,-1],[1,1],[-2,0],[2,0],[0,-2],[0,2]].forEach(([dr,dc])=>{ let y=r+dr,x=c+dc; if(y>=0&&y<S&&x>=0&&x<S) v[y][x]+=1; });
+                [[-1,-1],[-1,1],[1,-1],[1,1],[-2,0],[2,0],[0,-2],[0,2]].forEach(([dr,dc])=>{ let y=r+dr,x=c+dc; if(y>=0&&y<SR&&x>=0&&x<SC) v[y][x]+=1; });
             }, preview: {size:5, active: [[0,2],[1,1],[1,3],[2,0],[2,2],[2,4],[3,1],[3,3],[4,2]], center: [2,2], values: [[0,0,1,0,0],[0,1,0,1,0],[1,0,-1,0,1],[0,1,0,1,0],[0,0,1,0,0]]}},
             bigBlackhole:{category:"physics", n:"大黑洞炸弹",e:"🕳️",cls:"big-blackhole-bomb",tip:"中心-2 内环-1 外环+1",f:(r,c,v)=>{
                 v[r][c] -= 2;
                 for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
                     if(dr===0 && dc===0) continue;
-                    let y=r+dr,x=c+dc; if(y>=0&&y<S&&x>=0&&x<S) v[y][x] -= 1;
+                    let y=r+dr,x=c+dc; if(y>=0&&y<SR&&x>=0&&x<SC) v[y][x] -= 1;
                 }
                 for(let dr=-2;dr<=2;dr++) for(let dc=-2;dc<=2;dc++){
                     if(Math.abs(dr)===2 || Math.abs(dc)===2){
-                        let y=r+dr,x=c+dc; if(y>=0&&y<S&&x>=0&&x<S) v[y][x] += 1;
+                        let y=r+dr,x=c+dc; if(y>=0&&y<SR&&x>=0&&x<SC) v[y][x] += 1;
                     }
                 }
             }, preview: {size:5, active: [[0,0],[0,1],[0,2],[0,3],[0,4],[1,0],[1,1],[1,2],[1,3],[1,4],[2,0],[2,1],[2,2],[2,3],[2,4],[3,0],[3,1],[3,2],[3,3],[3,4],[4,0],[4,1],[4,2],[4,3],[4,4]], 
                 center: [2,2], values: [[1,1,1,1,1],[1,-1,-1,-1,1],[1,-1,-2,-1,1],[1,-1,-1,-1,1],[1,1,1,1,1]]}},
 
             mirror:{category:"symmetry", n:"镜像双雷",e:"🥂",cls:"mirror-bomb",tip:"自身+中心对称点 3x3 +1",f:(r,c,v)=>{
-                addVal(r,c,1,1,v,1); addVal(S-1-r,S-1-c,1,1,v,1);
+                addVal(r,c,1,1,v,1); addVal(SR-1-r,SC-1-c,1,1,v,1);
             }, preview: {size:6, active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2],[3,3],[3,4],[3,5],[4,3],[4,4],[4,5],[5,3],[5,4],[5,5]], center: [1,1], split: true}},
             yinYang:{category:"symmetry", n:"阴阳炸弹",e:"☯️",cls:"yin-yang-bomb",tip:"自身3x3+1 中心对称点3x3-1",f:(r,c,v)=>{
-                addVal(r,c,1,1,v,1); addVal(S-1-r,S-1-c,1,1,v,-1);
+                addVal(r,c,1,1,v,1); addVal(SR-1-r,SC-1-c,1,1,v,-1);
             }, preview: {size:6, active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2],[3,3],[3,4],[3,5],[4,3],[4,4],[4,5],[5,3],[5,4],[5,5]], 
                 center: [1,1], values: [[1,1,1,0,0,0],[1,1,1,0,0,0],[1,1,1,0,0,0],[0,0,0,-1,-1,-1],[0,0,0,-1,-1,-1],[0,0,0,-1,-1,-1]], split: true}},
             negativeMirror:{category:"symmetry", n:"负镜像双雷",e:"‼️",cls:"negative-mirror-bomb",tip:"自身+中心对称点 3x3 -1",f:(r,c,v)=>{
-                addVal(r,c,1,1,v,-1); addVal(S-1-r,S-1-c,1,1,v,-1);
+                addVal(r,c,1,1,v,-1); addVal(SR-1-r,SC-1-c,1,1,v,-1);
             }, preview: {size:6, active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2],[3,3],[3,4],[3,5],[4,3],[4,4],[4,5],[5,3],[5,4],[5,5]],
                 center: [1,1], values: [[-1,-1,-1,0,0,0],[-1,-1,-1,0,0,0],[-1,-1,-1,0,0,0],[0,0,0,-1,-1,-1],[0,0,0,-1,-1,-1],[0,0,0,-1,-1,-1]], split: true}},
             triSym:{category:"symmetry", n:"对称·叁雷",e:"3️⃣",cls:"tri-sym-bomb",tip:"自身3x3+1 水平对称点3x3+1 垂直对称点3x3+1",f:(r,c,v)=>{
                 addVal(r,c,1,1,v,1);
-                addVal(r,S-1-c,1,1,v,1);
-                addVal(S-1-r,c,1,1,v,1);
+                addVal(r,SC-1-c,1,1,v,1);
+                addVal(SR-1-r,c,1,1,v,1);
             }, preview: {size:6, active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2],[0,3],[0,4],[0,5],[1,3],[1,4],[1,5],[2,3],[2,4],[2,5],[3,0],[3,1],[3,2],[4,0],[4,1],[4,2],[5,0],[5,1],[5,2]], 
                 center: [1,1], values: [[1,1,1,1,1,1],[1,1,1,1,1,1],[1,1,1,1,1,1],[1,1,1,0,0,0],[1,1,1,0,0,0],[1,1,1,0,0,0]], split: true}},
 
@@ -1921,9 +2291,9 @@
             }, preview: {size:3, active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2]], center: [1,1]}},
             locator:{category:"tactical", n:"坐标定位器",e:"🌐",cls:"locator-bomb",tip:"本格无效果；所在行/列的首尾各+1",f:(r,c,v)=>{
                 if(c!==0) v[r][0]++;
-                if(c!==S-1) v[r][S-1]++;
+                if(c!==SC-1) v[r][SC-1]++;
                 if(r!==0) v[0][c]++;
-                if(r!==S-1) v[S-1][c]++;
+                if(r!==SR-1) v[SR-1][c]++;
             }, preview: {size:5, active: [[0,2],[2,0],[2,4],[4,2]], center: [2,2]}},
             shield:{category:"tactical", n:"屏障生成器",e:"🛡️",cls:"shield-bomb",tip:"3x3范围内所有地块固定为0",f:(r,c,v)=>{
             }, preview: {size:3, active: [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2]], center: [1,1], values: [[0,0,0],[0,0,0],[0,0,0]]}},
@@ -1937,32 +2307,32 @@
                 if (placed[k] === 'shield') {
                     let [r, c] = k.split(',').map(Number);
                     for (let dr=-1; dr<=1; dr++) for (let dc=-1; dc<=1; dc++) {
-                        let y=r+dr, x=c+dc; if(y>=0&&y<S&&x>=0&&x<S) board[y][x]=0;
+                        let y=r+dr, x=c+dc; if(y>=0&&y<SR&&x>=0&&x<SC) board[y][x]=0;
                     }
                 }
             }
-            let extra = Array(S).fill().map(()=>Array(S).fill(0));
+            let extra = Array(SR).fill().map(()=>Array(SC).fill(0));
             for (let k in placed) {
                 if (placed[k] === 'amplifier') {
                     let [r, c] = k.split(',').map(Number);
                     for (let dr=-1; dr<=1; dr++) for (let dc=-1; dc<=1; dc++) {
                         let y=r+dr, x=c+dc;
-                        if(y<0||y>=S||x<0||x>=S) continue;
+                        if(y<0||y>=SR||x<0||x>=SC) continue;
                         let nk = y+','+x;
                         if (nk===k || !placed[nk]) continue;
                         for (let d2r=-1;d2r<=1;d2r++) for (let d2c=-1;d2c<=1;d2c++) {
-                            let yy=y+d2r, xx=x+d2c; if(yy>=0&&yy<S&&xx>=0&&xx<S) extra[yy][xx]++;
+                            let yy=y+d2r, xx=x+d2c; if(yy>=0&&yy<SR&&xx>=0&&xx<SC) extra[yy][xx]++;
                         }
                     }
                 }
             }
-            for (let i=0;i<S;i++) for (let j=0;j<S;j++) board[i][j]+=extra[i][j];
+            for (let i=0;i<SR;i++) for (let j=0;j<SC;j++) board[i][j]+=extra[i][j];
             for (let k in placed) {
                 if (placed[k] === 'siphon') {
                     let [r, c] = k.split(',').map(Number);
                     let cnt=0;
                     for (let dr=-2;dr<=2;dr++) for (let dc=-2;dc<=2;dc++) {
-                        let y=r+dr,x=c+dc; if(y<0||y>=S||x<0||x>=S) continue;
+                        let y=r+dr,x=c+dc; if(y<0||y>=SR||x<0||x>=SC) continue;
                         if (y+','+x !== k && placed[y+','+x]) cnt++;
                     }
                     board[r][c]+=cnt;
@@ -1972,14 +2342,14 @@
                 if (placed[k] === 'shield') {
                     let [r, c] = k.split(',').map(Number);
                     for (let dr=-1; dr<=1; dr++) for (let dc=-1; dc<=1; dc++) {
-                        let y=r+dr, x=c+dc; if(y>=0&&y<S&&x>=0&&x<S) board[y][x]=0;
+                        let y=r+dr, x=c+dc; if(y>=0&&y<SR&&x>=0&&x<SC) board[y][x]=0;
                     }
                 }
             }
         }
 
         function addVal(r,c,dr,dc,v,n){
-            for(let nr=-dr;nr<=dr;nr++) for(let nc=-dc;nc<=dc;nc++){ let y=r+nr,x=c+nc; if(y>=0&&y<S&&x>=0&&x<S) v[y][x]+=n; }
+            for(let nr=-dr;nr<=dr;nr++) for(let nc=-dc;nc<=dc;nc++){ let y=r+nr,x=c+nc; if(y>=0&&y<SR&&x>=0&&x<SC) v[y][x]+=n; }
         }
 
         function getEnabledMineKeys() {
@@ -2087,7 +2457,7 @@
             if (onCount < 5) {
                 hint.className = 'switch-hint';
                 let need = onCount < 3 ? '≥3个才能使用<strong>简单/中等/困难</strong>' : '<strong>简单/中等/困难</strong>已可用✅<br>所有系列全开才能挑战<strong>地狱/脑王</strong>';
-                hint.innerHTML = `当前开启<strong> ${onCount}/5 </strong>个系列<br>${need}<br>💡前往<strong>页面左侧[💣信息]</strong>通关系列<strong>挑战</strong>可解锁`;
+                hint.innerHTML = `当前开启<strong> ${onCount}/5 </strong>个系列<br>${need}<br>💡前往<strong>页面左侧[ℹ️信息]</strong>通关系列<strong>挑战</strong>可解锁`;
             } else {
                 hint.className = 'switch-hint unlock-hint';
                 let brainReady = (wins.hell || 0) >= BRAIN_HELL_WINS_REQ;
@@ -2210,7 +2580,7 @@
             isFreeMode = false;
             seriesLocked = true;
             const p = PRE[d];
-            S = p.size; T = p.total; TY = p.type; SP = p.spec;
+            S = p.size; SR = p.size; SC = p.size; T = p.total; TY = p.type; SP = p.spec;
             SP = Math.min(SP, T); TY = Math.min(TY, SP);
             document.getElementById('size').textContent = S;
             document.getElementById('total').textContent = T;
@@ -2257,7 +2627,7 @@
             let [min,max]=LIMIT[key];
             let val = (key==='size'?S:key==='total'?T:key==='type'?TY:SP);
             val = Math.max(min, Math.min(max, val+dir));
-            if(key==='size') S=val; if(key==='total') T=val; if(key==='type') TY=val; if(key==='spec') SP=val;
+            if(key==='size'){S=val;SR=val;SC=val;} if(key==='total') T=val; if(key==='type') TY=val; if(key==='spec') SP=val;
             SP=Math.min(SP,T); TY=Math.min(TY,SP);
             document.getElementById('size').textContent=S;
             document.getElementById('total').textContent=T;
@@ -2412,7 +2782,7 @@
 
         function checkWin(){
             if(Object.keys(G.placed).length!==G.max) return;
-            for(let r=0;r<S;r++) for(let c=0;c<S;c++) if(G.p[r][c]!==G.tar[r][c]) return;
+            for(let r=0;r<SR;r++) for(let c=0;c<SC;c++) if(G.p[r][c]!==G.tar[r][c]) return;
             stopTi();
 
             if (isFreeMode) {
@@ -2504,11 +2874,11 @@
             
             let pos=new Set(), ans={};
             while(mines.length){
-                let r=Math.random()*S|0,c=Math.random()*S|0,k=r+','+c;
+                let r=Math.random()*SR|0,c=Math.random()*SC|0,k=r+','+c;
                 if(!pos.has(k)){pos.add(k);ans[k]=mines.pop();}
             }
             
-            let tar=Array(S).fill().map(()=>Array(S).fill(0));
+            let tar=Array(SR).fill().map(()=>Array(SC).fill(0));
             for (let k in ans) { let [r,c]=k.split(','); M[ans[k]].f(+r,+c,tar); }
             applyTacticalEffects(tar, ans);
             
@@ -2537,9 +2907,9 @@
             mines=mines.slice(0,T);
             
             let pos=new Set(), ans={};
-            while(mines.length){ let r=Math.random()*S|0,c=Math.random()*S|0,k=r+','+c; if(!pos.has(k)){pos.add(k);ans[k]=mines.pop();} }
+            while(mines.length){ let r=Math.random()*SR|0,c=Math.random()*SC|0,k=r+','+c; if(!pos.has(k)){pos.add(k);ans[k]=mines.pop();} }
             
-            let tar=Array(S).fill().map(()=>Array(S).fill(0));
+            let tar=Array(SR).fill().map(()=>Array(SC).fill(0));
             for (let k in ans) { let [r,c]=k.split(','); M[ans[k]].f(+r,+c,tar); }
             applyTacticalEffects(tar, ans);
             
@@ -2630,7 +3000,7 @@
         }
 
         function resetP(){
-            G.p=Array(S).fill().map(()=>Array(S).fill(0));
+            G.p=Array(SR).fill().map(()=>Array(SC).fill(0));
             for (let k in G.placed) { let [r,c]=k.split(','); M[G.placed[k]].f(+r,+c,G.p); }
             applyTacticalEffects(G.p, G.placed);
         }
@@ -2647,8 +3017,8 @@
 
         function render(){
             let b=document.getElementById('board'); b.innerHTML='';
-            b.style.gridTemplateRows=`repeat(${S},40px)`; b.style.gridTemplateColumns=`repeat(${S},40px)`;
-            for(let r=0;r<S;r++) for(let c=0;c<S;c++){
+            b.style.gridTemplateRows=`repeat(${SR},40px)`; b.style.gridTemplateColumns=`repeat(${SC},40px)`;
+            for(let r=0;r<SR;r++) for(let c=0;c<SC;c++){
                 let d=document.createElement('div'); d.className='cell'; d.dataset.r=r; d.dataset.c=c;
                 let t=G.tar[r][c], p=G.p[r][c], k=r+','+c;
                 if(p===t) d.classList.add('cell-valid'); else if(p<t) d.classList.add('cell-low'); else d.classList.add('cell-over');
@@ -2886,6 +3256,418 @@
                 localStorage.setItem('welcomeLastShown',today);
             }
         });
+
+        let createModeActive = false;
+        let createRows = 10; 
+        let createCols = 10; 
+        let createPlaced = {};
+        let createdTarget = [];
+        const CREATE_MIN = 4;
+        const CREATE_MAX = 20;
+        const CREATE_MAX_CELLS = 400; 
+
+        function getAllMineTypes() {
+            let types = [];
+            for (let k in M) {
+                if (seriesState[M[k].category]) types.push(k);
+            }
+            return types;
+        }
+
+        function clampSize(v) {
+            v = parseInt(v) || CREATE_MIN;
+            return Math.max(CREATE_MIN, Math.min(CREATE_MAX, v));
+        }
+        function getMaxAllowed(otherDim) {
+            return Math.max(CREATE_MIN, Math.min(CREATE_MAX, Math.floor(CREATE_MAX_CELLS / otherDim)));
+        }
+        function showCreateError(msg) {
+            let el = document.getElementById('createError');
+            if (el) el.textContent = msg || '';
+        }
+        function refreshCreateInfoBar() {
+            let bar = document.getElementById('createInfoBar');
+            if (!bar) return;
+            let totalCells = createRows * createCols;
+            let placedCount = Object.keys(createPlaced).length;
+            let typeCount = getAllMineTypes().length;
+            document.getElementById('infoRows').textContent = createRows;
+            document.getElementById('infoCols').textContent = createCols;
+            document.getElementById('infoPlaced').textContent = placedCount;
+            document.getElementById('infoTypes').textContent = typeCount;
+            let maxHint = document.getElementById('createMaxHint');
+            if (!maxHint) {
+                maxHint = document.createElement('span');
+                maxHint.id = 'createMaxHint';
+                maxHint.className = 'info-chip';
+                bar.appendChild(maxHint);
+            }
+            maxHint.innerHTML = '最大地雷数 <strong>' + Math.floor(totalCells * 0.6) + '</strong>';
+            bar.style.display = 'flex';
+        }
+
+        function createSizeStep(dim, delta) {
+            AudioFX.pop();
+            let isRows = (dim === 'rows');
+            let cur = isRows ? createRows : createCols;
+            let other = isRows ? createCols : createRows;
+            let maxForOther = getMaxAllowed(other);
+            let next = clampSize(cur + delta);
+            if (next * other > CREATE_MAX_CELLS) {
+                next = maxForOther;
+                showCreateError('棋盘面积不能超过 ' + CREATE_MAX_CELLS + ' 格（当前 ' + (next*other) + '）');
+            } else {
+                showCreateError('');
+            }
+            if (isRows) { createRows = next; document.getElementById('createSize').value = next; }
+            else         { createCols = next; document.getElementById('createSize2').value = next; }
+        }
+
+        function createSizeInput(dim, val) {
+            let isRows = (dim === 'rows');
+            let other = isRows ? createCols : createRows;
+            let maxForOther = getMaxAllowed(other);
+            let next = clampSize(val);
+            if (next * other > CREATE_MAX_CELLS) {
+                next = maxForOther;
+                showCreateError('棋盘面积不能超过 ' + CREATE_MAX_CELLS + ' 格，已自动调整');
+            } else {
+                showCreateError('');
+            }
+            if (isRows) { createRows = next; document.getElementById('createSize').value = next; }
+            else         { createCols = next; document.getElementById('createSize2').value = next; }
+            AudioFX.pop();
+        }
+
+        function enterCreateMode() {
+            AudioFX.confirm();
+            fullReset();
+            createModeActive = true;
+            document.getElementById('createModePanel').classList.add('visible');
+            document.getElementById('board').style.display = 'none';
+            document.getElementById('slot').style.display = 'none';
+            document.getElementById('presetStartCard').style.display = 'none';
+            document.getElementById('timer').style.display = 'none';
+            createRows = 10; createCols = 10;
+            document.getElementById('createSize').value = 10;
+            document.getElementById('createSize2').value = 10;
+            document.getElementById('puzzleCodeOutput').textContent = '点击生成后显示';
+            document.getElementById('shareCodeBtn').disabled = true;
+            showCreateError('');
+            document.getElementById('createBoardArea').style.display = 'none';
+            document.getElementById('createMineSlot').style.display = 'none';
+            document.getElementById('createCodeCard').style.display = 'none';
+            document.getElementById('createInfoBar').style.display = 'none';
+            createPlaced = {};
+        }
+
+        function initCreateBoard() {
+            AudioFX.confirm();
+            let r = clampSize(document.getElementById('createSize').value);
+            let c = clampSize(document.getElementById('createSize2').value);
+            if (r * c > CREATE_MAX_CELLS) {
+                c = getMaxAllowed(r);
+                document.getElementById('createSize2').value = c;
+                showCreateError('棋盘面积超限，列数已自动调整为 ' + c);
+            } else {
+                showCreateError('');
+            }
+            createRows = r;
+            createCols = c;
+            SR = r; SC = c; S = Math.max(r, c);
+            createPlaced = {};
+            document.getElementById('createBoardArea').style.display = '';
+            document.getElementById('createMineSlot').style.display = '';
+            document.getElementById('createCodeCard').style.display = '';
+            refreshCreateInfoBar();
+            renderCreateBoard();
+            renderCreateMineSlot();
+        }
+
+        function renderCreateBoard() {
+            let area = document.getElementById('createBoardArea');
+            area.innerHTML = '';
+            let rows = createRows, cols = createCols;
+            let board = document.createElement('div');
+            board.className = 'board';
+            board.style.gridTemplateRows = `repeat(${rows},40px)`;
+            board.style.gridTemplateColumns = `repeat(${cols},40px)`;
+            let tempP = Array.from({length: rows}, () => Array(cols).fill(0));
+            let oldSR = SR, oldSC = SC; SR = rows; SC = cols;
+            for (let k in createPlaced) {
+                let [r,c] = k.split(',').map(Number);
+                M[createPlaced[k]].f(r, c, tempP);
+            }
+            applyTacticalEffects(tempP, createPlaced);
+            SR = oldSR; SC = oldSC;
+            createdTarget = tempP.map(row => row.slice());
+
+            for (let r=0; r<rows; r++) {
+                for (let c=0; c<cols; c++) {
+                    let cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.r = r;
+                    cell.dataset.c = c;
+                    let val = tempP[r][c];
+                    if (val !== 0) {
+                        cell.textContent = val;
+                        cell.classList.add('n' + Math.min(Math.abs(val), 9));
+                        if (val > 0) cell.classList.add('cell-valid');
+                        else cell.classList.add('cell-over');
+                    }
+                    let key = r+','+c;
+                    if (createPlaced[key]) {
+                        cell.classList.add('mine-here');
+                        let ty = createPlaced[key];
+                        cell.innerHTML = `<span class="${M[ty].cls}">${M[ty].e}</span>`;
+                        cell.draggable = true;
+                        cell.ondragstart = (e) => {
+                            e.dataTransfer.setData('text/plain', key);
+                            G.drag = key;
+                        };
+                    } else {
+                        cell.draggable = false;
+                    }
+                    cell.ondragover = (e) => {
+                        e.preventDefault();
+                        cell.style.boxShadow = 'inset 0 0 0 2px #4299e1';
+                    };
+                    cell.ondragleave = () => {
+                        if (!createPlaced[cell.dataset.r+','+cell.dataset.c])
+                            cell.style.boxShadow = '';
+                    };
+                    cell.ondrop = (e) => {
+                        e.preventDefault();
+                        cell.style.boxShadow = '';
+                        let targetKey = r+','+c;
+                        if (createPlaced[targetKey]) return;
+                        let type = e.dataTransfer.getData('text/plain');
+                        if (!type) {
+                            if (G.drag && createPlaced[G.drag]) {
+                                let movedType = createPlaced[G.drag];
+                                delete createPlaced[G.drag];
+                                createPlaced[targetKey] = movedType;
+                                G.drag = null;
+                                AudioFX.place();
+                                renderCreateBoard();
+                                renderCreateMineSlot();
+                                refreshCreateInfoBar();
+                            }
+                            return;
+                        }
+                        if (M[type]) {
+                            createPlaced[targetKey] = type;
+                            AudioFX.place();
+                            renderCreateBoard();
+                            renderCreateMineSlot();
+                            refreshCreateInfoBar();
+                        }
+                    };
+                    cell.oncontextmenu = (e) => {
+                        e.preventDefault();
+                        let key = r+','+c;
+                        if (createPlaced[key]) {
+                            delete createPlaced[key];
+                            AudioFX.remove();
+                            renderCreateBoard();
+                            renderCreateMineSlot();
+                            refreshCreateInfoBar();
+                        }
+                    };
+                    board.appendChild(cell);
+                }
+            }
+            area.appendChild(board);
+        }
+
+        function renderCreateMineSlot() {
+            let container = document.getElementById('createMineSlot');
+            container.innerHTML = '';
+            let types = getAllMineTypes();
+            let totalCells = createRows * createCols;
+            let maxMines = Math.floor(totalCells * 0.6);
+            let placedCount = Object.keys(createPlaced).length;
+            types.forEach(t => {
+                let used = Object.values(createPlaced).filter(v => v === t).length;
+                let div = document.createElement('div');
+                let disabled = placedCount >= maxMines;
+                div.className = 'mine-item' + (disabled ? ' disabled' : '');
+                div.dataset.tip = M[t].tip;
+                div.draggable = !disabled;
+                div.dataset.mineType = t;
+                div.ondragstart = (e) => {
+                    if (disabled) { e.preventDefault(); return; }
+                    e.dataTransfer.setData('text/plain', t);
+                    e.dataTransfer.effectAllowed = 'copy';
+                };
+                div.innerHTML = `<div class="emoji-drag ${M[t].cls}">${M[t].e}</div><div>${M[t].n}</div><div>${used} 已放</div>`;
+                container.appendChild(div);
+            });
+        }
+
+        function generatePuzzleCode() {
+            if (Object.keys(createPlaced).length === 0) {
+                showCreateError('请先在棋盘上放置至少一个地雷！');
+                return;
+            }
+            showCreateError('');
+            let rows = createRows, cols = createCols;
+            let placed = createPlaced;
+            let allTypes = Object.keys(M).sort();
+            let typeIndex = {};
+            allTypes.forEach((t, idx) => typeIndex[t] = idx);
+            let data = { rows: rows, cols: cols, mines: [] };
+            for (let key in placed) {
+                let [r, c] = key.split(',').map(Number);
+                let type = placed[key];
+                data.mines.push([r, c, typeIndex[type]]);
+            }
+            let json = JSON.stringify(data);
+            let code = btoa(unescape(encodeURIComponent(json)));
+            document.getElementById('puzzleCodeOutput').textContent = code;
+            document.getElementById('shareCodeBtn').disabled = false;
+            AudioFX.confirm();
+        }
+
+        function copyPuzzleCode() {
+            let code = document.getElementById('puzzleCodeOutput').textContent;
+            if (!code || code === '点击生成后显示') return;
+            let text = '我分享了一个反向扫雷题目，来试试你能不能破解！' + code;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    AudioFX.confirm();
+                    flashShareBtn();
+                }).catch(() => fallbackCopy(text));
+            } else {
+                fallbackCopy(text);
+            }
+        }
+        function fallbackCopy(text) {
+            let ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); } catch(e) {}
+            document.body.removeChild(ta);
+            AudioFX.confirm();
+            flashShareBtn();
+        }
+        function flashShareBtn() {
+            let btn = document.getElementById('shareCodeBtn');
+            if (!btn) return;
+            let old = btn.textContent;
+            btn.textContent = '✅ 已复制';
+            btn.style.background = '#48bb78';
+            btn.style.borderColor = '#2f855a';
+            setTimeout(() => { btn.textContent = old; btn.style.background=''; btn.style.borderColor=''; }, 1500);
+        }
+
+        function exitCreateMode() {
+            createModeActive = false;
+            document.getElementById('createModePanel').classList.remove('visible');
+            document.getElementById('board').style.display = '';
+            document.getElementById('slot').style.display = '';
+            if (diff && !isFreeMode) {
+                if (isPresetPending) enterPresetPending(pendingDiff);
+                else newGame();
+            } else {
+                newGame();
+            }
+        }
+
+        function applyPuzzleCode() {
+            let input = document.getElementById('puzzleCodeInput');
+            let raw = input.value.trim();
+            if (!raw) {
+                alert('请输入题库码！');
+                return;
+            }
+            let prefix = '我分享了一个反向扫雷题目，来试试你能不能破解！';
+            if (raw.startsWith(prefix)) {
+                raw = raw.substring(prefix.length);
+            }
+            let code = raw.trim();
+            try {
+                let json = decodeURIComponent(escape(atob(code)));
+                let data = JSON.parse(json);
+                if (!data.mines || !Array.isArray(data.mines)) throw new Error('格式错误');
+                let rows = data.rows || data.size;
+                let cols = data.cols || data.size;
+                if (!rows || !cols) throw new Error('缺少棋盘尺寸');
+                if (rows < 4 || rows > 20 || cols < 4 || cols > 20) throw new Error('棋盘大小超出范围');
+                if (rows * cols > 400) throw new Error('棋盘面积超出 400 格上限');
+                let allTypes = Object.keys(M).sort();
+                let placed = {};
+                for (let m of data.mines) {
+                    let [r, c, typeIdx] = m;
+                    if (r < 0 || r >= rows || c < 0 || c >= cols) throw new Error('坐标越界');
+                    let type = allTypes[typeIdx];
+                    if (!type || !M[type]) throw new Error('未知地雷类型');
+                    placed[r+','+c] = type;
+                }
+                fullReset();
+                createModeActive = false;
+                document.getElementById('createModePanel').classList.remove('visible');
+                SR = rows; SC = cols; S = Math.max(rows, cols);
+                T = Object.keys(placed).length;
+                let pool = {};
+                for (let k in placed) {
+                    let t = placed[k];
+                    pool[t] = (pool[t] || 0) + 1;
+                }
+                G.pool = pool;
+                G.max = T;
+                G.placed = {};
+                let tar = Array.from({length: SR}, () => Array(SC).fill(0));
+                for (let k in placed) {
+                    let [r,c] = k.split(',').map(Number);
+                    M[placed[k]].f(r, c, tar);
+                }
+                applyTacticalEffects(tar, placed);
+                G.tar = tar;
+                G.placed = {};
+                resetP();
+                render();
+                renderRec();
+                document.getElementById('win').style.display = 'none';
+                document.getElementById('timer').style.display = 'block';
+                diff = null;
+                isFreeMode = false;
+                ts = true;
+                startTi();
+                AudioFX.confirm();
+            } catch (e) {
+                alert('题库码无效，请检查！\n' + e.message);
+            }
+        }
+
+        const _origFullReset = fullReset;
+        const _origNewGame = newGame;
+
+        fullReset = function() {
+            _origFullReset();
+            createModeActive = false;
+            document.getElementById('createModePanel').classList.remove('visible');
+            document.getElementById('puzzleCodeOutput').textContent = '点击生成后显示';
+            document.getElementById('shareCodeBtn').disabled = true;
+            let ba = document.getElementById('createBoardArea');
+            if (ba) ba.style.display = 'none';
+            let sl = document.getElementById('createMineSlot');
+            if (sl) sl.style.display = 'none';
+            let cc = document.getElementById('createCodeCard');
+            if (cc) cc.style.display = 'none';
+            let ib = document.getElementById('createInfoBar');
+            if (ib) ib.style.display = 'none';
+            showCreateError('');
+        };
+
+        newGame = function() {
+            if (createModeActive) {
+                exitCreateMode();
+                return;
+            }
+            _origNewGame();
+        };
     </script>
 </body>
 </html>

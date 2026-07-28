@@ -928,6 +928,12 @@
             font-size: 88px;
             margin-bottom: 18px;
             filter: drop-shadow(0 6px 12px rgba(0,0,0,0.15));
+            animation: startIcon 1s ease infinite;
+        }
+        @keyframes startIcon {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            25% { transform: translateY(-15px) rotate(-5deg); }
+            75% { transform: translateY(-5px) rotate(15deg); }
         }
         .preset-start-title {
             font-size: 30px;
@@ -1896,7 +1902,7 @@
     </div>
 
     <div class="auto-modal" id="brainLockedModal" style="display:none;">
-        <div class="icon">🔒</div>
+        <div class="icon">😓</div>
         <h2>脑王难度锁定中</h2>
         <p>需要同时满足以下条件：<br>1️⃣ 地狱难度通关≥<b>10</b>次（当前 <span id="brainHellWins">0</span>/10）<br>2️⃣ 开启<b>全部5个</b>系列开关（当前 <span id="brainSeriesCount">0</span>/5）</p>
         <button onclick="closeBrainLockedModal()">知道了</button>
@@ -2457,7 +2463,7 @@
             if (onCount < 5) {
                 hint.className = 'switch-hint';
                 let need = onCount < 3 ? '≥3个才能使用<strong>简单/中等/困难</strong>' : '<strong>简单/中等/困难</strong>已可用✅<br>所有系列全开才能挑战<strong>地狱/脑王</strong>';
-                hint.innerHTML = `当前开启<strong> ${onCount}/5 </strong>个系列<br>${need}<br>💡前往<strong>页面左侧[ℹ️信息]</strong>通关系列<strong>挑战</strong>可解锁`;
+                hint.innerHTML = `当前开启<strong> ${onCount}/5 </strong>个系列<br>${need}<br>💡前往<strong>页面左侧[💣信息]</strong>通关系列<strong>挑战</strong>可解锁`;
             } else {
                 hint.className = 'switch-hint unlock-hint';
                 let brainReady = (wins.hell || 0) >= BRAIN_HELL_WINS_REQ;

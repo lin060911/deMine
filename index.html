@@ -385,7 +385,7 @@
             position: fixed;
             top: 0;
             right: 0;
-            width: 400px;
+            width: 460px;
             height: 100vh;
             background: #fff;
             box-shadow: -3px 0 15px rgba(0,0,0,0.1);
@@ -1174,7 +1174,7 @@
             border-color: #4299e1;
             box-shadow: 0 0 0 3px rgba(66,153,225,0.15);
         }
-        .puzzle-input-group button {
+        .apply-input-btn {
             padding: 9px 18px;
             border: 3px solid #63b3ed;
             border-radius: 8px;
@@ -1185,13 +1185,29 @@
             transition: all 0.2s;
             font-size: 14px;
         }
-        .puzzle-input-group button:hover {
+        .apply-input-btn:hover {
             background: #3182ce;
             border-color: #2b6cb0;
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(66,153,225,0.35);
         }
-
+        .clear-input-btn {
+            background: #e53e3e;
+            border: 3px solid #fc8181;
+            color: white;
+            font-weight: 600;
+            padding: 9px 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+        .clear-input-btn:hover {
+            background: #c53030;
+            border-color: #e53e3e;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(229,62,62,0.35);
+        }
         .create-mode-panel {
             display: none;
             flex-direction: column;
@@ -2057,7 +2073,8 @@
             <div class="sidebar-title">✍️ 创造工坊</div>
             <div class="puzzle-input-group">
                 <input type="text" id="puzzleCodeInput" placeholder="粘贴题库码">
-                <button onclick="applyPuzzleCode()">应用</button>
+                <button class="apply-input-btn" onclick="applyPuzzleCode()">应用</button>
+                <button class="clear-input-btn" onclick="clearPuzzleInput()">清空</button>
             </div>
         </div>
         <div class="sidebar-section">
@@ -3522,14 +3539,43 @@
             let allTypes = Object.keys(M).sort();
             let typeIndex = {};
             allTypes.forEach((t, idx) => typeIndex[t] = idx);
-            let data = { rows: rows, cols: cols, mines: [] };
+
+            let numMines = Object.keys(placed).length;
+            let byteLen = 2 + numMines * 2;
+            let buffer = new ArrayBuffer(byteLen);
+            let view = new DataView(buffer);
+            view.setUint8(0, rows);
+            view.setUint8(1, cols);
+
+            let offset = 2;
             for (let key in placed) {
                 let [r, c] = key.split(',').map(Number);
                 let type = placed[key];
-                data.mines.push([r, c, typeIndex[type]]);
+                let typeIdx = typeIndex[type];
+
             }
-            let json = JSON.stringify(data);
-            let code = btoa(unescape(encodeURIComponent(json)));
+            byteLen = 2 + 3 * numMines;
+            buffer = new ArrayBuffer(byteLen);
+            view = new DataView(buffer);
+            view.setUint8(0, rows);
+            view.setUint8(1, cols);
+            offset = 2;
+            for (let key in placed) {
+                let [r, c] = key.split(',').map(Number);
+                let type = placed[key];
+                let typeIdx = typeIndex[type];
+                view.setUint8(offset, r);
+                view.setUint8(offset + 1, c);
+                view.setUint8(offset + 2, typeIdx);
+                offset += 3;
+            }
+
+            let bytes = new Uint8Array(buffer);
+            let binary = '';
+            for (let i = 0; i < bytes.length; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            let code = btoa(binary).replace(/=+$/, '');
             document.getElementById('puzzleCodeOutput').textContent = code;
             document.getElementById('shareCodeBtn').disabled = false;
             AudioFX.confirm();
@@ -3538,7 +3584,7 @@
         function copyPuzzleCode() {
             let code = document.getElementById('puzzleCodeOutput').textContent;
             if (!code || code === '点击生成后显示') return;
-            let text = '我分享了一个反向扫雷题目，来试试你能不能破解！' + code;
+            let text = '我分享了一个[反向💣扫雷]题目，来试试你能不能破解！' + code;
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(text).then(() => {
                     AudioFX.confirm();
@@ -3584,33 +3630,34 @@
         function applyPuzzleCode() {
             let input = document.getElementById('puzzleCodeInput');
             let raw = input.value.trim();
-            if (!raw) {
-                alert('请输入题库码！');
-                return;
-            }
-            let prefix = '我分享了一个反向扫雷题目，来试试你能不能破解！';
-            if (raw.startsWith(prefix)) {
-                raw = raw.substring(prefix.length);
-            }
+            if (!raw) { alert('请输入题库码！'); return; }
+            let prefix = '我分享了一个[反向💣扫雷]题目，来试试你能不能破解！';
+            if (raw.startsWith(prefix)) raw = raw.substring(prefix.length);
             let code = raw.trim();
             try {
-                let json = decodeURIComponent(escape(atob(code)));
-                let data = JSON.parse(json);
-                if (!data.mines || !Array.isArray(data.mines)) throw new Error('格式错误');
-                let rows = data.rows || data.size;
-                let cols = data.cols || data.size;
-                if (!rows || !cols) throw new Error('缺少棋盘尺寸');
+                while (code.length % 4 !== 0) code += '=';
+                let binary = atob(code);
+                let bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                let view = new DataView(bytes.buffer);
+                let rows = view.getUint8(0);
+                let cols = view.getUint8(1);
                 if (rows < 4 || rows > 20 || cols < 4 || cols > 20) throw new Error('棋盘大小超出范围');
                 if (rows * cols > 400) throw new Error('棋盘面积超出 400 格上限');
+
                 let allTypes = Object.keys(M).sort();
                 let placed = {};
-                for (let m of data.mines) {
-                    let [r, c, typeIdx] = m;
-                    if (r < 0 || r >= rows || c < 0 || c >= cols) throw new Error('坐标越界');
+                let offset = 2;
+                while (offset + 2 < bytes.length) {
+                    let r = view.getUint8(offset);
+                    let c = view.getUint8(offset + 1);
+                    let typeIdx = view.getUint8(offset + 2);
+                    if (typeIdx >= allTypes.length) throw new Error('未知地雷类型索引');
                     let type = allTypes[typeIdx];
-                    if (!type || !M[type]) throw new Error('未知地雷类型');
-                    placed[r+','+c] = type;
+                    placed[r + ',' + c] = type;
+                    offset += 3;
                 }
+
                 fullReset();
                 createModeActive = false;
                 document.getElementById('createModePanel').classList.remove('visible');
@@ -3645,6 +3692,10 @@
             } catch (e) {
                 alert('题库码无效，请检查！\n' + e.message);
             }
+        }
+        function clearPuzzleInput() {
+            document.getElementById('puzzleCodeInput').value = '';
+            AudioFX.remove();
         }
 
         const _origFullReset = fullReset;

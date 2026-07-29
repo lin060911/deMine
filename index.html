@@ -3487,6 +3487,7 @@
 
         function openTeachMode() {
             AudioFX.confirm();
+            document.querySelector('.panel').style.display = 'none';
             let nextIdx = teachCompleted.findIndex(v => !v);
             if (nextIdx === -1) nextIdx = 0; 
             teachLevelIdx = nextIdx;
@@ -3709,6 +3710,7 @@
 
         function teachExit() {
             AudioFX.confirm();
+            document.querySelector('.panel').style.display = 'flex';
             document.getElementById('teachCompleteModal').classList.remove('visible');
             document.getElementById('teachBubble').classList.remove('visible');
             document.querySelectorAll('.cell-teach-target').forEach(el => el.classList.remove('cell-teach-target'));

@@ -1415,10 +1415,57 @@
             filter: grayscale(0.5);
         }
 
+        .teach-progress-bar-inline {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #4b86a2 100%);
+            padding: 10px 22px;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.35);
+            width: 100%;
+            max-width: 520px;
+            margin: 0 auto 14px;
+            animation: teachBarIn 0.4s ease;
+        }
+        @keyframes teachBarIn {
+            0% { opacity: 0; transform: translateY(-10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        .teach-progress-bar-inline .teach-progress-title {
+            font-weight: 700;
+            font-size: 14px;
+            color: #fff;
+            white-space: nowrap;
+            min-width: 56px;
+        }
+        .teach-progress-bar-inline .teach-progress-track {
+            flex: 1;
+            height: 10px;
+            background: rgba(255,255,255,0.25);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .teach-progress-bar-inline .teach-progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #fbbf24, #f59e0b);
+            transition: width 0.5s ease;
+            border-radius: 5px;
+        }
+        .teach-progress-bar-inline .teach-progress-text {
+            font-size: 13px;
+            color: rgba(255,255,255,0.9);
+            font-weight: 600;
+            white-space: nowrap;
+            min-width: 48px;
+            text-align: right;
+        }
+
         .teach-bubble {
             position: fixed;
-            top: 60%;
-            left: 30%;
+            top: 65%;
+            left: 28%;
             transform: translate(-50%, calc(-50% - 60px));
             background: linear-gradient(135deg, #667eea 0%, #4ba29b 100%);
             color: #fff;
@@ -1426,8 +1473,8 @@
             border-radius: 16px;
             box-shadow: 0 8px 32px rgba(102, 126, 234, 0.45);
             z-index: 200;
-            width: 360px;
-            max-width: 380px;
+            width: 340px;
+            max-width: 360px;
             text-align: center;
             font-size: 15px;
             line-height: 1.7;
@@ -1444,7 +1491,7 @@
             100% { opacity: 1; transform: translate(-50%, calc(-50% - 60px)) scale(1); }
         }
         .cell-teach-target {
-            box-shadow: inset 0 0 0 3px #667eea, 0 0 12px rgba(102,126,234,0.6) !important;
+            box-shadow: inset 0 0 0 3px #667eea, 0 0 12px #66b5ea !important;
             animation: teachCellPulse 1.2s ease infinite;
         }
         @keyframes teachCellPulse {
@@ -1482,7 +1529,7 @@
         .teach-complete-modal {
             display: none;
             position: fixed;
-            top: 50%; left: 50%;
+            top: 55%; left: 50%;
             transform: translate(-50%, -50%);
             background: linear-gradient(135deg, #48bb78, #38a169);
             padding: 36px 32px 24px;
@@ -1504,21 +1551,6 @@
             cursor: pointer; transition: all 0.2s;
         }
         .teach-complete-modal button:hover { transform: scale(1.06); }
-        .teach-prev-btn {
-            position: absolute;
-            top: 50%; left: -16px;
-            transform: translateY(-50%);
-            width: 36px; height: 36px;
-            border-radius: 50%;
-            background: #667eea; color: #fff;
-            border: none; font-size: 18px;
-            cursor: pointer; z-index: 201;
-            display: none;
-            align-items: center; justify-content: center;
-            box-shadow: 0 2px 8px rgba(102,126,234,0.4);
-        }
-        .teach-prev-btn.visible { display: flex; }
-        .teach-prev-btn:hover { background: #7c8aef; }
 
         .back-btn {
             padding: 10px 28px;
@@ -2059,8 +2091,18 @@
 
     <div class="timer-box" id="timer">00:00.00</div>
 
+    
+    <div class="teach-progress-bar-inline" id="teachProgressBar" style="display:none;">
+        <span class="teach-progress-title" id="teachProgressTitle">教学进度</span>
+        <div class="teach-progress-track">
+            <div class="teach-progress-fill" id="teachProgressFill"></div>
+        </div>
+        <span class="teach-progress-text" id="teachProgressText">0/10</span>
+    </div>
     <div class="info">已放置：<span id="placed">0</span> / 总雷数：<span id="max">0</span></div>
     <div id="board" class="board"></div>
+
+
 
     <div class="teach-bubble" id="teachBubble">
         <div class="teach-progress" id="teachProgress"></div>
@@ -2068,7 +2110,6 @@
         <div class="teach-bubble-title" id="teachBubbleTitle">教学关卡</div>
         <div class="teach-bubble-text" id="teachBubbleText">欢迎来到教学！</div>
         <div class="teach-bubble-hint" id="teachBubbleHint">按提示操作即可</div>
-        <button class="teach-prev-btn" id="teachPrevBtn" onclick="teachPrevStep()" title="上一步">◀</button>
     </div>
 
     <div class="teach-complete-modal" id="teachCompleteModal">
@@ -2133,7 +2174,8 @@
 
 
             </div>
-        </div>                <button class="back-btn" onclick="exitCreateMode()">🔙退出创造模式</button>
+        </div>                
+        <button class="back-btn" onclick="exitCreateMode()">🔙退出创造模式</button>
     </div>
     <div class="mine-slot-box" id="slot"></div>
 
@@ -3341,7 +3383,7 @@
                 ],
                 steps: [
                     { text: "这是一颗 💣普通雷\n它会让周围 3×3 范围每个格子 +1\n\n棋盘中央有一块 3×3 的「1」区域 \n试着把雷拖过去吧！", hint: "普通雷 3x3 范围 +1" },
-                    { text: "提示：放在区域的中心位置（第3行第3列）\n它的 3×3 影响范围才能刚好覆盖所有 1。", hint: "右键删除地雷🚫", targetCell: [2,2] },
+                    { text: "提示：放在区域中心位置（第3行第3列）\n它的 3×3 影响范围才能刚好覆盖所有 1。", hint: "右键删除地雷🚫", targetCell: [2,2] },
                 ]
             },
             {
@@ -3477,26 +3519,95 @@
                     { text: "提示：放到第2行第2列\n就能产生正确的负值影响。", hint: "右键删除地雷🚫", targetCell: [1,1] },
                 ]
             },
+            {
+                title: "⑨ 影响叠加",
+                icon: "💣＋💣",
+                mineTypes: {"normal": 2},
+                boardRows: 5,
+                boardCols: 5,
+                targetBoard: [
+                    [1,1,1,0,0],
+                    [1,2,2,1,0],
+                    [1,2,2,1,0],
+                    [0,1,1,1,0],
+                    [0,0,0,0,0],
+                ],
+                steps: [
+                    { text: "当两颗地雷的影响范围重叠时\n重叠区域的数值会累加！\n\n中间有 2×2 的[2]区域\n说明这些格子被两颗雷同时覆盖", hint: "两颗雷重叠 → 1+1=2" },
+                    { text: "把一颗💣放到第2行第2列\n你会看到 3×3 范围变成 1", hint: "右键删除地雷🚫", targetCell: [1,1] },
+                    { text: "再放第二颗💣到第3行第3列\n两颗雷范围叠加处 → 数值变成 2 ✅", hint: "右键删除地雷🚫", targetCell: [2,2] },
+                ]
+            },
+            {
+                title: "⑩ 正负抵消",
+                icon: "➕➖",
+                mineTypes: {"normal": 1, "anti": 1},
+                boardRows: 5,
+                boardCols: 5,
+                targetBoard: [
+                    [0,0,0,0,0],
+                    [0,1,1,1,0],
+                    [0,1,0,0,-1],
+                    [0,1,0,0,-1],
+                    [0,0,-1,-1,-1],
+                ],
+                steps: [
+                    { text: "💣普通雷 +1，💥反物质炸弹 -1\n当它们的影响范围重叠时\n重叠区域相加得0！\n\n中间有 2×2 的[0]区域\n说明这些格子被两颗雷同时覆盖", hint: "正负叠加 → 1+(-1)=0" },
+                    { text: "把💣放到第3行第3列\n它的 3×3 范围覆盖中间区域", hint: "右键删除地雷🚫", targetCell: [2,2] },
+                    { text: "把💥放到第4行第4列\n它的 3×3 范围覆盖右下区域\n两者重叠区域 → 1+(-1)=0 ✅", hint: "右键删除地雷🚫", targetCell: [3,3] },
+                ]
+            },
+            {
+                title: "融会贯通",
+                icon: "🥳",
+                mineTypes: {"big5": 1, "anti": 1, "chiliV":1, "chiliH":1},
+                boardRows: 8,
+                boardCols: 8,
+                targetBoard: [
+                    [0,1,0,0,0,0,0,0],
+                    [0,1,0,0,-1,-1,-1,0],
+                    [0,2,1,1,0,0,-1,0],
+                    [0,2,1,1,0,0,-1,0],
+                    [0,2,1,1,1,1,0,0],
+                    [0,1,1,1,1,1,0,0],
+                    [0,1,1,2,2,2,1,1],
+                    [0,0,0,0,0,0,0,0],
+                ],
+                steps: [
+                    { text: "这是为你准备的最后考题\n想想刚才所有的特性\n用下方的四个地雷，把棋盘变绿吧！", hint: "正负叠加 → 1+(-1)=0" },
+                    { text: "巨型雷💣轮廓最明显\n把它放在第5行第4列正好", hint: "右键删除地雷🚫", targetCell: [4,3] },
+                    { text: "把💥放到第3行第6列\n与巨型雷的范围叠加\n两者重叠区域 → 1+(-1)=0 ✅", hint: "右键删除地雷🚫", targetCell: [2,5] },
+                    { text: "把竖辣椒放到第3行2列\n与巨型雷的范围叠加区域\n1+1=2 ✅", hint: "右键删除地雷🚫", targetCell: [2,1] },
+                    { text: "把横辣椒放到第7行第6列\n与巨型雷的范围叠加区域\n1+1=2 ✅", hint: "右键删除地雷🚫", targetCell: [6,5] },
+                ]
+            },   
         ];
 
         let teachActive = false;
         let teachLevelIdx = 0;
         let teachStepIdx = 0;
-        let teachPlaced = false; 
-        let teachCompleted = JSON.parse(localStorage.getItem('teachCompleted') || '[false,false,false,false,false,false,false,false]');
+        let teachPlacedCount = 0;
+        let teachExpectedCount = 0;
+        let teachPlacedTypes = {};
+        let teachExpectedTypes = {};
+        let teachPlaceList = [];
+        let teachCompleted = [];
 
         function openTeachMode() {
             AudioFX.confirm();
             document.querySelector('.panel').style.display = 'none';
-            let nextIdx = teachCompleted.findIndex(v => !v);
-            if (nextIdx === -1) nextIdx = 0; 
-            teachLevelIdx = nextIdx;
+            teachLevelIdx = 0;
             teachStepIdx = 0;
             teachActive = true;
-            teachPlaced = false;
+            teachPlacedCount = 0;
+            teachExpectedCount = 0;
+            teachPlaceList = [];
+            teachPlacedTypes = {};
             fullReset();
             S = 5; SR = 5; SC = 5;
             document.getElementById('overlay').style.display = 'none';
+            document.getElementById('teachProgressBar').style.display = 'block';
+            updateTeachProgressBar();
             loadTeachLevel();
         }
 
@@ -3514,20 +3625,28 @@
             G.tar = lvl.targetBoard.map(row => row.slice());
             G.p = Array(SR).fill().map(() => Array(SC).fill(0));
             G.placed = {};
-            G.max = 1;
-            G.pool = {};
-            G.pool[lvl.mineType] = 1;
+            teachPlaceList = [];
+            teachPlacedTypes = {};
+
+            let mt = lvl.mineTypes || (lvl.mineType ? {[lvl.mineType]:1} : {});
+            teachExpectedTypes = Object.assign({}, mt);
+            teachExpectedCount = 0;
+            for (let k in mt) teachExpectedCount += mt[k];
+            teachPlacedCount = 0;
+
+            G.max = teachExpectedCount;
+            G.pool = Object.assign({}, mt);
 
             teachStepIdx = 0;
-            teachPlaced = false;
 
             renderTeachSlot();
             renderTeachBoard();
             showTeachStep();
+            updateTeachProgressBar();
             document.getElementById('win').style.display = 'none';
             document.getElementById('timer').style.display = 'none';
             document.getElementById('placed').textContent = '0';
-            document.getElementById('max').textContent = '1';
+            document.getElementById('max').textContent = String(teachExpectedCount);
         }
 
         function renderTeachBoard() {
@@ -3547,13 +3666,31 @@
                     else if (p < t) d.classList.add('cell-low');
                     else if (p > t) d.classList.add('cell-over');
                     if (t !== 0) { d.textContent = t; d.classList.add('n' + t); }
-                    if (G.placed[r + ',' + c]) {
+                    let k = r + ',' + c;
+                    if (G.placed[k]) {
                         d.classList.add('mine-here');
-                        let ty = G.placed[r + ',' + c];
+                        let ty = G.placed[k];
                         d.innerHTML = `<span class="${M[ty].cls}">${M[ty].e}</span>`;
+                        d.draggable = true;
+                        d.ondragstart = (e) => {
+                            e.dataTransfer.setData('text/plain', 'move:' + k);
+                            window._lastTeachDragType = ty;
+                        };
                     }
-                    d.ondragover = e => { e.preventDefault(); };
-                    d.ondrop = e => { e.preventDefault(); teachDrop(r, c); };
+                    d.ondragover = e => { e.preventDefault(); d.style.boxShadow='inset 0 0 0 2px #4299e1'; };
+                    d.ondragleave = () => { if(!G.placed[k]) d.style.boxShadow=''; };
+                    d.ondrop = e => {
+                        e.preventDefault();
+                        d.style.boxShadow='';
+                        let dt = e.dataTransfer ? e.dataTransfer.getData('text/plain') : '';
+                        if (dt.indexOf('type:') === 0) {
+                            window._lastTeachDragType = dt.substring(5);
+                        } else if (dt.indexOf('move:') === 0) {
+                        } else {
+                            window._lastTeachDragType = null;
+                        }
+                        teachDrop(r, c);
+                    };
                     d.oncontextmenu = e => { e.preventDefault(); teachRemove(r, c); };
                     b.appendChild(d);
                 }
@@ -3565,46 +3702,74 @@
             let s = document.getElementById('slot');
             s.innerHTML = '';
             s.style.display = '';
-            let div = document.createElement('div');
-            div.className = 'mine-item' + (teachPlaced ? ' disabled' : '');
-            div.dataset.tip = M[lvl.mineType].tip;
-            div.draggable = !teachPlaced;
-            div.dataset.mineType = lvl.mineType;
-            div.ondragstart = e => {
-                if (teachPlaced) { e.preventDefault(); return; }
-                e.dataTransfer.setData('text/plain', lvl.mineType);
-                e.dataTransfer.effectAllowed = 'copy';
-            };
-            div.innerHTML = `<div class="emoji-drag ${M[lvl.mineType].cls}">${M[lvl.mineType].e}</div><div>${M[lvl.mineType].n}</div><div>${teachPlaced ? '1/1' : '0/1'}</div>`;
-            s.appendChild(div);
+            let mt = lvl.mineTypes || (lvl.mineType ? {[lvl.mineType]:1} : {});
+            for (let t in mt) {
+                let expected = mt[t];
+                let placed = teachPlacedTypes[t] || 0;
+                let div = document.createElement('div');
+                let disabled = placed >= expected;
+                div.className = 'mine-item' + (disabled ? ' disabled' : '');
+                div.dataset.tip = M[t].tip;
+                div.draggable = !disabled;
+                div.dataset.mineType = t;
+                div.ondragstart = e => {
+                    if (disabled) { e.preventDefault(); return; }
+                    e.dataTransfer.setData('text/plain', 'type:' + t);
+                    e.dataTransfer.effectAllowed = 'copy';
+                };
+                div.innerHTML = `<div class="emoji-drag ${M[t].cls}">${M[t].e}</div><div>${M[t].n}</div><div>${placed}/${expected}</div>`;
+                s.appendChild(div);
+            }
         }
 
         function teachDrop(r, c) {
-            if (teachPlaced) return;
             let lvl = TEACH_LEVELS[teachLevelIdx];
             let k = r + ',' + c;
-            G.placed[k] = lvl.mineType;
-            teachPlaced = true;
+            if (G.placed[k]) return;
+            let dragType = window._lastTeachDragType || null;
+            window._lastTeachDragType = null;
+            if (!dragType) {
+                let mt = lvl.mineTypes || (lvl.mineType ? {[lvl.mineType]:1} : {});
+                for (let t in mt) {
+                    if ((teachPlacedTypes[t]||0) < mt[t]) { dragType = t; break; }
+                }
+            }
+            if (!dragType) return;
+            let mt = lvl.mineTypes || (lvl.mineType ? {[lvl.mineType]:1} : {});
+            if ((teachPlacedTypes[dragType]||0) >= (mt[dragType]||0)) return;
+
+            G.placed[k] = dragType;
+            teachPlaceList.push({r:r, c:c, type:dragType});
+            teachPlacedTypes[dragType] = (teachPlacedTypes[dragType]||0) + 1;
+            teachPlacedCount++;
             AudioFX.place();
+
             G.p = Array(SR).fill().map(() => Array(SC).fill(0));
-            for (let mk in G.placed) {
-                let [mr, mc] = mk.split(',').map(Number);
-                M[G.placed[mk]].f(mr, mc, G.p);
+            for (let item of teachPlaceList) {
+                M[item.type].f(item.r, item.c, G.p);
             }
             applyTacticalEffects(G.p, G.placed);
             renderTeachBoard();
             renderTeachSlot();
-            document.getElementById('placed').textContent = '1';
-            let allCorrect = true;
-            for (let i = 0; i < SR; i++) for (let j = 0; j < SC; j++) {
-                if (G.p[i][j] !== G.tar[i][j]) allCorrect = false;
-            }
-            if (allCorrect) {
-                showTeachStep(true);
-                setTimeout(() => teachLevelComplete(), 1200);
+            document.getElementById('placed').textContent = String(teachPlacedCount);
+            updateTeachProgressBar();
+
+            if (teachPlacedCount >= teachExpectedCount) {
+                let allCorrect = true;
+                for (let i = 0; i < SR; i++) for (let j = 0; j < SC; j++) {
+                    if (G.p[i][j] !== G.tar[i][j]) allCorrect = false;
+                }
+                if (allCorrect) {
+                    showTeachStep(true);
+                    setTimeout(() => teachLevelComplete(), 1200);
+                } else {
+                    let steps = lvl.steps || [];
+                    teachStepIdx = Math.min(teachStepIdx + 1, steps.length - 1);
+                    showTeachStep(false);
+                }
             } else {
-                AudioFX.remove();
-                teachStepIdx = 1;
+                let steps = lvl.steps || [];
+                teachStepIdx = Math.min(teachStepIdx + 1, steps.length - 1);
                 showTeachStep(false);
             }
         }
@@ -3612,13 +3777,21 @@
         function teachRemove(r, c) {
             let k = r + ',' + c;
             if (!G.placed[k]) return;
+            let removedType = G.placed[k];
             delete G.placed[k];
-            teachPlaced = false;
+            teachPlaceList = teachPlaceList.filter(item => !(item.r===r && item.c===c));
+            teachPlacedTypes[removedType] = Math.max(0, (teachPlacedTypes[removedType]||0) - 1);
+            teachPlacedCount = Math.max(0, teachPlacedCount - 1);
             AudioFX.remove();
             G.p = Array(SR).fill().map(() => Array(SC).fill(0));
+            for (let item of teachPlaceList) {
+                M[item.type].f(item.r, item.c, G.p);
+            }
+            applyTacticalEffects(G.p, G.placed);
             renderTeachBoard();
             renderTeachSlot();
-            document.getElementById('placed').textContent = '0';
+            document.getElementById('placed').textContent = String(teachPlacedCount);
+            updateTeachProgressBar();
             teachStepIdx = 0;
             showTeachStep(false);
         }
@@ -3628,11 +3801,14 @@
             let bubble = document.getElementById('teachBubble');
             bubble.classList.add('visible');
 
-            let step = lvl.steps[teachStepIdx] || lvl.steps[0];
+            let steps = lvl.steps || [];
+            let stepIdx = Math.min(teachStepIdx, steps.length - 1);
+            let step = steps[stepIdx] || steps[0] || {text:'', hint:''};
+
             if (isCorrect) {
                 document.getElementById('teachBubbleIcon').textContent = '✅';
-                document.getElementById('teachBubbleTitle').textContent = '正确！';
-                document.getElementById('teachBubbleText').textContent = '放置正确，棋盘全部匹配！';
+                document.getElementById('teachBubbleTitle').textContent = '正确!';
+                document.getElementById('teachBubbleText').textContent = '放置正确，棋盘已全部匹配！\n\n 该教学已完成\n';
                 document.getElementById('teachBubbleHint').textContent = '';
             } else {
                 document.getElementById('teachBubbleIcon').textContent = lvl.icon;
@@ -3647,9 +3823,6 @@
                 let cellEl = document.querySelector(`.cell[data-r="${tr}"][data-c="${tc}"]`);
                 if (cellEl) cellEl.classList.add('cell-teach-target');
             }
-
-            let prevBtn = document.getElementById('teachPrevBtn');
-            prevBtn.classList.remove('visible');
         }
 
         function showTeachBubbleMsg(text) {
@@ -3657,14 +3830,17 @@
             showTeachStep(false);
         }
 
-        function teachPrevStep() {
-            if (teachStepIdx > 0) { teachStepIdx--; showTeachStep(); }
+        function updateTeachProgressBar() {
+            let bar = document.getElementById('teachProgressBar');
+            if (!bar) return;
+            let total = TEACH_LEVELS.length;
+            let pct = Math.round((teachLevelIdx / total) * 100);
+            document.getElementById('teachProgressFill').style.width = pct + '%';
+            document.getElementById('teachProgressText').textContent = (teachLevelIdx + 1) + '/' + total;
         }
 
         function teachLevelComplete() {
-            teachCompleted[teachLevelIdx] = true;
-            localStorage.setItem('teachCompleted', JSON.stringify(teachCompleted));
-            AudioFX.win();
+            updateTeachProgressBar();
 
             let modal = document.getElementById('teachCompleteModal');
             let lvl = TEACH_LEVELS[teachLevelIdx];
@@ -3684,14 +3860,17 @@
                 nextBtn.style.display = '';
                 exitBtn.style.display = 'none';
                 practiceBtn.style.display = '';
+                AudioFX.winBrain();
             } else {
+                let nextLvl = TEACH_LEVELS[teachLevelIdx + 1];
                 document.getElementById('teachCompleteText').innerHTML =
-                    `做得好！接下来学习：${TEACH_LEVELS[teachLevelIdx + 1].title}`;
+                    `做得好！接下来学习：${nextLvl.title}`;
                 nextBtn.textContent = '下一步 ➡️';
                 nextBtn.onclick = teachNextLevel;
                 nextBtn.style.display = '';
                 exitBtn.style.display = '';
                 practiceBtn.style.display = 'none';
+                AudioFX.win();
             }
             modal.classList.add('visible');
             document.getElementById('teachBubble').classList.remove('visible');
@@ -3703,8 +3882,9 @@
             if (teachLevelIdx < TEACH_LEVELS.length - 1) {
                 teachLevelIdx++;
                 teachStepIdx = 0;
-                teachPlaced = false;
                 loadTeachLevel();
+            } else {
+                document.getElementById('teachProgressBar').style.display = 'none';
             }
         }
 
@@ -3715,6 +3895,7 @@
             document.getElementById('teachBubble').classList.remove('visible');
             document.querySelectorAll('.cell-teach-target').forEach(el => el.classList.remove('cell-teach-target'));
             teachActive = false;
+            document.getElementById('teachProgressBar').style.display = 'none';
             S = 10; SR = 10; SC = 10; T = 6; TY = 3; SP = 4;
             fullReset();
             genGame(); render(); renderRec(); document.getElementById('win').style.display = 'none';
@@ -3725,7 +3906,12 @@
             document.getElementById('teachCompleteModal').classList.remove('visible');
             document.getElementById('teachBubble').classList.remove('visible');
             document.querySelectorAll('.cell-teach-target').forEach(el => el.classList.remove('cell-teach-target'));
+            document.getElementById('teachProgressBar').style.display = 'none';
             teachActive = false;
+            teachPlacedCount = 0;
+            teachExpectedCount = 0;
+            teachPlaceList = [];
+            teachPlacedTypes = {};
             S = 10; SR = 10; SC = 10; T = 6; TY = 3; SP = 4;
             currentTutorialType = null;
             isTutorialMode = true;
@@ -3753,6 +3939,13 @@
             pendingDiff = null;
             currentTutorialType = null;
             document.getElementById('tutorialProgressBar').style.display = 'none';
+            document.getElementById('teachProgressBar').style.display = 'none';
+            teachActive = false;
+            teachPlacedCount = 0;
+            teachExpectedCount = 0;
+            teachPlaceList = [];
+            teachPlacedTypes = {};
+            teachExpectedTypes = {};
             document.getElementById('brainWinModal').style.display = 'none';
             document.getElementById('presetStartCard').style.display = 'none';
             document.getElementById('board').style.display = '';

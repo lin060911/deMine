@@ -20,7 +20,23 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            background: linear-gradient(180deg,#c2e286 2%,#b1e4b3 60%, #e8f4f8);
+            background: 
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 19px,
+                    rgba(255, 255, 255, 0.4) 19px,
+                    rgba(255, 255, 255, 0.4) 20px
+                ),
+                repeating-linear-gradient(
+                    90deg,
+                    transparent,
+                    transparent 19px,
+                    rgba(255, 255, 255, 0.4) 19px,
+                    rgba(255, 255, 255, 0.4) 20px
+                ),
+                linear-gradient(180deg, #c2e286 2%, #b1e4b3 60%, #e8f4f8);
+            
             padding: 20px;
             min-height: 100vh;
             position: relative;
@@ -536,8 +552,21 @@
         .rule-sidebar .sidebar-title {
             border-left-color: #48c65f;
         }
+
         .sidebar-title.lock-title {
             border-left-color: #805ad5;
+        }        
+        .sidebar-title.bgm-title {
+            border-left-color: #5a83d5;
+        }        
+        .sidebar-title.preset-title {
+            border-left-color: #d55a5a;
+        }        
+        .sidebar-title.create-title {
+            border-left-color: #27cb94;
+        }        
+        .sidebar-title.record-title {
+            border-left-color: #e8d50b;
         }
 
         .rule-content {
@@ -1610,7 +1639,45 @@
             display: flex;
             align-items: center;
         }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            outline: none;
+            transition: background 0.2s;
+            cursor: pointer;
+        }
+        .bgm-slider {
+            background: linear-gradient(90deg, #bee3f8, #4299e1);
+        }
+        .bgm-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #3182ce;
+            border: 2px solid #fff;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+            cursor: pointer;
+            transition: transform 0.15s;
+        }
+        .bgm-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+        }
+        .bgm-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #3182ce;
+            border: 2px solid #fff;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+            cursor: pointer;
+        }
     </style>
+    
     <script>
     const AudioFX = (function() {
         let ctx = null, masterGain = null, muted = false, lastHoverTime = 0, reverbNode = null;
@@ -1727,12 +1794,191 @@
             playTone(1000, 0.08, 'sine', 0.12, t);
             playTone(1500, 0.1, 'sine', 0.1, t + 0.06);
         }
-        return { init, resume, pop: playPop, modalOpen: playModalOpen, confirm: playConfirm, win: playWin, winBrain: playWinBrain, toggle: playToggle, place: playPlace, remove: playRemove, error: playError, locked: playLocked, stepDone: playStepDone, copy: playCopy, setMuted: m => { muted = m; }, isMuted: () => muted };
-    })();
+        return { init, resume, pop: playPop, modalOpen: playModalOpen, confirm: playConfirm, win: playWin, winBrain: playWinBrain, toggle: playToggle, place: playPlace, remove: playRemove, error: playError, locked: playLocked, stepDone: playStepDone, copy: playCopy, setMuted: m => { muted = m; }, isMuted: () => muted, setVolume: function(v) { if (masterGain) masterGain.gain.value = Math.max(0, Math.min(1, v)) * 0.35; } };    })();
 
     document.addEventListener('click', () => AudioFX.resume(), { once: true });
     document.addEventListener('touchstart', () => AudioFX.resume(), { once: true });
     document.addEventListener('keydown', () => AudioFX.resume(), { once: true });
+    </script>
+
+    <script>
+
+    (function() {
+        'use strict';
+        
+        let ctx = null, masterGain = null;
+        let isPlaying = false, isMuted = false, userInteracted = false;
+        let nextNoteTime = 0, stepIndex = 0, timerID = null;
+        let autoplayBlocked = false;
+        
+        const tempo = 110;
+        const stepsPerBar = 16;
+        const totalBars = 4;
+        const totalSteps = stepsPerBar * totalBars;
+        const stepDuration = 60 / tempo / 4;
+        
+        function init() {
+            if (ctx) {
+                if (ctx.state === 'suspended') ctx.resume();
+                return;
+            }
+            try {
+                ctx = new (window.AudioContext || window.webkitAudioContext)();
+                masterGain = ctx.createGain();
+                masterGain.gain.value = 0.05;
+                masterGain.connect(ctx.destination);
+            } catch(e) {
+                console.warn('Web Audio API not supported for BGM');
+            }
+        }
+        
+        function mtof(m) { return m ? 440 * Math.pow(2, (m - 69) / 12) : 0; }
+        
+        let noiseBuffer = null;
+        function getNoiseBuffer() {
+            if (noiseBuffer) return noiseBuffer;
+            const len = ctx.sampleRate * 2;
+            noiseBuffer = ctx.createBuffer(1, len, ctx.sampleRate);
+            const data = noiseBuffer.getChannelData(0);
+            for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+            return noiseBuffer;
+        }
+        
+        function playTone(freq, time, duration, type, volume, detune) {
+            if (isMuted || !freq) return;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = type || 'sine';
+            osc.frequency.value = freq;
+            if (detune) osc.detune.value = detune;
+            gain.gain.setValueAtTime(0, time);
+            gain.gain.linearRampToValueAtTime(volume || 0.04, time + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+            osc.connect(gain);
+            gain.connect(masterGain);
+            osc.start(time);
+            osc.stop(time + duration + 0.05);
+        }
+        
+        function playNoise(time, duration, volume, filterFreq) {
+            if (isMuted) return;
+            const src = ctx.createBufferSource();
+            src.buffer = getNoiseBuffer();
+            const gain = ctx.createGain();
+            const filter = ctx.createBiquadFilter();
+            filter.type = filterFreq > 6000 ? 'highpass' : 'bandpass';
+            filter.frequency.value = filterFreq || 800;
+            filter.Q.value = 0.4;
+            gain.gain.setValueAtTime(0, time);
+            gain.gain.linearRampToValueAtTime(volume || 0.06, time + 0.003);
+            gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+            src.connect(filter);
+            filter.connect(gain);
+            gain.connect(masterGain);
+            src.start(time);
+            src.stop(time + duration + 0.05);
+        }
+        
+        function playKick(time) {
+            if (isMuted) return;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.frequency.setValueAtTime(150, time);
+            osc.frequency.exponentialRampToValueAtTime(35, time + 0.2);
+            gain.gain.setValueAtTime(0, time);
+            gain.gain.linearRampToValueAtTime(0.15, time + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.001, time + 0.3);
+            osc.connect(gain);
+            gain.connect(masterGain);
+            osc.start(time);
+            osc.stop(time + 0.35);
+        }
+        
+        const melody = [
+            76, 0, 79, 0,  84, 81, 79, 0,  76, 74, 76, 0,  72, 0, 0, 0,
+            79, 0, 81, 0,  84, 0, 81, 79,  77, 0, 79, 0,  76, 0, 0, 0,
+            74, 0, 76, 0,  79, 76, 74, 0,  72, 0, 74, 0,  76, 0, 0, 0,
+            77, 79, 81, 0,  79, 77, 76, 0,  74, 72, 71, 0,  72, 0, 0, 0
+        ];
+        const bass = [
+            48, 0, 0, 0,  48, 0, 0, 0,  48, 0, 0, 0,  48, 0, 0, 0,
+            43, 0, 0, 0,  43, 0, 0, 0,  43, 0, 0, 0,  43, 0, 0, 0,
+            45, 0, 0, 0,  45, 0, 0, 0,  45, 0, 0, 0,  45, 0, 0, 0,
+            41, 0, 0, 0,  41, 0, 0, 0,  41, 0, 0, 0,  41, 0, 0, 0
+        ];
+        const kickSteps  = new Set([0, 8, 16, 24, 32, 40, 48, 56]);
+        const snareSteps = new Set([4, 12, 20, 28, 36, 44, 52, 60]);
+        const hihatSteps = new Set([2, 6, 10, 14, 18, 22, 26, 30, 34, 38, 42, 46, 50, 54, 58, 62]);
+        
+        function scheduleStep(step, time) {
+            if (kickSteps.has(step))  playKick(time);
+            if (snareSteps.has(step)) playNoise(time, 0.10, 0.06, 1800);
+            if (hihatSteps.has(step)) playNoise(time, 0.035, 0.03, 7500);
+            const b = bass[step];
+            if (b) playTone(mtof(b), time, stepDuration * 3.5, 'triangle', 0.08);
+            const m = melody[step];
+            if (m) {
+                const f = mtof(m);
+                const dur = stepDuration * (step % 2 === 0 ? 1.8 : 1.2);
+                playTone(f, time, dur, 'sine', 0.04);
+            }
+        }
+        
+        function scheduler() {
+            if (!isPlaying) return;
+            const lookahead = 0.12;
+            while (nextNoteTime < ctx.currentTime + lookahead) {
+                scheduleStep(stepIndex, nextNoteTime);
+                nextNoteTime += stepDuration;
+                stepIndex = (stepIndex + 1) % totalSteps;
+            }
+            timerID = setTimeout(scheduler, 25);
+        }
+        
+        function start() {
+            init();
+            if (isPlaying) return;
+            isPlaying = true;
+            nextNoteTime = ctx.currentTime + 0.05;
+            stepIndex = 0;
+            scheduler();
+        }
+        
+        function tryAutoplay() {
+            init();
+            if (!ctx) return;
+            start();
+            if (ctx.state === 'suspended') {
+                autoplayBlocked = true;
+                const onInteract = () => {
+                    if (userInteracted) return;
+                    userInteracted = true;
+                    ctx.resume().then(() => {
+                        if (!isPlaying) start();
+                        autoplayBlocked = false;
+                    }).catch(() => {});
+                };
+                ['click','touchstart','keydown','pointerdown'].forEach(evt =>
+                    document.addEventListener(evt, onInteract, { once: true }));
+            }
+        }
+        
+        if (document.readyState === 'loading')
+            document.addEventListener('DOMContentLoaded', tryAutoplay);
+        else tryAutoplay();
+        
+        window.RetroBGM = {
+            play: start,
+            stop: function() { isPlaying = false; if (timerID) { clearTimeout(timerID); timerID = null; } },
+            toggle: function() { return isPlaying ? window.RetroBGM.stop() : window.RetroBGM.play(); },
+            setMuted: function(m) { isMuted = m; },
+            setVolume: function(v) {
+                if (masterGain) masterGain.gain.value = Math.max(0, Math.min(1, v)) * 0.13;
+            },
+            get isPlaying() { return isPlaying; },
+            get isBlocked() { return autoplayBlocked; }
+        };
+    })();
     </script>
 </head>
 <body>
@@ -1973,7 +2219,13 @@
     <button class="sidebar-toggle" id="toggleSidebar">⚙️ 菜单</button>
     <div class="sidebar" id="sidebar">
         <div class="sidebar-section">
-            <div class="sidebar-title">✍️ 创造工坊</div>
+            <div class="sidebar-title bgm-title">🔊 背景音乐</div>
+                <span class="value-display" id="bgmValue">50%</span>
+                <input type="range" min="0" max="100" value="50" class="bgm-slider" id="bgmSlider">
+        </div>
+        
+        <div class="sidebar-section">
+            <div class="sidebar-title create-title">✍️ 创造工坊</div>
             <div class="puzzle-input-group">
                 <input type="text" id="puzzleCodeInput" placeholder="粘贴题库码">
                 <button class="apply-input-btn" onclick="applyPuzzleCode()">应用</button>
@@ -1981,7 +2233,7 @@
             </div>
         </div>
         <div class="sidebar-section">
-            <div class="sidebar-title">🎮 难度选择</div>
+            <div class="sidebar-title preset-title">🎯 难度选择</div>
             <div class="preset-row">
                 <button class="preset-btn preset-easy" id="btnEasy" onclick="setPre('easy')">😎简单</button>
                 <button class="preset-btn preset-medium" id="btnMedium" onclick="setPre('medium')">😮中等</button>
@@ -2038,7 +2290,7 @@
         </div>
 
         <div class="sidebar-section">
-            <div class="sidebar-title">🏆 纪录</div>
+            <div class="sidebar-title record-title">🏆 纪录</div>
             <div class="record-tip">使用预设难度开始计时挑战吧！ヾ(≧▽≦*)o</div>
             <div id="recordList"></div>
         </div>
@@ -4201,6 +4453,36 @@
             }
             _origNewGame();
         };
+        (function() {
+                'use strict';
+
+                const bgmSlider = document.getElementById('bgmSlider');
+                const bgmValue  = document.getElementById('bgmValue');
+
+                function initSlider() {
+                    const bgmInit = 50;
+                    bgmSlider.value = bgmInit;
+                    bgmValue.textContent = bgmInit + '%';
+                    if (window.RetroBGM && window.RetroBGM.setVolume) {
+                        window.RetroBGM.setVolume(bgmInit / 100);
+                    }
+                }
+
+                bgmSlider.addEventListener('input', function() {
+                    const val = parseInt(this.value, 10);
+                    bgmValue.textContent = val + '%';
+                    if (window.RetroBGM && window.RetroBGM.setVolume) {
+                        window.RetroBGM.setVolume(val / 100);
+                    }
+                });
+
+                if (document.readyState === 'complete') {
+                    initSlider();
+                } else {
+                    window.addEventListener('load', initSlider);
+                }
+            })();
     </script>
+    
 </body>
 </html>

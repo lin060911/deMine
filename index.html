@@ -416,19 +416,20 @@
         }
         .sidebar-toggle {
             position: fixed;
-            top: 40%;
+            top: 35%;
             right: 0;
             background: #2777d9;
             color: #fff;
+            border: none;
             padding: 20px 12px;
             writing-mode: vertical-rl;
-            border-radius: 12px 0 0 12px;
+            border-radius: 12px 0 0 12px ;
             cursor: pointer;
-            z-index: 998;
+            z-index: 997;
             font-weight: bold;
             font-size: 16px;
+            margin-left: 0;
             transition: transform 0.4s ease;
-            border: none;
         }
 
         .sidebar-toggle:hover{
@@ -1676,8 +1677,136 @@
             box-shadow: 0 1px 4px rgba(0,0,0,0.2);
             cursor: pointer;
         }
-    </style>
     
+        .achievement-sidebar {
+            position: fixed; top: 0; right: 0;
+            width: 460px; height: 100vh;
+            background: #fff;
+            box-shadow: -3px 0 15px rgba(0,0,0,0.1);
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            z-index: 999; padding: 20px;
+            overflow-y: auto;
+        }
+        .achievement-sidebar.open { transform: translateX(0); }
+        .achievement-sidebar-toggle {
+            position: fixed;
+            top: 45%;
+            right: 0;
+            background: #d5a627;
+            color: #fff;
+            border: none;
+            padding: 20px 12px;
+            writing-mode: vertical-rl;
+            border-radius: 12px 0 0 12px ;
+            cursor: pointer;
+            z-index: 998;
+            font-weight: bold;
+            font-size: 16px;
+            margin-left: 0;
+            margin: 32px 0;
+            transition: transform 0.4s ease;
+        }
+        .achievement-sidebar-toggle:hover { background: #e8c34a; transform: translateY(-6px); }
+
+        .achievement-section { margin-bottom: 22px; }
+        .achievement-section-title {
+            font-size: 17px; font-weight: 900;
+            margin-bottom: 10px; padding-left: 10px;
+            border-left: 4px solid #d5a627; color: #2d3748;
+        }
+        .achievement-section-title.records-title { border-left-color: #e8d50b; }
+
+        .achievement-item {
+            display: flex; align-items: flex-start; gap: 10px;
+            padding: 10px 12px; margin-bottom: 8px;
+            background: #f7fafc; border-radius: 10px;
+            border-left: 3px solid #e2e8f0;
+            transition: all 0.25s;
+        }
+        .achievement-item.unlocked {
+            background: linear-gradient(135deg, #fffbeb, #fef3c7);
+            border-left-color: #f59e0b;
+            box-shadow: 0 2px 8px rgba(245,158,11,0.18);
+        }
+        .achievement-item.hidden-ach { border-left: 6px solid #d74321;}
+        .achievement-emoji { font-size: 28px; flex-shrink: 0; width: 40px; text-align: center; filter: grayscale(0.7); transition: filter 0.3s; }
+        .achievement-item.unlocked .achievement-emoji { filter: none; }
+        .achievement-info { flex: 1; min-width: 0; }
+        .achievement-name { font-weight: 700; font-size: 14px; color: #2d3748; margin-bottom: 2px; }
+        .achievement-item.unlocked .achievement-name { color: #92400e; }
+        .achievement-desc { font-size: 12px; color: #718096; line-height: 1.4; }
+        .achievement-meta { font-size: 11px; color: #a0aec0; margin-top: 3px; }
+        .achievement-item.unlocked .achievement-meta { color: #b45309; }
+        .achievement-progress { font-size: 11px; color: #4299e1; font-weight: 600; margin-top: 2px; }
+        .achievement-lock { font-size: 20px; flex-shrink: 0; width: 28px; text-align: center; }
+
+        .achievement-popup-overlay {
+            display: none; position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 2000;
+            justify-content: center; align-items: flex-start;
+            padding-top: 60px;
+        }
+        .achievement-popup-overlay.active { display: flex; }
+        .achievement-popup {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            border: 3px solid #f59e0b; border-radius: 16px;
+            padding: 18px 28px; display: flex; align-items: center; gap: 14px;
+            box-shadow: 0 8px 40px rgba(245,158,11,0.5);
+            animation: achPopupIn 0.5s cubic-bezier(0.34,1.56,0.64,1);
+            max-width: 420px;
+        }
+        @keyframes achPopupIn {
+            0% { transform: translateY(-40px) scale(0.8); opacity: 0; }
+            60% { transform: translateY(8px) scale(1.05); opacity: 1; }
+            100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        .achievement-popup .popup-emoji { font-size: 42px; animation: achBounce 1s ease infinite; }
+        @keyframes achBounce { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-6px);} }
+        .achievement-popup .popup-text h3 { font-size: 13px; color: #92400e; margin-bottom: 2px; font-weight: 700; }
+        .achievement-popup .popup-text .popup-name { font-size: 18px; font-weight: 900; color: #78350f; }
+        .achievement-popup .popup-text .popup-desc { font-size: 12px; color: #a16207; margin-top: 2px; }
+
+        .achievement-stats {
+            text-align: center; padding: 10px;
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            border-radius: 10px; margin-bottom: 16px; border: 2px solid #f59e0b;
+        }
+        .achievement-stats .stats-num { font-size: 24px; font-weight: 900; color: #92400e; }
+        .achievement-stats .stats-label { font-size: 12px; color: #a16207; }
+
+    </style>
+
+    <button class="achievement-sidebar-toggle" id="toggleAchSidebar">📝记录</button>
+    <div class="achievement-sidebar" id="achSidebar">
+        <div class="achievement-stats" id="achStats">
+            <span class="stats-num" id="achUnlockedCount">0</span>
+            <span class="stats-label">/ <span id="achTotalCount">0</span>🏆 成就已解锁</span>
+        </div>        
+        <div class="achievement-section" id="recSection">
+            <div class="achievement-section-title records-title">🥇 成绩</div>
+            <div id="achRecordList"></div>
+        </div>
+        <div class="achievement-section" id="achSection">
+            <div class="achievement-section-title">🏆 成就</div>
+            <div id="achList"></div>
+        </div>
+
+        <div class="sidebar-version">谢谢你玩[反向💣扫雷]<br>ヾ(•ω•`)o</div>
+    </div>
+
+    <div class="achievement-popup-overlay" id="achPopupOverlay">
+        <div class="achievement-popup" id="achPopup">
+            <div class="popup-emoji" id="popupEmoji">🏆</div>
+            <div class="popup-text">
+                <h3>🎉 成就解锁！</h3>
+                <div class="popup-name" id="popupName"></div>
+                <div class="popup-desc" id="popupDesc"></div>
+            </div>
+        </div>
+    </div>
+
     <script>
     const AudioFX = (function() {
         let ctx = null, masterGain = null, muted = false, lastHoverTime = 0, reverbNode = null;
@@ -1979,9 +2108,51 @@
             get isBlocked() { return autoplayBlocked; }
         };
     })();
+        function playAchievementSound() {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const now = ctx.currentTime;
+
+            const osc1 = ctx.createOscillator();
+            osc1.type = 'sine';
+            osc1.frequency.value = 1320;
+            const gain1 = ctx.createGain();
+            gain1.gain.setValueAtTime(0.5, now);
+            gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+            osc1.connect(gain1).connect(ctx.destination);
+            osc1.start(now);
+            osc1.stop(now + 0.18);
+
+            const osc2 = ctx.createOscillator();
+            osc2.type = 'triangle';
+            osc2.frequency.value = 2200;
+            const gain2 = ctx.createGain();
+            gain2.gain.setValueAtTime(0.35, now + 0.02);
+            gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+            osc2.connect(gain2).connect(ctx.destination);
+            osc2.start(now + 0.01);
+            osc2.stop(now + 0.12);
+
+            const bufferSize = ctx.sampleRate * 0.05;
+            const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
+            }
+            const noise = ctx.createBufferSource();
+            noise.buffer = buffer;
+            const gainNoise = ctx.createGain();
+            gainNoise.gain.setValueAtTime(0.06, now);
+            gainNoise.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+            noise.connect(gainNoise).connect(ctx.destination);
+            noise.start(now);
+            noise.stop(now + 0.06);
+        } catch(e) {
+        }
+    }
     </script>
+<base target="_blank">
 </head>
-<body>
     <div class="auto-modal-overlay" id="overlay"></div>
 
     <div class="falling-container" id="fallingContainer"></div>
@@ -2218,20 +2389,7 @@
 
     <button class="sidebar-toggle" id="toggleSidebar">⚙️ 菜单</button>
     <div class="sidebar" id="sidebar">
-        <div class="sidebar-section">
-            <div class="sidebar-title bgm-title">🔊 背景音乐</div>
-                <span class="value-display" id="bgmValue">50%</span>
-                <input type="range" min="0" max="100" value="50" class="bgm-slider" id="bgmSlider">
-        </div>
-        
-        <div class="sidebar-section">
-            <div class="sidebar-title create-title">✍️ 创造工坊</div>
-            <div class="puzzle-input-group">
-                <input type="text" id="puzzleCodeInput" placeholder="粘贴题库码">
-                <button class="apply-input-btn" onclick="applyPuzzleCode()">应用</button>
-                <button class="clear-input-btn" onclick="clearPuzzleInput()">清空</button>
-            </div>
-        </div>
+
         <div class="sidebar-section">
             <div class="sidebar-title preset-title">🎯 难度选择</div>
             <div class="preset-row">
@@ -2278,7 +2436,7 @@
                     <button class="num-btn" onclick="setVal('spec',1)">+</button>
                 </div>
             </div>
-            <button class="apply-btn" onclick="applySet()">应用设置</button>
+            <button class="apply-btn" onclick="applySet()">应用设置</button>        
             </div>
         </div>
 
@@ -2288,13 +2446,26 @@
             <div id="seriesSwitchList"></div>
             <div class="switch-hint" id="seriesSwitchHint">完成对应关卡可解锁系列</div>
         </div>
-
         <div class="sidebar-section">
-            <div class="sidebar-title record-title">🏆 纪录</div>
-            <div class="record-tip">使用预设难度开始计时挑战吧！ヾ(≧▽≦*)o</div>
+            <div class="sidebar-title create-title">✍️ 创造工坊</div>
+            <div class="puzzle-input-group">
+                <input type="text" id="puzzleCodeInput" placeholder="粘贴题库码">
+                <button class="apply-input-btn" onclick="applyPuzzleCode()">应用</button>
+                <button class="clear-input-btn" onclick="clearPuzzleInput()">清空</button>
+            </div>
+        </div>
+        <div class="sidebar-section">
+            <div class="sidebar-title record-title">🥇 成绩</div>
+            <div class="record-tip">在 [📝记录] 栏 查看每个难度的最佳成绩o((>ω< ))o</div>
             <div id="recordList"></div>
         </div>
+        <div class="sidebar-section">
+            <div class="sidebar-title bgm-title">🔊 背景音乐</div>
+                <span class="value-display" id="bgmValue">50%</span>
+                <input type="range" min="0" max="100" value="50" class="bgm-slider" id="bgmSlider">
+        </div>
         
+
         <div class="sidebar-version">v.7.4.1<br>作者:L1Nzy<br>邮箱:lin060911@qq.com
         </div>
     </div>
@@ -2873,6 +3044,7 @@
         }
         function renderRec() {
             const list = document.getElementById('recordList');
+            if (!list) return;
             let html = '';
             ['easy','medium','hard','hell','brain'].forEach(d => {
                 let label = DIFF_LABEL[d] || d;
@@ -2880,9 +3052,7 @@
                 let extraStyle = d==='brain' ? '#ffd700;background: linear-gradient(135deg, #fffcbb 0%, #c0f1ff 25%, #c0d7ff 50%, #ddbfff 75%, #f8bfff 100%);' : (d==='hell' ? '#6b21a8;' : (d==='hard'?'#d73a3a;':(d==='medium'?'#dc7f33;':'#38a169;')));
                 html += `<div class="record-item" style="border-color:${extraStyle}">`;
                 html += `<div class="record-label">${icon}${label}</div>`;
-                html += `最快：<span class="record-best">${fmtTime(rec[d])}</span><br>`;
-                html += `本次：<span class="record-current">${fmtTime(lt[d])}</span><br>`;
-                html += `通关次数：<span class="record-count">${wins[d]||0} 次</span>`;
+                html += `本次用时：<span class="record-current">${fmtTime(lt[d])}</span>`;
                 html += `</div>`;
             });
             list.innerHTML = html;
@@ -2957,33 +3127,40 @@
                 document.body.classList.remove('brain-golden');
             }, 60000);
         }
+function checkWin(){
+    if(Object.keys(G.placed).length !== G.max) return;
+    for(let r=0; r<SR; r++) for(let c=0; c<SC; c++) if(G.p[r][c] !== G.tar[r][c]) return;
+    stopTi();
 
-        function checkWin(){
-            if(Object.keys(G.placed).length!==G.max) return;
-            for(let r=0;r<SR;r++) for(let c=0;c<SC;c++) if(G.p[r][c]!==G.tar[r][c]) return;
-            stopTi();
+    if (isTutorialMode) {
+        onTutorialWin();
+        return;
+    }
 
-            if (isFreeMode) {
-                AudioFX.win();
-                document.getElementById('win').style.display = 'flex';
-                return;
-            }
-            if (diff === 'brain') {
-                AudioFX.winBrain();
-                startFallingEmoji();
-                setGoldenBackground();
-                document.getElementById('win').style.display = 'flex';
-                document.getElementById('brainWinModal').style.display = 'block';
-                saveRec();
-                try { localStorage.setItem('brainCleared', 'true'); } catch(e){}
-                applyBrainEgg();
-            } else {
-                AudioFX.win();
-                if (isTutorialMode) { onTutorialWin(); return; }
-                saveRec();
-                document.getElementById('win').style.display = 'flex';
-            }
-        }
+    if (isFreeMode) {
+        AudioFX.win();
+        document.getElementById('win').style.display = 'flex';
+        checkWinAchievements();
+        return;
+    }
+
+    if (diff === 'brain') {
+        AudioFX.winBrain();
+        startFallingEmoji();
+        setGoldenBackground();
+        document.getElementById('win').style.display = 'flex';
+        document.getElementById('brainWinModal').style.display = 'block';
+        saveRec();
+        try { localStorage.setItem('brainCleared', 'true'); } catch(e){}
+        applyBrainEgg();
+    } else {
+        AudioFX.win();
+        saveRec();
+        document.getElementById('win').style.display = 'flex';
+    }
+
+    checkWinAchievements();
+}
 
 
         function closeBrainUnlockedModal(){ AudioFX.confirm(); document.getElementById('overlay').style.display='none'; document.getElementById('brainUnlockedModal').style.display='none'; }
@@ -3850,7 +4027,10 @@
                 exitBtn.style.display = 'none';
                 practiceBtn.style.display = '';
                 AudioFX.winBrain();
-            } else {
+                if (window.Achievements && window.Achievements.unlock) {
+                    window.Achievements.unlock('finish_tutorial');
+                }
+            }else {
                 let nextLvl = TEACH_LEVELS[teachLevelIdx + 1];
                 document.getElementById('teachCompleteText').innerHTML =
                     `做得好！接下来学习：${nextLvl.title}`;
@@ -4484,5 +4664,416 @@
             })();
     </script>
     
+    <script>
+(function() {
+    'use strict';
+
+    const ACHIEVEMENTS = [
+        // 新手村
+        { id:'first_win', cat:'新手村', emoji:'👷', name:'初次上岗布雷工', desc:'通关任意一局游戏', type:'once' },
+        { id:'red_green_light', cat:'新手村', emoji:'🚦', name:'红绿灯?!', desc:'通关任意一局同时含有正/0/负值的游戏', type:'once' },
+        { id:'finish_tutorial', cat:'新手村', emoji:'📖', name:'说明书', desc:'完成全部引导教学', type:'once' },
+
+        // 预设难度
+        { id:'easy_10', cat:'预设难度', emoji:'🥬', name:'小菜一碟', desc:'简单难度通关10次', type:'count', target:10 },
+        { id:'medium_10', cat:'预设难度', emoji:'❓', name:'压力？', desc:'中等难度通关10次', type:'count', target:10 },
+        { id:'hard_10', cat:'预设难度', emoji:'🧠', name:'头有点痒', desc:'困难难度通关10次', type:'count', target:10 },
+        { id:'hell_first', cat:'预设难度', emoji:'😈', name:'勇往直下', desc:'首次通关地狱难度', type:'once' },
+        { id:'hell_7', cat:'预设难度', emoji:'👿', name:'地狱七进七出', desc:'地狱累计通关7次', type:'count', target:7 },
+        { id:'brain_first', cat:'预设难度', emoji:'👍', name:'这没劝退啊？？', desc:'首次通关脑王难度', type:'once' },
+        { id:'brain_10', cat:'预设难度', emoji:'🐮', name:'这不是外挂？？', desc:'脑王累计通关10次', type:'count', target:10 },
+
+        // 系列道具
+        { id:'basic_all_used', cat:'系列道具', emoji:'🧠', name:'我脑子不基础', desc:'基础系列全部道具至少用来通关过一次', type:'special', check:function(){ if(!_achState.basicTypesUsed) return false; let basics=Object.keys(M).filter(k=>M[k].category==='basic'); return basics.every(k=>_achState.basicTypesUsed[k]); } },
+        { id:'unlock_special', cat:'系列道具', emoji:'🔷', name:'奇形怪状收集控', desc:'解锁异形系列', type:'special', check:function(){ return seriesUnlocked&&seriesUnlocked.special; } },
+        { id:'unlock_physics', cat:'系列道具', emoji:'🧑‍🔬', name:'科研人员', desc:'解锁物理律系列', type:'special', check:function(){ return seriesUnlocked&&seriesUnlocked.physics; } },
+        { id:'unlock_symmetry', cat:'系列道具', emoji:'🥂', name:'干杯！', desc:'解锁对称系列', type:'special', check:function(){ return seriesUnlocked&&seriesUnlocked.symmetry; } },
+        { id:'unlock_tactical', cat:'系列道具', emoji:'🔧', name:'黑科技军械库', desc:'解锁战术武器系列', type:'special', check:function(){ return seriesUnlocked&&seriesUnlocked.tactical; } },
+
+        // 速通系列
+        { id:'speed_easy', cat:'速通系列', emoji:'⏱️', name:'颗秒!', desc:'简单难度通关＜7秒', type:'time', target:7000 },
+        { id:'speed_medium', cat:'速通系列', emoji:'⚡', name:'秒了有什么好说的', desc:'中等难度通关＜25秒', type:'time', target:25000 },
+        { id:'speed_hard', cat:'速通系列', emoji:'👎', name:'ez', desc:'困难难度通关＜90秒', type:'time', target:90000 },
+        { id:'speed_hell', cat:'速通系列', emoji:'😈', name:'地狱归来', desc:'地狱难度通关＜3分钟', type:'time', target:180000 },
+        { id:'speed_brain', cat:'速通系列', emoji:'🧠', name:'脑力这一块', desc:'脑王难度通关＜8分钟', type:'time', target:480000 },
+
+        // 创造模式
+        { id:'create_first', cat:'创造模式', emoji:'🛠️', name:'包工头', desc:'创造模式生成第一张关卡', type:'once' },
+        { id:'create_mixed', cat:'创造模式', emoji:'🧑‍🏫', name:'出卷人', desc:'创造模式自制关卡同时包含物理律/对称/战术三类道具', type:'special', check:function(){ return _achState.lastCreateCats&&_achState.lastCreateCats.physics&&_achState.lastCreateCats.symmetry&&_achState.lastCreateCats.tactical; } },
+        { id:'create_10', cat:'创造模式', emoji:'📋', name:'印试卷', desc:'创造模式累计生成10张关卡', type:'count', target:10 },
+        { id:'play_shared_5', cat:'创造模式', emoji:'🏞️', name:'观光客', desc:'通关5张其他玩家自制关卡', type:'count', target:5 },
+
+        // 累计通关
+        { id:'total_20', cat:'累计通关', emoji:'☕', name:'摸鱼高手', desc:'累计通关20局', type:'count', target:20 },
+        { id:'total_50', cat:'累计通关', emoji:'🍉', name:'摸鱼高高手', desc:'累计通关50局', type:'count', target:50 },
+        { id:'total_150', cat:'累计通关', emoji:'🍺', name:'老油条', desc:'累计通关150局', type:'count', target:150 },
+        { id:'total_500', cat:'累计通关', emoji:'🧊', name:'冰？？', desc:'累计通关500局', type:'count', target:500 },
+        { id:'total_night', cat:'累计通关', emoji:'🌙', name:'夜猫子', desc:'22:00-4:00时间段通关10次', type:'count', target:10 },
+
+        // 隐藏
+        { id:'hidden_slide', cat:'隐藏', emoji:'🧹', name:'手滑罢了', desc:'单局右键删道具累计20次', type:'count', target:20, hidden:true },
+        { id:'hidden_chaos', cat:'隐藏', emoji:'😨', name:'场面一度十分混乱', desc:'单局用上五大系列的道具并通关', type:'special', hidden:true, check:function(){ return _achState.currentRunCategories&&_achState.currentRunCategories.size>=5; } },
+        { id:'hidden_flawless', cat:'隐藏', emoji:'💯', name:'一把过', desc:'中等及以上预设难度全程不删除/清空道具通关', type:'once', hidden:true },
+        { id:'hidden_eco', cat:'隐藏', emoji:'♻️', name:'环保主义者', desc:'使用一次清空放置', type:'once', hidden:true },
+        { id:'free_20x20', cat:'隐藏', emoji:'📐', name:'！！？大大？！！', desc:'自由模式20×20超大棋盘通关', type:'special',  hidden:true ,check:function(){ return isFreeMode && SR===20 && SC===20; } },
+
+    ];
+
+    const STORE_KEY = 'achievementState_v1';
+    let _achState = loadState();
+
+    function loadState() {
+        try { let raw=localStorage.getItem(STORE_KEY); if(raw) return JSON.parse(raw); } catch(e) {}
+        return {
+            unlocked: {},
+            counters: {},
+            totalWins: 0,
+            nightWins: 0,
+            basicTypesUsed: {},
+            lastCreateCats: null,
+            currentRunCategories: null,
+            currentRunDeletes: 0,
+            currentRunFlawless: true,
+            sharedWins: 0,
+        };
+    }
+    function saveState() { try{ localStorage.setItem(STORE_KEY,JSON.stringify(_achState)); }catch(e){} }
+
+    let _popupQueue = [];
+    let _popupActive = false;
+
+    function showPopup(ach) {
+        _popupQueue.push(ach);
+        if(!_popupActive) processPopupQueue();
+    }
+    function processPopupQueue() {
+        if(_popupQueue.length===0) { _popupActive=false; return; }
+        _popupActive = true;
+        let ach = _popupQueue.shift();
+        let overlay = document.getElementById('achPopupOverlay');
+        document.getElementById('popupEmoji').textContent = ach.emoji;
+        document.getElementById('popupName').textContent = ach.name;
+        document.getElementById('popupDesc').textContent = ach.desc;
+        overlay.classList.add('active');
+
+        playAchievementSound();
+    
+        setTimeout(()=>{
+            overlay.classList.remove('active');
+            setTimeout(processPopupQueue, 400);
+        }, 3000);
+    }
+
+    function unlock(id) {
+        if(_achState.unlocked[id]) return;
+        let ach = ACHIEVEMENTS.find(a=>a.id===id);
+        if(!ach) return;
+        _achState.unlocked[id] = new Date().toISOString().slice(0,10);
+        saveState();
+        showPopup(ach);
+        renderAchievements();
+    }
+
+    function incrementCounter(id, by) {
+        by = by||1;
+        _achState.counters[id] = (_achState.counters[id]||0)+by;
+        let ach = ACHIEVEMENTS.find(a=>a.id===id);
+        if(ach && ach.type==='count' && _achState.counters[id]>=ach.target) unlock(id);
+        saveState();
+        renderAchievements();
+    }
+
+    function setCounter(id, val) {
+        _achState.counters[id] = val;
+        let ach = ACHIEVEMENTS.find(a=>a.id===id);
+        if(ach && ach.type==='count' && val>=ach.target) unlock(id);
+        saveState();
+        renderAchievements();
+    }
+
+    function checkWinAchievements() {
+        if(isTutorialMode) return;
+
+        unlock('first_win');
+
+        let hasPos=false, hasZero=false, hasNeg=false;
+        for(let r=0;r<SR;r++) for(let c=0;c<SC;c++) {
+            let v=G.tar[r][c];
+            if(v>0) hasPos=true; else if(v<0) hasNeg=true; else hasZero=true;
+        }
+        if(hasPos&&hasZero&&hasNeg) unlock('red_green_light');
+
+        if(diff && !isFreeMode) {
+            if(diff==='easy') incrementCounter('easy_10');
+            if(diff==='medium') incrementCounter('medium_10');
+            if(diff==='hard') incrementCounter('hard_10');
+            if(diff==='hell') { unlock('hell_first'); incrementCounter('hell_7'); }
+            if(diff==='brain') { unlock('brain_first'); incrementCounter('brain_10'); }
+
+            if(ct>0) {
+                if(diff==='easy'&&ct<7000) unlock('speed_easy');
+                if(diff==='medium'&&ct<25000) unlock('speed_medium');
+                if(diff==='hard'&&ct<90000) unlock('speed_hard');
+                if(diff==='hell'&&ct<180000) unlock('speed_hell');
+                if(diff==='brain'&&ct<480000) unlock('speed_brain');
+            }
+
+            if((diff==='medium'||diff==='hard'||diff==='hell'||diff==='brain')&&_achState.currentRunFlawless) {
+                unlock('hidden_flawless');
+            }
+        }
+
+        if(isFreeMode&&SR===20&&SC===20) unlock('free_20x20');
+
+        _achState.totalWins = (_achState.totalWins || 0) + 1;
+        let t = _achState.totalWins;
+        let totalMap = [20, 50, 150, 500];
+        let totalIds = ['total_20', 'total_50', 'total_150', 'total_500'];
+        totalMap.forEach((target, i) => {
+            let current = _achState.counters[totalIds[i]] || 0;
+            if (t > current) {
+                setCounter(totalIds[i], t);
+            }
+        });
+
+
+
+        let h = new Date().getHours();
+        if (h >= 22 || h < 4) {
+            _achState.nightWins = (_achState.nightWins || 0) + 1;
+            let nightCurrent = _achState.counters['total_night'] || 0;
+            if (_achState.nightWins > nightCurrent) {
+                setCounter('total_night', _achState.nightWins);
+            }
+        }
+
+        if(_achState.basicTypesUsed) {
+            let basics=Object.keys(M).filter(k=>M[k].category==='basic');
+            if(basics.length>0 && basics.every(k=>_achState.basicTypesUsed[k])) unlock('basic_all_used');
+        }
+        if (window._currentIsShared) {
+            _achState.sharedWins = (_achState.sharedWins || 0) + 1;
+            setCounter('play_shared_5', _achState.sharedWins);
+            window._currentIsShared = false;
+        }
+
+        if(_achState.currentRunCategories&&_achState.currentRunCategories.size>=5) unlock('hidden_chaos');
+
+        ACHIEVEMENTS.forEach(a=>{
+            if(a.type==='special'&&!a.hidden&&!_achState.unlocked[a.id]&&a.check) {
+                try{ if(a.check()) unlock(a.id); }catch(e){}
+            }
+        });
+
+        saveState();
+        renderAchievements();
+        renderRecords();
+    }
+
+    function renderAchievements() {
+        let container = document.getElementById('achList');
+        if(!container) return;
+
+        let groups = {};
+        ACHIEVEMENTS.forEach(a=>{
+            if(a.hidden&&!_achState.unlocked[a.id]) return;
+            if(!groups[a.cat]) groups[a.cat]=[];
+            groups[a.cat].push(a);
+        });
+
+        let catOrder = ['新手村','预设难度','系列道具','速通系列','创造模式','累计通关','隐藏'];
+        let html='';
+        catOrder.forEach(cat=>{
+            if(!groups[cat]) return;
+            html+=`<div style="font-size:13px;font-weight:700;color:#f59e0b;margin:10px 0 6px 4px;">${cat}</div>`;
+            groups[cat].forEach(a=>{
+                let unlocked=!!_achState.unlocked[a.id];
+                let cls='achievement-item'+(unlocked?' unlocked':'')+(a.hidden?' hidden-ach':'');
+                let name=unlocked?a.name:(a.hidden?'？？？':'🔒 '+a.name);
+                let desc=unlocked?a.desc:(a.hidden?'隐藏成就，达成后揭晓':a.desc);
+                let meta='';
+                if(unlocked) meta='🗓️ '+_achState.unlocked[a.id];
+                else if(a.type==='count') meta=`进度 ${_achState.counters[a.id]||0}/${a.target}`;
+                let lockIcon=unlocked?'✅':(a.hidden?'🔒':'🔒');
+                html+=`<div class="${cls}">
+                    <div class="achievement-emoji">${a.emoji}</div>
+                    <div class="achievement-info">
+                        <div class="achievement-name">${name}</div>
+                        <div class="achievement-desc">${desc}</div>
+                        ${meta?`<div class="achievement-meta">${meta}</div>`:''}
+                    </div>
+                    <div class="achievement-lock">${lockIcon}</div>
+                </div>`;
+            });
+        });
+        container.innerHTML=html;
+
+        let total = ACHIEVEMENTS.filter(a=>!a.hidden||_achState.unlocked[a.id]).length;
+        let unlocked=Object.keys(_achState.unlocked).length;
+        let uc=document.getElementById('achUnlockedCount');
+        let tc=document.getElementById('achTotalCount');
+        if(uc) uc.textContent=unlocked;
+        if(tc) tc.textContent=total;
+    }
+
+    function renderRecords() {
+        let container=document.getElementById('achRecordList');
+        if(!container) return;
+        let html='';
+        ['easy','medium','hard','hell','brain'].forEach(d=>{
+            let label=DIFF_LABEL[d]||d;
+            let icon=d==='brain'?'🤯':(d==='hell'?'👿':(d==='hard'?'😤':(d==='medium'?'😮':'😎')));
+            let ec=d==='brain'?'#ffd700':(d==='hell'?'#6b21a8':(d==='hard'?'#d73a3a':(d==='medium'?'#dc7f33':'#38a169')));
+            html+=`<div class="record-item" style="border-color:${ec}">`;
+            html+=`<div class="record-label">${icon}${label}</div>`;
+            html+=`最快用时：<span class="record-best">${fmtTime(rec[d])}</span><br>`;
+            html+=`通关次数：<span class="record-count">${wins[d]||0} 次</span>`;
+            html+=`</div>`;
+        });
+        container.innerHTML=html;
+    }
+
+
+
+    function installHooks() {
+        if(window._achHooksInstalled) return;
+        window._achHooksInstalled=true;
+
+
+        let _oUL=window.unlockSeries;
+        window.unlockSeries=function(catKey) {
+            _oUL.apply(this,arguments);
+            if(catKey==='special') unlock('unlock_special');
+            if(catKey==='physics') unlock('unlock_physics');
+            if(catKey==='symmetry') unlock('unlock_symmetry');
+            if(catKey==='tactical') unlock('unlock_tactical');
+            renderAchievements();
+        };
+
+        let _oTW=window.onTutorialWin;
+        window.onTutorialWin=function() {
+            _oTW.apply(this,arguments);
+            if(tutorialStep>=5) unlock('finish_tutorial');
+        };
+
+        let _oDel=window.del;
+        window.del=function(r,c) {
+            if(!isTutorialMode) {
+                _achState.currentRunDeletes++;
+                _achState.currentRunFlawless=false;
+                if(_achState.currentRunDeletes>=20) unlock('hidden_slide');
+                saveState();
+            }
+            _oDel(r,c);
+        };
+
+        let _oCA=window.clearAll;
+        window.clearAll=function() {
+            if(!isTutorialMode) {
+                _achState.currentRunFlawless=false;
+                unlock('hidden_eco');
+            }
+            _oCA.apply(this,arguments);
+        };
+
+        let _oDrop=window.drop;
+        window.drop=function(e) {
+            let result=_oDrop.apply(this,arguments);
+            if(!isTutorialMode) {
+                if(!_achState.currentRunCategories) _achState.currentRunCategories=new Set();
+                let t=e&&e.dataTransfer?e.dataTransfer.getData('text/plain'):null;
+                if(!t&&G.lastDragType) t=G.lastDragType;
+                if(t&&M[t]) {
+                    let cat=M[t].category;
+                    _achState.currentRunCategories.add(cat);
+                    if(cat==='basic') { _achState.basicTypesUsed[t]=true; saveState(); }
+                }
+            }
+            return result;
+        };
+
+        if(typeof window.generatePuzzleCode==='function') {
+            let _oGen=window.generatePuzzleCode;
+            window.generatePuzzleCode=function() {
+                let result=_oGen.apply(this,arguments);
+                if(!isTutorialMode) {
+                    unlock('create_first');
+                    incrementCounter('create_10');
+                    let cats={physics:false,symmetry:false,tactical:false};
+                    for(let k in createPlaced) {
+                        let mk=createPlaced[k];
+                        if(M[mk]) {
+                            let c=M[mk].category;
+                            if(c==='physics') cats.physics=true;
+                            if(c==='symmetry') cats.symmetry=true;
+                            if(c==='tactical') cats.tactical=true;
+                        }
+                    }
+                    _achState.lastCreateCats=cats;
+                    if(cats.physics&&cats.symmetry&&cats.tactical) unlock('create_mixed');
+                    saveState();
+                }
+                return result;
+            };
+        }
+
+        if(typeof window.applyPuzzleCode==='function') {
+            let _oApply=window.applyPuzzleCode;
+            window.applyPuzzleCode=function() {
+                window._currentIsShared=true;
+                return _oApply.apply(this,arguments);
+            };
+        }
+
+        let _oNG=window.newGame;
+        window.newGame=function() {
+            _achState.currentRunCategories=new Set();
+            _achState.currentRunDeletes=0;
+            _achState.currentRunFlawless=true;
+            saveState();
+            return _oNG.apply(this,arguments);
+        };
+        let _oFR=window.fullReset;
+        window.fullReset=function() {
+            _achState.currentRunCategories=new Set();
+            _achState.currentRunDeletes=0;
+            _achState.currentRunFlawless=true;
+            saveState();
+            return _oFR.apply(this,arguments);
+        };
+    }
+
+    function initToggle() {
+        let btn=document.getElementById('toggleAchSidebar');
+        let sb=document.getElementById('achSidebar');
+        if(!btn||!sb) return;
+        btn.addEventListener('click',()=>{
+            AudioFX.confirm();
+            sb.classList.toggle('open');
+            renderAchievements();
+            renderRecords();
+        });
+        document.addEventListener('click',e=>{
+            if(!sb.contains(e.target)&&e.target!==btn&&sb.classList.contains('open')){
+                sb.classList.remove('open');
+            }
+        });
+    }
+
+    function init() {
+        installHooks();
+        initToggle();
+        renderAchievements();
+        renderRecords();
+        newGame();
+    }
+
+    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init);
+    else init();
+    window.checkWinAchievements = checkWinAchievements;
+    window.Achievements={unlock,incrementCounter,renderAchievements,state:_achState};
+})();
+
+    </script>
 </body>
 </html>

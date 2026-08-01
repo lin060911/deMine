@@ -2307,12 +2307,13 @@
     </script>
 <base target="_blank">
 <base target="_blank">
+<base target="_blank">
 </head>
     <div class="auto-modal-overlay" id="overlay"></div>
 
     <button class="mode-toggle-btn" id="modeToggleBtn" onclick="togglePlaceMode()" title="点击切换放置方式">
         <span class="mode-icon" id="modeToggleIcon">🖱️</span>
-        <span class="mode-label" id="modeToggleLabel">切换放置方式为：点选</span>
+        <span class="mode-label" id="modeToggleLabel">当前放置方式为：点选</span>
     </button>
 
     <div class="falling-container" id="fallingContainer"></div>
@@ -4452,11 +4453,11 @@ function checkWin(){
             let icon = document.getElementById('modeToggleIcon');
             let label = document.getElementById('modeToggleLabel');
             if (mode === 'drag') {
-                if (icon) icon.textContent = '🖱️';
-                if (label) label.textContent = '切换放置方式为：点选';
-            } else {
                 if (icon) icon.textContent = '✋';
-                if (label) label.textContent = '切换放置方式为：拖拽';
+                if (label) label.textContent = '当前放置方式为：拖拽';
+            } else {
+                if (icon) icon.textContent = '🖱️';
+                if (label) label.textContent = '当前放置方式为：点选';
             }
         }
 
@@ -5027,16 +5028,18 @@ function checkWin(){
 
         // 速通系列
         { id:'speed_easy', cat:'速通系列', emoji:'⏱️', name:'颗秒!', desc:'简单难度通关＜7秒', type:'time', target:7000 },
-        { id:'speed_medium', cat:'速通系列', emoji:'⚡', name:'蚌蚌蚌蚌!', desc:'中等难度通关＜25秒', type:'time', target:25000 },
+        { id:'speed_medium', cat:'速通系列', emoji:'⚡', name:'借过一下!', desc:'中等难度通关＜25秒', type:'time', target:25000 },
         { id:'speed_hard', cat:'速通系列', emoji:'👎', name:'ez', desc:'困难难度通关＜90秒', type:'time', target:90000 },
         { id:'speed_hell', cat:'速通系列', emoji:'😈', name:'地狱归来', desc:'地狱难度通关＜3分钟', type:'time', target:180000 },
         { id:'speed_brain', cat:'速通系列', emoji:'🧠', name:'脑力王这一块', desc:'脑王难度通关＜6分钟', type:'time', target:360000 },
+        { id:'speed_all', cat:'速通系列', emoji:'🏁', name:'最速傳說', desc:'5个预设难度，最佳成绩加起来<555秒', type:'special', check:function(){ let sum=0; let hasAll=true; ['easy','medium','hard','hell','brain'].forEach(function(d){ if(rec[d]) sum+=rec[d]; else hasAll=false; }); return hasAll && sum>0 && sum<555000; } },
 
         // 创造模式
         { id:'create_first', cat:'创造模式', emoji:'🛠️', name:'包工头', desc:'创造模式生成第一张关卡', type:'once' },
         { id:'create_mixed', cat:'创造模式', emoji:'🏫', name:'出卷人', desc:'创造模式自制关卡同时包含物理律/对称/战术三类道具', type:'special', check:function(){ return _achState.lastCreateCats&&_achState.lastCreateCats.physics&&_achState.lastCreateCats.symmetry&&_achState.lastCreateCats.tactical; } },
         { id:'create_10', cat:'创造模式', emoji:'📋', name:'印试卷', desc:'创造模式累计生成10张关卡', type:'count', target:10 },
         { id:'play_shared_5', cat:'创造模式', emoji:'🏞️', name:'观光客', desc:'通关5张其他玩家自制关卡', type:'count', target:5 },
+        { id:'create_max_mines', cat:'创造模式', emoji:'💩', name:'巧克力蛋糕', desc:'创造出用了棋盘标准下最大地雷数的题目', type:'special', check:function(){ return _achState.lastCreateMaxMines; } },
 
         // 累计通关
         { id:'total_20', cat:'累计通关', emoji:'☕', name:'摸鱼高手', desc:'累计通关20局', type:'count', target:20 },
@@ -5051,6 +5054,10 @@ function checkWin(){
         { id:'hidden_flawless', cat:'隐藏', emoji:'💯', name:'一把过', desc:'中等及以上预设难度全程不删除/清空道具通关', type:'once', hidden:true },
         { id:'hidden_eco', cat:'隐藏', emoji:'♻️', name:'环保主义者', desc:'使用一次清空放置', type:'once', hidden:true },
         { id:'free_20x20', cat:'隐藏', emoji:'📐', name:'！！？大大？！！', desc:'自由模式20×20超大棋盘通关', type:'special',  hidden:true ,check:function(){ return isFreeMode && SR===20 && SC===20; } },
+        { id:'brain_slow', cat:'隐藏', emoji:'🐷', name:'脑力亡这一块', desc:'通关脑王难度，但用时超过10分钟', type:'once', hidden:true },
+        { id:'bgm_adjust', cat:'隐藏', emoji:'🐉', name:'聋？帝王之征！', desc:'使用背景音乐调节', type:'once', hidden:true },
+        { id:'new_game_spam', cat:'隐藏', emoji:'🤺', name:'退！退！退！', desc:'连续三次重开游戏', type:'count', target:3, hidden:true },
+        { id:'crazy_thursday', cat:'隐藏', emoji:'🍔', name:'疯狂星期四', desc:'星期四完成任意游戏一次', type:'once', hidden:true },
 
     ];
 
@@ -5070,6 +5077,9 @@ function checkWin(){
             currentRunDeletes: 0,
             currentRunFlawless: true,
             sharedWins: 0,
+            newGameClicks: 0,
+            bgmAdjusted: false,
+            lastCreateMaxMines: false,
         };
     }
     function saveState() { try{ localStorage.setItem(STORE_KEY,JSON.stringify(_achState)); }catch(e){} }
@@ -5131,6 +5141,19 @@ function checkWin(){
 
         unlock('first_win');
 
+        let day = new Date().getDay();
+        if (day === 4) unlock('crazy_thursday');
+
+        if (diff === 'brain' && ct > 600000) unlock('brain_slow');
+
+        let sumTime = 0;
+        let hasAllRec = true;
+        ['easy','medium','hard','hell','brain'].forEach(function(d){
+            if (rec[d]) sumTime += rec[d];
+            else hasAllRec = false;
+        });
+        if (hasAllRec && sumTime > 0 && sumTime < 555000) unlock('speed_all');
+
         let hasPos=false, hasZero=false, hasNeg=false;
         for(let r=0;r<SR;r++) for(let c=0;c<SC;c++) {
             let v=G.tar[r][c];
@@ -5150,7 +5173,7 @@ function checkWin(){
                 if(diff==='medium'&&ct<25000) unlock('speed_medium');
                 if(diff==='hard'&&ct<90000) unlock('speed_hard');
                 if(diff==='hell'&&ct<180000) unlock('speed_hell');
-                if(diff==='brain'&&ct<480000) unlock('speed_brain');
+                if(diff==='brain'&&ct<360000) unlock('speed_brain');
             }
 
             if((diff==='medium'||diff==='hard'||diff==='hell'||diff==='brain')&&_achState.currentRunFlawless) {
@@ -5346,6 +5369,12 @@ function checkWin(){
                     }
                     _achState.lastCreateCats=cats;
                     if(cats.physics&&cats.symmetry&&cats.tactical) unlock('create_mixed');
+                    let totalCells = createRows * createCols;
+                    let maxMines = Math.floor(totalCells * 0.6);
+                    if (Object.keys(createPlaced).length >= maxMines && maxMines > 0) {
+                        _achState.lastCreateMaxMines = true;
+                        unlock('create_max_mines');
+                    }
                     saveState();
                 }
                 return result;
@@ -5360,14 +5389,6 @@ function checkWin(){
             };
         }
 
-        let _oNG=window.newGame;
-        window.newGame=function() {
-            _achState.currentRunCategories=new Set();
-            _achState.currentRunDeletes=0;
-            _achState.currentRunFlawless=true;
-            saveState();
-            return _oNG.apply(this,arguments);
-        };
         let _oFR=window.fullReset;
         window.fullReset=function() {
             _achState.currentRunCategories=new Set();
@@ -5375,6 +5396,45 @@ function checkWin(){
             _achState.currentRunFlawless=true;
             saveState();
             return _oFR.apply(this,arguments);
+        };
+
+        let _bgmSlider = document.getElementById('bgmSlider');
+        if (_bgmSlider) {
+            _bgmSlider.addEventListener('input', function() {
+                if (!_achState.bgmAdjusted) {
+                    _achState.bgmAdjusted = true;
+                    saveState();
+                    unlock('bgm_adjust');
+                }
+            });
+        }
+
+        let _oNG = window.newGame;
+        window.newGame = function() {
+            let result = _oNG.apply(this, arguments);
+            _achState.newGameClicks = (_achState.newGameClicks || 0) + 1;
+            if (_achState.newGameClicks >= 3) unlock('new_game_spam');
+            saveState();
+            return result;
+        };
+
+        let _oDrop2=window.drop;
+        window.drop=function(e) {
+            _achState.newGameClicks = 0;
+            saveState();
+            return _oDrop2.apply(this,arguments);
+        };
+        let _oDel2=window.del;
+        window.del=function(r,c) {
+            _achState.newGameClicks = 0;
+            saveState();
+            return _oDel2(r,c);
+        };
+        let _oCA2=window.clearAll;
+        window.clearAll=function() {
+            _achState.newGameClicks = 0;
+            saveState();
+            return _oCA2.apply(this,arguments);
         };
     }
 

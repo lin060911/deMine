@@ -47,6 +47,99 @@
         body.brain-golden {
             background: linear-gradient(180deg, #ffd700 2%, #ffed4e 30%, #fff8b0 60%, #ffe066 100%) !important;
         }
+        .bg-effects {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .bg-scan-line {
+            position: absolute;
+            top: -5%;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(66, 153, 225, 0.6) 15%, 
+                rgba(99, 179, 237, 0.66) 50%, 
+                rgba(66, 153, 225, 0.6) 85%, 
+                transparent 100%
+            );
+            box-shadow: 
+                0 0 8px rgba(66, 153, 225, 0.5),
+                0 0 20px rgba(66, 153, 225, 0.3),
+                0 0 40px rgba(66, 153, 225, 0.15);
+            animation: scanDown 3.5s linear infinite;
+            opacity: 0.6;
+        }
+
+        .bg-scan-trail {
+            position: absolute;
+            top: -5%;
+            left: 0;
+            width: 100%;
+            height: 100px;
+            background: linear-gradient(180deg, 
+                rgba(66, 153, 225, 0.12) 0%, 
+                rgba(66, 153, 225, 0.04) 50%, 
+                transparent 100%
+            );
+            animation: scanDown 3.5s linear infinite;
+            pointer-events: none;
+        }
+
+
+        @keyframes scanDown {
+            0%   { top: -5%; }
+            100% { top: 105%; }
+        }
+
+        .bg-mine-ghost {
+            position: absolute;
+            opacity: 0;
+            transform: scale(0.2);
+            filter: drop-shadow(0 0 6px rgba(66, 153, 225, 0.6));
+            animation: mineDetected 2.5s ease-out forwards;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        @keyframes mineDetected {
+            0%   { opacity: 0; transform: scale(0.2) rotate(-15deg); }
+            12%  { opacity: 0.8; transform: scale(1.15) rotate(8deg); }
+            25%  { opacity: 0.5; transform: scale(1) rotate(0deg); }
+            70%  { opacity: 0.3; transform: scale(0.95); }
+            100% { opacity: 0; transform: scale(0.4); }
+        }
+
+        /* 脑王金色模式适配 */
+        body.brain-golden .bg-scan-line {
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(255, 200, 50, 0.6) 15%, 
+                rgba(255, 237, 100, 0.95) 50%, 
+                rgba(255, 200, 50, 0.6) 85%, 
+                transparent 100%
+            );
+            box-shadow: 
+                0 0 8px rgba(255, 200, 50, 0.5),
+                0 0 20px rgba(255, 200, 50, 0.3),
+                0 0 40px rgba(255, 200, 50, 0.15);
+        }
+        body.brain-golden .bg-scan-trail {
+            background: linear-gradient(180deg, 
+                rgba(255, 200, 50, 0.12) 0%, 
+                rgba(255, 200, 50, 0.04) 50%, 
+                transparent 100%
+            );
+        }
+
+        body.brain-golden .bg-mine-ghost {
+            filter: drop-shadow(0 0 6px rgba(255, 200, 50, 0.6));
+        }
 
         .game-title {
             font-size: 56px;
@@ -215,10 +308,10 @@
             color: #2d3748;
             transition: all 0.2s;
             border: 3px solid #bebebe;
-            cursor: grab;
+            cursor: pointer;
         }
         .mine-item:active {
-            cursor: grabbing;
+            cursor: pointer;
         }
         .mine-item:hover {
             transform: translateY(-4px);
@@ -229,6 +322,18 @@
             opacity:0.5; 
             cursor: not-allowed;
             transform: none !important;
+        }
+        .mine-item.selected {
+            border-color: #289d34;
+            transform: translateY(-4px);
+            background: #ebf8ff;
+        }
+        .mine-item.selected .emoji-drag {
+            animation: selectedBounce 0.6s ease infinite;
+        }
+        @keyframes selectedBounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-3px); }
         }
         .emoji-drag {
             cursor: grab;
@@ -247,7 +352,7 @@
         .anti-bomb { font-size:22px; }
         .chiliV-bomb { font-size:22px; }
         .chiliH-bomb { font-size:22px; transform:rotate(90deg); }
-        .chiliPlus-bomb { font-size:24px; transform:rotate(45deg);}
+        .chiliPlus-bomb { font-size:24px;}
         .chiliDiag-bomb { font-size:22px; }
         .chiliBigDiag-bomb { font-size:26px; }
         .ring-bomb { font-size:24px; }
@@ -1776,6 +1881,55 @@
         .achievement-stats .stats-num { font-size: 24px; font-weight: 900; color: #92400e; }
         .achievement-stats .stats-label { font-size: 12px; color: #a16207; }
 
+        .mode-toggle-btn {
+            position: fixed;
+            top: 14px;
+            right: 14px;
+            z-index: 666;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: 3px solid #4299e1;
+            border-radius: 12px;
+            background: #ffffff;
+            color: #2b6cb0;
+            font-weight: 700;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+            box-shadow: 0 3px 10px rgba(66,153,225,0.25);
+        }
+        .mode-toggle-btn:hover {
+            background: #ebf8ff;
+            border-color: #3182ce;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 16px rgba(66,153,225,0.4);
+        }
+        .mode-toggle-btn:active {
+            transform: translateY(0);
+        }
+        .mode-toggle-btn .mode-icon { font-size: 18px; }
+        .mode-toggle-btn .mode-label { white-space: nowrap; }
+
+        .mine-item.dragging {
+            opacity: 0.5;
+            cursor: grabbing !important;
+        }
+        .cell.drag-over {
+            box-shadow: inset 0 0 0 2px #4299e1, 0 0 8px rgba(66,153,225,0.5) !important;
+        }
+
+        .mine-item.selected {
+            border-color: #289d34;
+            transform: translateY(-4px);
+            background: #ebf8ff;
+        }
+        .mine-item.selected .emoji-drag {
+            animation: selectedBounce 0.6s ease infinite;
+        }
+
     </style>
 
     <button class="achievement-sidebar-toggle" id="toggleAchSidebar">📝记录</button>
@@ -2152,10 +2306,20 @@
     }
     </script>
 <base target="_blank">
+<base target="_blank">
 </head>
     <div class="auto-modal-overlay" id="overlay"></div>
 
+    <button class="mode-toggle-btn" id="modeToggleBtn" onclick="togglePlaceMode()" title="点击切换放置方式">
+        <span class="mode-icon" id="modeToggleIcon">🖱️</span>
+        <span class="mode-label" id="modeToggleLabel">切换放置方式为：点选</span>
+    </button>
+
     <div class="falling-container" id="fallingContainer"></div>
+    <div class="bg-effects" id="bgEffects">
+        <div class="bg-scan-trail"></div>
+        <div class="bg-scan-line"></div>
+    </div>
 
     <div class="auto-modal" id="welcomeModal">
         <div class="icon">👋</div>
@@ -2163,6 +2327,8 @@
         <p>欢迎回到<span>『反向💣扫雷』</span><br>如果忘了咋玩，可以点击左侧的规则哦( ´◡‿ゝ◡`)</p>
         <button onclick="closeWelcomeModal()">(≧∇≦)ﾉ了解</button>
     </div>
+
+
 
     <div class="auto-modal" id="tutorialPrompt" style="display:none;">
         <div class="icon">🤗</div>
@@ -2222,7 +2388,7 @@
     </div>
 
     <h1 class="game-title">反向💣扫雷</h1>
-    <div class="rule">ℹ️操作tips:拖拽放置✅ / 右键删除🚫</div>
+    <div class="rule">ℹ️操作tips:拖拽/点选✅放置地雷 | 🚫右键删除</div>
 
 
     <div id="tutorialProgressBar">
@@ -2356,9 +2522,9 @@
             <div class="rule-content">
                 <h3>🎯 玩法：反向扫雷（布雷）</h3>
                 <ul>
-                    <li>目标：在棋盘上放置规定数量的地雷（普通雷 + 特殊雷），使得棋盘上每个格子显示的数字，恰好等于它周围（或特定规则下）所有地雷对它的总影响值。</li>
-                    <li>操作：左键拖拽放置地雷，右键删除。</li>
-                    <li>胜利条件：所有地雷放完，且棋盘数字与地雷影响匹配（棋盘上都是🟩）。</li>
+                    <li><strong>目标：</strong><br>在棋盘上放置规定数量的地雷（普通雷 + 特殊雷），使得棋盘上每个格子显示的数字，恰好等于它周围（或特定规则下）所有地雷对它的总影响值。</li>
+                    <li><strong>操作：</strong><br>点选：点击选中地雷，再点击棋盘放置<br>拖拽：左键拖拽放置地雷<br>右键删除。</li>
+                    <li><strong>胜利条件：</strong><br>所有地雷放完，且棋盘数字与地雷影响匹配（棋盘上都是🟩）。</li>
                 </ul>
                 <h3>🧩 地块状态解读</h3>
                 <p>游戏会根据你当前的布雷情况，实时用颜色提示每个格子：</p>
@@ -2560,7 +2726,7 @@
             chiliH:{category:"basic", n:"横辣椒",e:"🌶️",cls:"chiliH-bomb",tip:"横方向各2格 +1",f:(r,c,v)=>{
                 for(let i=-2;i<=2;i++){let x=c+i;if(x>=0&&x<SC)v[r][x]++;}
             }, preview: {size:5, active: [[2,0],[2,1],[2,2],[2,3],[2,4]], center: [2,2]}},
-            chiliPlus:{category:"basic", n:"十字辣椒",e:"✖️",cls:"chiliPlus-bomb",tip:"横竖各2格 +1",f:(r,c,v)=>{
+            chiliPlus:{category:"basic", n:"十字辣椒",e:"➕",cls:"chiliPlus-bomb",tip:"横竖各2格 +1",f:(r,c,v)=>{
                 const d=[[-2,0],[-1,0],[0,-1],[0,-2],[0,1],[0,2],[0,0],[2,0],[1,0]];
                 d.forEach(([dr,dc])=>{let y=r+dr,x=c+dc;if(y>=0&&y<SR&&x>=0&&x<SC)v[y][x]++;});
             }, preview: {size:5, active: [[0,2],[1,2],[2,0],[2,1],[2,2],[2,3],[2,4],[3,2],[4,2]], center: [2,2]}},
@@ -2731,6 +2897,7 @@
             return pool;
         }
 
+        let selectedMineType = null;
         let G={tar:[],p:[],placed:{},pool:{},max:0,drag:null,lastDragType:null};
 
         let currentTutorialType = null;
@@ -2771,14 +2938,7 @@
             if (!sb.contains(e.target) && e.target !== btn && sb.classList.contains('open')) sb.classList.remove('open');
         });
 
-        document.addEventListener('dragend', () => {
-            G.drag = null;
-            G.lastDragType = null;
-        });
-
-        document.addEventListener('dragover', (e) => {
-            e.preventDefault();
-        });
+        
 
         function renderSeriesSwitches() {
             const container = document.getElementById('seriesSwitchList');
@@ -2949,6 +3109,11 @@
         }
 
         function enterPresetPending(d) {
+            G.tar = [];
+            G.p = [];
+            G.placed = {};
+            G.pool = {};
+            G.max = 0;
             isPresetPending = true;
             pendingDiff = d;
             var board = document.getElementById('board');
@@ -3057,8 +3222,6 @@
             });
             list.innerHTML = html;
         }
-
-        document.addEventListener('dragstart', e => { e.dataTransfer.setDragImage(new Image(),0,0); }, false);
 
         document.addEventListener('mouseover', (e) => {
             let el = e.target;
@@ -3380,13 +3543,44 @@ function checkWin(){
                 let t=G.tar[r][c], p=G.p[r][c], k=r+','+c;
                 if(p===t) d.classList.add('cell-valid'); else if(p<t) d.classList.add('cell-low'); else d.classList.add('cell-over');
                 if(t!==0){ d.textContent=t; d.classList.add('n'+Math.min(t,8)); }
-                if(G.placed[k]){ d.classList.add('mine-here'); let ty=G.placed[k]; d.innerHTML=`<span class="${M[ty].cls}">${M[ty].e}</span>`; d.draggable=true;
-                    d.ondragstart=e=>{G.drag=k; e.dataTransfer.setData('text/plain','');};
+                if(G.placed[k]){
+                    d.classList.add('mine-here');
+                    let ty=G.placed[k];
+                    d.innerHTML=`<span class="${M[ty].cls}">${M[ty].e}</span>`;
+                    if (window._placeMode === 'drag') {
+                        d.draggable=true;
+                        d.ondragstart=function(e){
+                            try { e.dataTransfer.setDragImage(new Image(),0,0); } catch(_){}
+                            G.drag=k;
+                            e.dataTransfer.setData('text/plain','');
+                            e.dataTransfer.effectAllowed='move';
+                            d.classList.add('dragging');
+                        };
+                        d.ondragend=function(){ d.classList.remove('dragging'); };
+                    } else {
+                        d.draggable=false;
+                        d.ondragstart=null; d.ondragend=null;
+                    }
                 }
-                d.ondragover=e=>{e.preventDefault(); d.style.boxShadow='inset 0 0 0 2px #4299e1';};
-                d.ondragleave=()=>{if(!G.placed[d.dataset.r+','+d.dataset.c]) d.style.boxShadow='';};
-                d.ondrop=e=>{e.preventDefault(); d.style.boxShadow=''; drop.call(d,e);};
+                d.onclick=()=>{
+                    if(G.placed[k]) return;
+                    if(!selectedMineType) return;
+                    let used=Object.values(G.placed).filter(x=>x===selectedMineType).length||0;
+                    let max=G.pool[selectedMineType]||0;
+                    if(used>=max) return;
+                    G.placed[k]=selectedMineType;
+                    G.lastDragType=selectedMineType;
+                    AudioFX.place();
+                    resetP(); render();
+                };
                 d.oncontextmenu=e=>{e.preventDefault(); del(r,c);};
+                if (window._placeMode === 'drag') {
+                    d.ondragover=e=>{ e.preventDefault(); d.classList.add('drag-over'); };
+                    d.ondragleave=()=>{ d.classList.remove('drag-over'); };
+                    d.ondrop=function(e){ e.preventDefault(); d.classList.remove('drag-over'); drop.call(d,e); };
+                } else {
+                    d.ondragover=null; d.ondragleave=null; d.ondrop=null;
+                }
                 b.appendChild(d);
             }
             document.getElementById('placed').textContent=Object.keys(G.placed).length;
@@ -3401,17 +3595,36 @@ function checkWin(){
                 if (max <= 0) continue;
                 let use=Object.values(G.placed).filter(x=>x===t).length;
                 let div=document.createElement('div');
-                div.className='mine-item'+(use>=max?' disabled':'');
+                div.className='mine-item'+(use>=max?' disabled':'')+(selectedMineType===t?' selected':'');
                 div.dataset.tip=M[t].tip;
-                div.draggable=(use<max);
                 div.dataset.mineType=t;
-                div.ondragstart=e=>{
-                    if(use>=max){e.preventDefault();return;}
-                    G.drag=null;
-                    G.lastDragType=t;
-                    e.dataTransfer.setData('text/plain', t);
-                    e.dataTransfer.effectAllowed='move';
-                };
+                if (window._placeMode === 'drag') {
+                    div.draggable = !(use>=max);
+                    div.ondragstart=function(e){
+                        try { e.dataTransfer.setDragImage(new Image(),0,0); } catch(_){}
+                        if(use>=max){ e.preventDefault(); return; }
+                        G.drag=null; 
+                        selectedMineType=t;
+                        G.lastDragType=t;
+                        e.dataTransfer.setData('text/plain', t);
+                        e.dataTransfer.effectAllowed='move';
+                        div.classList.add('dragging');
+                        AudioFX.pop();
+                    };
+                    div.ondragend=function(){ div.classList.remove('dragging'); };
+                    div.onclick=null;
+                } else {
+                    div.draggable=false;
+                    div.ondragstart=null;
+                    div.ondragend=null;
+                    div.onclick=()=>{
+                        if(use>=max)return;
+                        if(selectedMineType===t)selectedMineType=null;
+                        else selectedMineType=t;
+                        renderSlot();
+                        AudioFX.pop();
+                    };
+                }
                 div.innerHTML=`<div class="emoji-drag ${M[t].cls}">${M[t].e}</div><div>${M[t].n}</div><div>${use}/${max}</div>`;
                 s.appendChild(div);
             }
@@ -3421,16 +3634,21 @@ function checkWin(){
             startTiOnFirst();
             let r=+this.dataset.r,c=+this.dataset.c,k=r+','+c;
             if(G.placed[k]) return;
-            if(G.drag){ let t=G.placed[G.drag]; delete G.placed[G.drag]; G.placed[k]=t; G.drag=null; }
-            else { 
-                let t = e.dataTransfer.getData('text/plain') || G.lastDragType;
-                if(!t) return; 
-                let used = Object.values(G.placed).filter(x=>x===t).length || 0;
-                let max = G.pool[t] || 0;
-                if(used>=max) return; 
-                G.placed[k]=t; 
-                G.lastDragType=null;
+            if(G.drag){
+                let t=G.placed[G.drag]; delete G.placed[G.drag]; G.placed[k]=t; G.drag=null;
+                AudioFX.place();
+                resetP(); render();
+                return;
             }
+            let t = null;
+            if(e && e.dataTransfer) t = e.dataTransfer.getData('text/plain') || G.lastDragType;
+            if(!t && selectedMineType) t = selectedMineType;
+            if(!t) return;
+            let used = Object.values(G.placed).filter(x=>x===t).length || 0;
+            let max = G.pool[t] || 0;
+            if(used>=max) return;
+            G.placed[k]=t;
+            G.lastDragType=t;
             AudioFX.place();
             resetP(); render();
         }
@@ -3548,8 +3766,8 @@ function checkWin(){
                     [0,0,0,0,0],
                 ],
                 steps: [
-                    { text: "这是一颗 💣普通雷\n它会让周围 3×3 范围每个格子 +1\n\n棋盘中央有一块 3×3 的「1」区域 \n试着把雷拖过去吧！", hint: "普通雷 3x3 范围 +1" },
-                    { text: "提示：放在区域中心位置（第3行第3列）\n它的 3×3 影响范围才能刚好覆盖所有 1。", hint: "右键删除地雷🚫", targetCell: [2,2] },
+                    { text: "这是一颗 💣普通雷\n它会让周围 3×3 范围每个格子 +1\n\n棋盘中央有一块 3×3 的「1」区域 \n先点击下方地雷选中它，再点击棋盘放置吧！", hint: "普通雷 3x3 范围 +1" },
+                    { text: "提示：放在区域中心位置（第3行第3列）\n它的 3×3 影响范围才能刚好覆盖所有 1。", hint: "右键点击已放置的地雷可删除🚫", targetCell: [2,2] },
                 ]
             },
             {
@@ -3568,7 +3786,7 @@ function checkWin(){
                 ],
                 steps: [
                     { text: "当雷靠近棋盘边缘时\n它的一部分影响范围会超出棋盘。\n\n左侧有两列显示 1\n——该放哪呢？", hint: "边缘放置：超出棋盘的部分不生效" },
-                    { text: "提示：放在位置（第3行第1列）\n它的 3×3 范围右边两列刚好覆盖那些 1", hint: "右键删除地雷🚫", targetCell: [2,0] },
+                    { text: "提示：放在位置（第3行第1列）\n它的 3×3 范围右边两列刚好覆盖那些 1", hint: "右键点击已放置的地雷可删除🚫", targetCell: [2,0] },
                 ]
             },
             {
@@ -3587,7 +3805,7 @@ function checkWin(){
                 ],
                 steps: [
                     { text: "角落是最极端的边界\n\n左下角有 2×2 的「1」区域\n只有角落的雷能产生这种图案", hint: "角落放置：只有 2×2 范围在棋盘内" },
-                    { text: "提示：放到棋盘左下角（第5行第1列）\n它的 3×3 范围就只剩右上 2×2 在棋盘内。", hint: "右键删除地雷🚫", targetCell: [4,0] },
+                    { text: "提示：放到棋盘左下角（第5行第1列）\n它的 3×3 范围就只剩右上 2×2 在棋盘内。", hint: "右键点击已放置的地雷可删除🚫", targetCell: [4,0] },
                 ]
             },
             {
@@ -3606,7 +3824,7 @@ function checkWin(){
                 ],
                 steps: [
                     { text: "💣巨型雷——它的影响范围是 5×5\n比普通雷大得多！\n\n左上角有一大块 4×4 的 1\n放在哪里能一次覆盖这么大的区域呢?", hint: "巨型雷 5×5 范围 +1" },
-                    { text: "提示：4×4 的 1 区域左上角对齐棋盘边缘\n巨型雷的 5×5 中心应该尽量靠左上\n把它放到（第2行第2列）\n它的范围左上角刚好超出棋盘", hint: "右键删除地雷🚫", targetCell: [1,1] },
+                    { text: "提示：4×4 的 1 区域左上角对齐棋盘边缘\n巨型雷的 5×5 中心应该尽量靠左上\n把它放到（第2行第2列）\n它的范围左上角刚好超出棋盘", hint: "右键点击已放置的地雷可删除🚫", targetCell: [1,1] },
                 ]
             },
             {
@@ -3625,7 +3843,7 @@ function checkWin(){
                 ],
                 steps: [
                     { text: "💣高爆雷——同样是 3×3 范围\n但每个格子 +2 而不是 +1\n\n左上角 3×3 全是 2\n你需要一颗「更猛」的雷来填满。", hint: "高爆雷 3×3 范围 +2" },
-                    { text: "提示：放在（第2行第2列）\n它的 3×3 范围才能覆盖并产生 +2 的效果。", hint: "右键删除地雷🚫", targetCell: [1,1] },
+                    { text: "提示：放在（第2行第2列）\n它的 3×3 范围才能覆盖并产生 +2 的效果。", hint: "右键点击已放置的地雷可删除🚫", targetCell: [1,1] },
                 ]
             },
             {
@@ -3644,7 +3862,7 @@ function checkWin(){
                 ],
                 steps: [
                     { text: "🌶️竖辣椒——它影响竖直方向的5格\n形成一条线，而不是 3×3 方块\n\n棋盘中间一列从上到下全是 1\n放下辣椒试试。", hint: "竖辣椒：竖直方向5格 +1" },
-                    { text: "提示：放中间（第3行第3列）", hint: "右键删除地雷🚫", targetCell: [2,2] },
+                    { text: "提示：放中间（第3行第3列）", hint: "右键点击已放置的地雷可删除🚫", targetCell: [2,2] },
                 ]
             },
             {
@@ -3663,7 +3881,7 @@ function checkWin(){
                 ],
                 steps: [
                     { text: "🌶️横辣椒——和竖辣椒类似，影响水平5格\n注意：它靠近边界时，也会有超出的部分。\n\n第3行有3个 1（左边紧挨边界）\n横辣椒该放在哪？", hint: "横辣椒：水平方向5格 +1，部分超出棋盘" },
-                    { text: "提示：第3行有连续3个 1，左边贴着棋盘边缘。\n横辣椒水平范围左右各延伸 2 格\n要覆盖这3个 1，中心应该放在第3行第1列", hint: "右键删除地雷🚫", targetCell: [2,0] },
+                    { text: "提示：第3行有连续3个 1，左边贴着棋盘边缘。\n横辣椒水平范围左右各延伸 2 格\n要覆盖这3个 1，中心应该放在第3行第1列", hint: "右键点击已放置的地雷可删除🚫", targetCell: [2,0] },
                 ]
             },
             {
@@ -3682,7 +3900,7 @@ function checkWin(){
                 ],
                 steps: [
                     { text: "💥反物质炸弹——它在 3×3 内每格 -1\n会产生负数！\n\n左上角 3×3 全是 -1\n代表着需要负值的地雷", hint: "反物质炸弹 3×3 范围 -1" },
-                    { text: "提示：放到第2行第2列\n就能产生正确的负值影响。", hint: "右键删除地雷🚫", targetCell: [1,1] },
+                    { text: "提示：放到第2行第2列\n就能产生正确的负值影响。", hint: "右键点击已放置的地雷可删除🚫", targetCell: [1,1] },
                 ]
             },
             {
@@ -3700,8 +3918,8 @@ function checkWin(){
                 ],
                 steps: [
                     { text: "当两颗地雷的影响范围重叠时\n重叠区域的数值会累加！\n\n中间有 2×2 的[2]区域\n说明这些格子被两颗雷同时覆盖", hint: "两颗雷重叠 → 1+1=2" },
-                    { text: "把一颗💣放到第2行第2列\n你会看到 3×3 范围变成 1", hint: "右键删除地雷🚫", targetCell: [1,1] },
-                    { text: "再放第二颗💣到第3行第3列\n两颗雷范围叠加处 → 数值变成 2 ✅", hint: "右键删除地雷🚫", targetCell: [2,2] },
+                    { text: "把一颗💣放到第2行第2列\n你会看到 3×3 范围变成 1", hint: "右键点击已放置的地雷可删除🚫", targetCell: [1,1] },
+                    { text: "再放第二颗💣到第3行第3列\n两颗雷范围叠加处 → 数值变成 2 ✅", hint: "右键点击已放置的地雷可删除🚫", targetCell: [2,2] },
                 ]
             },
             {
@@ -3719,8 +3937,8 @@ function checkWin(){
                 ],
                 steps: [
                     { text: "💣普通雷 +1，💥反物质炸弹 -1\n当它们的影响范围重叠时\n重叠区域相加得0！\n\n中间有 2×2 的[0]区域\n说明这些格子被两颗雷同时覆盖", hint: "正负叠加 → 1+(-1)=0" },
-                    { text: "把💣放到第3行第3列\n它的 3×3 范围覆盖中间区域", hint: "右键删除地雷🚫", targetCell: [2,2] },
-                    { text: "把💥放到第4行第4列\n它的 3×3 范围覆盖右下区域\n两者重叠区域 → 1+(-1)=0 ✅", hint: "右键删除地雷🚫", targetCell: [3,3] },
+                    { text: "把💣放到第3行第3列\n它的 3×3 范围覆盖中间区域", hint: "右键点击已放置的地雷可删除🚫", targetCell: [2,2] },
+                    { text: "把💥放到第4行第4列\n它的 3×3 范围覆盖右下区域\n两者重叠区域 → 1+(-1)=0 ✅", hint: "右键点击已放置的地雷可删除🚫", targetCell: [3,3] },
                 ]
             },
             {
@@ -3741,10 +3959,10 @@ function checkWin(){
                 ],
                 steps: [
                     { text: "这是为你准备的最后考题\n想想刚才所有的特性\n用下方的四个地雷，把棋盘变绿吧！", hint: "正负叠加 → 1+(-1)=0" },
-                    { text: "巨型雷💣轮廓最明显\n把它放在第5行第4列正好", hint: "右键删除地雷🚫", targetCell: [4,3] },
-                    { text: "把💥放到第3行第6列\n与巨型雷的范围叠加\n两者重叠区域 → 1+(-1)=0 ✅", hint: "右键删除地雷🚫", targetCell: [2,5] },
-                    { text: "把竖辣椒放到第3行2列\n与巨型雷的范围叠加区域\n1+1=2 ✅", hint: "右键删除地雷🚫", targetCell: [2,1] },
-                    { text: "把横辣椒放到第7行第6列\n与巨型雷的范围叠加区域\n1+1=2 ✅", hint: "右键删除地雷🚫", targetCell: [6,5] },
+                    { text: "巨型雷💣轮廓最明显\n把它放在第5行第4列正好", hint: "右键点击已放置的地雷可删除🚫", targetCell: [4,3] },
+                    { text: "把💥放到第3行第6列\n与巨型雷的范围叠加\n两者重叠区域 → 1+(-1)=0 ✅", hint: "右键点击已放置的地雷可删除🚫", targetCell: [2,5] },
+                    { text: "把竖辣椒放到第3行2列\n与巨型雷的范围叠加区域\n1+1=2 ✅", hint: "右键点击已放置的地雷可删除🚫", targetCell: [2,1] },
+                    { text: "把横辣椒放到第7行第6列\n与巨型雷的范围叠加区域\n1+1=2 ✅", hint: "右键点击已放置的地雷可删除🚫", targetCell: [6,5] },
                 ]
             },   
         ];
@@ -3816,6 +4034,7 @@ function checkWin(){
         }
 
         function renderTeachBoard() {
+            let lvl = TEACH_LEVELS[teachLevelIdx];
             let b = document.getElementById('board');
             b.innerHTML = '';
             b.style.gridTemplateRows = `repeat(${SR},40px)`;
@@ -3837,27 +4056,51 @@ function checkWin(){
                         d.classList.add('mine-here');
                         let ty = G.placed[k];
                         d.innerHTML = `<span class="${M[ty].cls}">${M[ty].e}</span>`;
-                        d.draggable = true;
-                        d.ondragstart = (e) => {
-                            e.dataTransfer.setData('text/plain', 'move:' + k);
-                            window._lastTeachDragType = ty;
-                        };
-                    }
-                    d.ondragover = e => { e.preventDefault(); d.style.boxShadow='inset 0 0 0 2px #4299e1'; };
-                    d.ondragleave = () => { if(!G.placed[k]) d.style.boxShadow=''; };
-                    d.ondrop = e => {
-                        e.preventDefault();
-                        d.style.boxShadow='';
-                        let dt = e.dataTransfer ? e.dataTransfer.getData('text/plain') : '';
-                        if (dt.indexOf('type:') === 0) {
-                            window._lastTeachDragType = dt.substring(5);
-                        } else if (dt.indexOf('move:') === 0) {
+                        if (window._placeMode === 'drag') {
+                            d.draggable = true;
+                            d.ondragstart = function(e) {
+                                try { e.dataTransfer.setDragImage(new Image(),0,0); } catch(_){}
+                                G.drag = k;
+                                e.dataTransfer.setData('text/plain', '');
+                                e.dataTransfer.effectAllowed = 'move';
+                                d.classList.add('dragging');
+                            };
+                            d.ondragend = function() { d.classList.remove('dragging'); };
                         } else {
-                            window._lastTeachDragType = null;
+                            d.draggable = false;
+                            d.ondragstart = null; d.ondragend = null;
                         }
-                        teachDrop(r, c);
+                    }
+                    d.onclick = () => {
+                        if (G.placed[k]) return;
+                        let type = window._teachSelectedType;
+                        if (!type) {
+                            let mt = lvl.mineTypes || (lvl.mineType ? {[lvl.mineType]:1} : {});
+                            for (let t in mt) {
+                                if ((teachPlacedTypes[t]||0) < mt[t]) { type = t; break; }
+                            }
+                        }
+                        if (!type) return;
+                        teachDrop(r, c, type);
                     };
                     d.oncontextmenu = e => { e.preventDefault(); teachRemove(r, c); };
+                    if (window._placeMode === 'drag') {
+                        d.ondragover=e=>{ e.preventDefault(); d.classList.add('drag-over'); };
+                        d.ondragleave=()=>{ d.classList.remove('drag-over'); };
+                        d.ondrop=function(e){
+                            e.preventDefault(); d.classList.remove('drag-over');
+                            if (G.drag && G.drag !== k && !G.placed[k]) {
+                                let mvT = G.placed[G.drag]; delete G.placed[G.drag]; G.placed[k] = mvT; G.drag = null;
+                                AudioFX.place(); renderTeachBoard(); renderTeachSlot(); return;
+                            }
+                            G.drag = null;
+                            let t = e.dataTransfer ? e.dataTransfer.getData('text/plain') : null;
+                            if (!t) t = window._teachSelectedType;
+                            if (t) teachDrop(r, c, t);
+                        };
+                    } else {
+                        d.ondragover=null; d.ondragleave=null; d.ondrop=null;
+                    }
                     b.appendChild(d);
                 }
             }
@@ -3874,26 +4117,46 @@ function checkWin(){
                 let placed = teachPlacedTypes[t] || 0;
                 let div = document.createElement('div');
                 let disabled = placed >= expected;
-                div.className = 'mine-item' + (disabled ? ' disabled' : '');
+                div.className = 'mine-item' + (disabled ? ' disabled' : '') + (window._teachSelectedType===t?' selected':'');
                 div.dataset.tip = M[t].tip;
-                div.draggable = !disabled;
                 div.dataset.mineType = t;
-                div.ondragstart = e => {
-                    if (disabled) { e.preventDefault(); return; }
-                    e.dataTransfer.setData('text/plain', 'type:' + t);
-                    e.dataTransfer.effectAllowed = 'copy';
-                };
+                if (window._placeMode === 'drag') {
+                    div.draggable = !disabled;
+                    div.ondragstart=function(e){
+                        try { e.dataTransfer.setDragImage(new Image(),0,0); } catch(_){}
+                        if(disabled){ e.preventDefault(); return; }
+                        G.drag=null; 
+                        window._teachSelectedType=t;
+                        e.dataTransfer.setData('text/plain', t);
+                        e.dataTransfer.effectAllowed='move';
+                        div.classList.add('dragging');
+                        AudioFX.pop();
+                    };
+                    div.ondragend=function(){ div.classList.remove('dragging'); };
+                    div.onclick=null;
+                } else {
+                    div.draggable=false;
+                    div.ondragstart=null; div.ondragend=null;
+                    div.onclick = () => {
+                        if (disabled) return;
+                        if (window._teachSelectedType === t) window._teachSelectedType = null;
+                        else window._teachSelectedType = t;
+                        renderTeachSlot();
+                        AudioFX.pop();
+                    };
+                }
                 div.innerHTML = `<div class="emoji-drag ${M[t].cls}">${M[t].e}</div><div>${M[t].n}</div><div>${placed}/${expected}</div>`;
                 s.appendChild(div);
             }
         }
 
-        function teachDrop(r, c) {
+        function teachDrop(r, c, forceType) {
             let lvl = TEACH_LEVELS[teachLevelIdx];
             let k = r + ',' + c;
             if (G.placed[k]) return;
-            let dragType = window._lastTeachDragType || null;
-            window._lastTeachDragType = null;
+            let dragType = forceType || window._teachSelectedType || null;
+            window._teachSelectedType = null;
+            renderTeachSlot();
             if (!dragType) {
                 let mt = lvl.mineTypes || (lvl.mineType ? {[lvl.mineType]:1} : {});
                 for (let t in mt) {
@@ -4167,6 +4430,55 @@ function checkWin(){
             applyBrainEgg();
         };
 
+        document.addEventListener('dragstart', function(e) {
+            try { e.dataTransfer.setDragImage(new Image(), 0, 0); } catch(_) {}
+        }, false);
+
+        const _MODE_KEY = 'placeMode_v1';
+        window._placeMode = 'drag';
+
+        function initPlaceMode() {
+            let saved = localStorage.getItem(_MODE_KEY);
+            if (saved === 'drag' || saved === 'click') {
+                window._placeMode = saved;
+            } else {
+                window._placeMode = 'drag'; 
+            }
+            applyPlaceModeUI();
+        }
+
+        function applyPlaceModeUI() {
+            let mode = window._placeMode;
+            let icon = document.getElementById('modeToggleIcon');
+            let label = document.getElementById('modeToggleLabel');
+            if (mode === 'drag') {
+                if (icon) icon.textContent = '🖱️';
+                if (label) label.textContent = '切换放置方式为：点选';
+            } else {
+                if (icon) icon.textContent = '✋';
+                if (label) label.textContent = '切换放置方式为：拖拽';
+            }
+        }
+
+        window.togglePlaceMode = function() {
+            AudioFX.confirm();
+            let newMode = (window._placeMode === 'drag') ? 'click' : 'drag';
+            window._placeMode = newMode;
+            localStorage.setItem(_MODE_KEY, newMode);
+
+            selectedMineType = null;
+            if (window._teachSelectedType) window._teachSelectedType = null;
+            if (window._createSelectedType) window._createSelectedType = null;
+
+            applyPlaceModeUI();
+            render();
+            renderSlot();
+        };
+
+
+
+        initPlaceMode();
+
         window.addEventListener('load', function() {
             let today=new Date().toDateString();
             let lastShown=localStorage.getItem('welcomeLastShown');
@@ -4351,60 +4663,64 @@ function checkWin(){
                         cell.classList.add('mine-here');
                         let ty = createPlaced[key];
                         cell.innerHTML = `<span class="${M[ty].cls}">${M[ty].e}</span>`;
-                        cell.draggable = true;
-                        cell.ondragstart = (e) => {
-                            e.dataTransfer.setData('text/plain', key);
-                            G.drag = key;
-                        };
-                    } else {
-                        cell.draggable = false;
+                        if (window._placeMode === 'drag') {
+                            cell.draggable = true;
+                            cell.ondragstart = function(e) {
+                                try { e.dataTransfer.setDragImage(new Image(),0,0); } catch(_){}
+                                G.drag = key;
+                                e.dataTransfer.setData('text/plain', '');
+                                e.dataTransfer.effectAllowed = 'move';
+                                cell.classList.add('dragging');
+                            };
+                            cell.ondragend = function() { cell.classList.remove('dragging'); };
+                        } else {
+                            cell.draggable = false;
+                            cell.ondragstart = null; cell.ondragend = null;
+                        }
                     }
-                    cell.ondragover = (e) => {
-                        e.preventDefault();
-                        cell.style.boxShadow = 'inset 0 0 0 2px #4299e1';
-                    };
-                    cell.ondragleave = () => {
-                        if (!createPlaced[cell.dataset.r+','+cell.dataset.c])
-                            cell.style.boxShadow = '';
-                    };
-                    cell.ondrop = (e) => {
-                        e.preventDefault();
-                        cell.style.boxShadow = '';
+                    cell.onclick = () => {
                         let targetKey = r+','+c;
                         if (createPlaced[targetKey]) return;
-                        let type = e.dataTransfer.getData('text/plain');
-                        if (!type) {
-                            if (G.drag && createPlaced[G.drag]) {
-                                let movedType = createPlaced[G.drag];
-                                delete createPlaced[G.drag];
-                                createPlaced[targetKey] = movedType;
-                                G.drag = null;
-                                AudioFX.place();
-                                renderCreateBoard();
-                                renderCreateMineSlot();
-                                refreshCreateInfoBar();
-                            }
-                            return;
-                        }
-                        if (M[type]) {
-                            createPlaced[targetKey] = type;
-                            AudioFX.place();
-                            renderCreateBoard();
-                            renderCreateMineSlot();
-                            refreshCreateInfoBar();
-                        }
+                        let type = window._createSelectedType;
+                        if (!type) return;
+                        createPlaced[targetKey] = type;
+                        AudioFX.place();
+                        renderCreateBoard();
+                        renderCreateMineSlot();
+                        refreshCreateInfoBar();
                     };
                     cell.oncontextmenu = (e) => {
                         e.preventDefault();
-                        let key = r+','+c;
-                        if (createPlaced[key]) {
-                            delete createPlaced[key];
+                        let k2 = r+','+c;
+                        if (createPlaced[k2]) {
+                            delete createPlaced[k2];
                             AudioFX.remove();
                             renderCreateBoard();
                             renderCreateMineSlot();
                             refreshCreateInfoBar();
                         }
                     };
+                    if (window._placeMode === 'drag') {
+                        cell.ondragover=e=>{ e.preventDefault(); cell.classList.add('drag-over'); };
+                        cell.ondragleave=()=>{ cell.classList.remove('drag-over'); };
+                        cell.ondrop=function(e){
+                            e.preventDefault(); cell.classList.remove('drag-over');
+                            let tk = r+','+c;
+                            if (G.drag && G.drag !== tk && !createPlaced[tk]) {
+                                let mvT = createPlaced[G.drag]; delete createPlaced[G.drag]; createPlaced[tk] = mvT; G.drag = null;
+                                AudioFX.place(); renderCreateBoard(); renderCreateMineSlot(); refreshCreateInfoBar(); return;
+                            }
+                            G.drag = null;
+                            let t = e.dataTransfer ? e.dataTransfer.getData('text/plain') : null;
+                            if (!t) t = window._createSelectedType;
+                            if (!t) return;
+                            if (createPlaced[tk]) return;
+                            createPlaced[tk] = t;
+                            AudioFX.place(); renderCreateBoard(); renderCreateMineSlot(); refreshCreateInfoBar();
+                        };
+                    } else {
+                        cell.ondragover=null; cell.ondragleave=null; cell.ondrop=null;
+                    }
                     board.appendChild(cell);
                 }
             }
@@ -4422,15 +4738,34 @@ function checkWin(){
                 let used = Object.values(createPlaced).filter(v => v === t).length;
                 let div = document.createElement('div');
                 let disabled = placedCount >= maxMines;
-                div.className = 'mine-item' + (disabled ? ' disabled' : '');
+                div.className = 'mine-item' + (disabled ? ' disabled' : '') + (window._createSelectedType===t?' selected':'');
                 div.dataset.tip = M[t].tip;
-                div.draggable = !disabled;
                 div.dataset.mineType = t;
-                div.ondragstart = (e) => {
-                    if (disabled) { e.preventDefault(); return; }
-                    e.dataTransfer.setData('text/plain', t);
-                    e.dataTransfer.effectAllowed = 'copy';
-                };
+                if (window._placeMode === 'drag') {
+                    div.draggable = !disabled;
+                    div.ondragstart=function(e){
+                        try { e.dataTransfer.setDragImage(new Image(),0,0); } catch(_){}
+                        if(disabled){ e.preventDefault(); return; }
+                        G.drag=null;
+                        window._createSelectedType=t;
+                        e.dataTransfer.setData('text/plain', t);
+                        e.dataTransfer.effectAllowed='move';
+                        div.classList.add('dragging');
+                        AudioFX.pop();
+                    };
+                    div.ondragend=function(){ div.classList.remove('dragging'); };
+                    div.onclick=null;
+                } else {
+                    div.draggable=false;
+                    div.ondragstart=null; div.ondragend=null;
+                    div.onclick = () => {
+                        if (disabled) return;
+                        if (window._createSelectedType === t) window._createSelectedType = null;
+                        else window._createSelectedType = t;
+                        renderCreateMineSlot();
+                        AudioFX.pop();
+                    };
+                }
                 div.innerHTML = `<div class="emoji-drag ${M[t].cls}">${M[t].e}</div><div>${M[t].n}</div><div>${used} 已放</div>`;
                 container.appendChild(div);
             });
@@ -4676,38 +5011,38 @@ function checkWin(){
 
         // 预设难度
         { id:'easy_10', cat:'预设难度', emoji:'🥬', name:'小菜一碟', desc:'简单难度通关10次', type:'count', target:10 },
-        { id:'medium_10', cat:'预设难度', emoji:'❓', name:'压力？', desc:'中等难度通关10次', type:'count', target:10 },
+        { id:'medium_10', cat:'预设难度', emoji:'🍗', name:'不吃压力', desc:'中等难度通关10次', type:'count', target:10 },
         { id:'hard_10', cat:'预设难度', emoji:'🧠', name:'头有点痒', desc:'困难难度通关10次', type:'count', target:10 },
         { id:'hell_first', cat:'预设难度', emoji:'😈', name:'勇往直下', desc:'首次通关地狱难度', type:'once' },
         { id:'hell_7', cat:'预设难度', emoji:'👿', name:'地狱七进七出', desc:'地狱累计通关7次', type:'count', target:7 },
-        { id:'brain_first', cat:'预设难度', emoji:'👍', name:'这没劝退啊？？', desc:'首次通关脑王难度', type:'once' },
-        { id:'brain_10', cat:'预设难度', emoji:'🐮', name:'这不是外挂？？', desc:'脑王累计通关10次', type:'count', target:10 },
+        { id:'brain_first', cat:'预设难度', emoji:'👍', name:'这不是外挂？？', desc:'首次通关脑王难度', type:'once' },
+        { id:'brain_10', cat:'预设难度', emoji:'🐮', name:'666，这个入是桂', desc:'脑王累计通关10次', type:'count', target:10 },
 
         // 系列道具
-        { id:'basic_all_used', cat:'系列道具', emoji:'🧠', name:'我脑子不基础', desc:'基础系列全部道具至少用来通关过一次', type:'special', check:function(){ if(!_achState.basicTypesUsed) return false; let basics=Object.keys(M).filter(k=>M[k].category==='basic'); return basics.every(k=>_achState.basicTypesUsed[k]); } },
-        { id:'unlock_special', cat:'系列道具', emoji:'🔷', name:'奇形怪状收集控', desc:'解锁异形系列', type:'special', check:function(){ return seriesUnlocked&&seriesUnlocked.special; } },
-        { id:'unlock_physics', cat:'系列道具', emoji:'🧑‍🔬', name:'科研人员', desc:'解锁物理律系列', type:'special', check:function(){ return seriesUnlocked&&seriesUnlocked.physics; } },
+        { id:'basic_all_used', cat:'系列道具', emoji:'🧠', name:'头脑不基础', desc:'基础系列全部道具至少用来通关过一次', type:'special', check:function(){ if(!_achState.basicTypesUsed) return false; let basics=Object.keys(M).filter(k=>M[k].category==='basic'); return basics.every(k=>_achState.basicTypesUsed[k]); } },
+        { id:'unlock_special', cat:'系列道具', emoji:'🔷', name:'奇葩', desc:'解锁异形系列', type:'special', check:function(){ return seriesUnlocked&&seriesUnlocked.special; } },
+        { id:'unlock_physics', cat:'系列道具', emoji:'🗿', name:'科研人员', desc:'解锁物理律系列', type:'special', check:function(){ return seriesUnlocked&&seriesUnlocked.physics; } },
         { id:'unlock_symmetry', cat:'系列道具', emoji:'🥂', name:'干杯！', desc:'解锁对称系列', type:'special', check:function(){ return seriesUnlocked&&seriesUnlocked.symmetry; } },
-        { id:'unlock_tactical', cat:'系列道具', emoji:'🔧', name:'黑科技军械库', desc:'解锁战术武器系列', type:'special', check:function(){ return seriesUnlocked&&seriesUnlocked.tactical; } },
+        { id:'unlock_tactical', cat:'系列道具', emoji:'🐔', name:'酱味大鸡！', desc:'解锁战术武器系列', type:'special', check:function(){ return seriesUnlocked&&seriesUnlocked.tactical; } },
 
         // 速通系列
         { id:'speed_easy', cat:'速通系列', emoji:'⏱️', name:'颗秒!', desc:'简单难度通关＜7秒', type:'time', target:7000 },
-        { id:'speed_medium', cat:'速通系列', emoji:'⚡', name:'秒了有什么好说的', desc:'中等难度通关＜25秒', type:'time', target:25000 },
+        { id:'speed_medium', cat:'速通系列', emoji:'⚡', name:'蚌蚌蚌蚌!', desc:'中等难度通关＜25秒', type:'time', target:25000 },
         { id:'speed_hard', cat:'速通系列', emoji:'👎', name:'ez', desc:'困难难度通关＜90秒', type:'time', target:90000 },
         { id:'speed_hell', cat:'速通系列', emoji:'😈', name:'地狱归来', desc:'地狱难度通关＜3分钟', type:'time', target:180000 },
-        { id:'speed_brain', cat:'速通系列', emoji:'🧠', name:'脑力这一块', desc:'脑王难度通关＜8分钟', type:'time', target:480000 },
+        { id:'speed_brain', cat:'速通系列', emoji:'🧠', name:'脑力王这一块', desc:'脑王难度通关＜6分钟', type:'time', target:360000 },
 
         // 创造模式
         { id:'create_first', cat:'创造模式', emoji:'🛠️', name:'包工头', desc:'创造模式生成第一张关卡', type:'once' },
-        { id:'create_mixed', cat:'创造模式', emoji:'🧑‍🏫', name:'出卷人', desc:'创造模式自制关卡同时包含物理律/对称/战术三类道具', type:'special', check:function(){ return _achState.lastCreateCats&&_achState.lastCreateCats.physics&&_achState.lastCreateCats.symmetry&&_achState.lastCreateCats.tactical; } },
+        { id:'create_mixed', cat:'创造模式', emoji:'🏫', name:'出卷人', desc:'创造模式自制关卡同时包含物理律/对称/战术三类道具', type:'special', check:function(){ return _achState.lastCreateCats&&_achState.lastCreateCats.physics&&_achState.lastCreateCats.symmetry&&_achState.lastCreateCats.tactical; } },
         { id:'create_10', cat:'创造模式', emoji:'📋', name:'印试卷', desc:'创造模式累计生成10张关卡', type:'count', target:10 },
         { id:'play_shared_5', cat:'创造模式', emoji:'🏞️', name:'观光客', desc:'通关5张其他玩家自制关卡', type:'count', target:5 },
 
         // 累计通关
         { id:'total_20', cat:'累计通关', emoji:'☕', name:'摸鱼高手', desc:'累计通关20局', type:'count', target:20 },
         { id:'total_50', cat:'累计通关', emoji:'🍉', name:'摸鱼高高手', desc:'累计通关50局', type:'count', target:50 },
-        { id:'total_150', cat:'累计通关', emoji:'🍺', name:'老油条', desc:'累计通关150局', type:'count', target:150 },
-        { id:'total_500', cat:'累计通关', emoji:'🧊', name:'冰？？', desc:'累计通关500局', type:'count', target:500 },
+        { id:'total_150', cat:'累计通关', emoji:'🍺', name:'摸鱼高高高手', desc:'累计通关150局', type:'count', target:150 },
+        { id:'total_500', cat:'累计通关', emoji:'🧊', name:'卧槽？冰！！', desc:'累计通关500局', type:'count', target:500 },
         { id:'total_night', cat:'累计通关', emoji:'🌙', name:'夜猫子', desc:'22:00-4:00时间段通关10次', type:'count', target:10 },
 
         // 隐藏
@@ -5074,6 +5409,43 @@ function checkWin(){
     window.Achievements={unlock,incrementCounter,renderAchievements,state:_achState};
 })();
 
+    </script>
+        <script>
+    (function initBgEffects() {
+        const container = document.getElementById('bgEffects');
+        if (!container) return;
+
+        const mineEmojis = ['💣','🚩','❓','💥','🕳️','☢️','🌶️','✖️','🍺','🌀','🛡️','🐮','💩','🗿','🍗'];
+
+        function spawnMineGhost() {
+            if (!container) return;
+            let el = document.createElement('div');
+            el.className = 'bg-mine-ghost';
+            el.textContent = mineEmojis[Math.floor(Math.random() * mineEmojis.length)];
+            el.style.left = (8 + Math.random() * 90) + '%';
+            el.style.top  = (8 + Math.random() * 90) + '%';
+            el.style.fontSize = (18 + Math.random() * 22) + 'px';
+            let duration = 4 + Math.random() * 2.5;
+            el.style.animationDuration = duration + 's';
+            container.appendChild(el);
+
+            setTimeout(() => {
+                if (el && el.parentNode) el.parentNode.removeChild(el);
+            }, duration * 1000);
+        }
+
+        for (let i = 0; i < 6; i++) {
+            setTimeout(spawnMineGhost, Math.random() * 1500);
+        }
+
+        function loopSpawn() {
+            spawnMineGhost();
+            setTimeout(loopSpawn, 600 + Math.random() * 800);
+        }
+        setTimeout(loopSpawn, 2000);
+
+
+    })();
     </script>
 </body>
 </html>

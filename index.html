@@ -3669,13 +3669,16 @@ function checkWin(){
             updateTutorialProgress();
 
             if (tutorialStep >= 5) {
+                if (cat) {
+                    let nextBtn = document.getElementById('teachNextBtn');
+                    if (nextBtn) {
+                        nextBtn.textContent = '完成';
+                        nextBtn.onclick = closeTutorialComplete;
+                    }
+                }
+
                 if (cat && !seriesUnlocked[cat]) {
                     unlockSeries(cat);
-                    renderMineInfo();
-                    renderSeriesSwitches();
-                }
-                if (!cat && !seriesUnlocked['special']) {
-                    unlockSeries('special');
                     renderMineInfo();
                     renderSeriesSwitches();
                 }
@@ -3684,7 +3687,7 @@ function checkWin(){
                 AudioFX.modalOpen();
                 let txt;
                 if (!cat) {
-                    txt = '🎉 新手关卡完成！<br>已自动解锁「异形系列」作为奖励 ✅<br>快去💣炸弹信息栏开启它的关卡吧';
+                    txt = '🎉 新手关卡完成！<br>现在你可以去挑战各系列的关卡了<br>通过对应系列挑战即可解锁该系列地雷 ✅';
                 } else {
                     txt = `🎉 已解锁「${CATEGORY[cat].name}」！<br>该系列地雷已加入题库 ✅`;
                 }
@@ -3719,13 +3722,15 @@ function checkWin(){
 
         function setupTutorialBoard(catKey) {
             fullReset();
+            currentTutorialType = catKey;
+            isTutorialMode = true;
+            
             S=10; T=5; TY=3; SP=3;
             setupTutorialParams();
             genTutorialGame(catKey);
             showTutorialProgress(catKey);
             render();
             document.getElementById('win').style.display='none';
-            isTutorialMode = true;
         }
 
         function showTutorialProgress(catKey) {
@@ -3750,6 +3755,7 @@ function checkWin(){
             document.getElementById('overlay').style.display='none';
             setupTutorialBoard(catKey);
         }
+        
 
         const TEACH_LEVELS = [
             {
@@ -4336,6 +4342,7 @@ function checkWin(){
 
         function teachExitToPractice() {
             AudioFX.confirm();
+            document.querySelector('.panel').style.display = 'flex';
             document.getElementById('teachCompleteModal').classList.remove('visible');
             document.getElementById('teachBubble').classList.remove('visible');
             document.querySelectorAll('.cell-teach-target').forEach(el => el.classList.remove('cell-teach-target'));
@@ -4412,6 +4419,7 @@ function checkWin(){
             document.getElementById('win').style.display = 'none';
             if (!isFreeMode) { ts = true; startTi(); }
         }
+        
 
         function clearAll(){ AudioFX.confirm(); G.placed={}; resetP(); render(); }
 
@@ -4998,6 +5006,18 @@ function checkWin(){
                     window.addEventListener('load', initSlider);
                 }
             })();
+
+            window._gameNS = {
+                newGame: newGame,
+                fullReset: fullReset,
+                clearAll: clearAll,
+                del: del,
+                drop: drop,
+                onTutorialWin: onTutorialWin,
+                unlockSeries: unlockSeries,
+                generatePuzzleCode: generatePuzzleCode,
+                applyPuzzleCode: applyPuzzleCode
+            };
     </script>
     
     <script>
@@ -5077,7 +5097,6 @@ function checkWin(){
             currentRunDeletes: 0,
             currentRunFlawless: true,
             sharedWins: 0,
-            newGameClicks: 0,
             bgmAdjusted: false,
             lastCreateMaxMines: false,
         };
@@ -5297,106 +5316,110 @@ function checkWin(){
         if(window._achHooksInstalled) return;
         window._achHooksInstalled=true;
 
+        var NS = window._gameNS || {};
 
-        let _oUL=window.unlockSeries;
-        window.unlockSeries=function(catKey) {
-            _oUL.apply(this,arguments);
-            if(catKey==='special') unlock('unlock_special');
-            if(catKey==='physics') unlock('unlock_physics');
-            if(catKey==='symmetry') unlock('unlock_symmetry');
-            if(catKey==='tactical') unlock('unlock_tactical');
+        let _oUL = (typeof window.unlockSeries === 'function') ? window.unlockSeries : NS.unlockSeries;
+        window.unlockSeries = function(catKey) {
+            if (_oUL) _oUL.apply(this, arguments);
+            if (catKey === 'special')  unlock('unlock_special');
+            if (catKey === 'physics')  unlock('unlock_physics');
+            if (catKey === 'symmetry') unlock('unlock_symmetry');
+            if (catKey === 'tactical') unlock('unlock_tactical');
             renderAchievements();
         };
 
-        let _oTW=window.onTutorialWin;
-        window.onTutorialWin=function() {
-            _oTW.apply(this,arguments);
-            if(tutorialStep>=5) unlock('finish_tutorial');
+        let _oTW = (typeof window.onTutorialWin === 'function') ? window.onTutorialWin : NS.onTutorialWin;
+        window.onTutorialWin = function() {
+            if (_oTW) _oTW.apply(this, arguments);
+            if (tutorialStep >= 5) unlock('finish_tutorial');
         };
 
-        let _oDel=window.del;
-        window.del=function(r,c) {
-            if(!isTutorialMode) {
+        let _oDel = (typeof window.del === 'function') ? window.del : NS.del;
+        window.del = function(r, c) {
+            if (!isTutorialMode) {
                 _achState.currentRunDeletes++;
-                _achState.currentRunFlawless=false;
-                if(_achState.currentRunDeletes>=20) unlock('hidden_slide');
+                _achState.currentRunFlawless = false;
+                if (_achState.currentRunDeletes >= 20) unlock('hidden_slide');
                 saveState();
             }
-            _oDel(r,c);
+            if (_oDel) return _oDel(r, c);
         };
+        if (typeof del !== 'undefined') del = window.del;
 
-        let _oCA=window.clearAll;
-        window.clearAll=function() {
-            if(!isTutorialMode) {
-                _achState.currentRunFlawless=false;
+        let _oCA = (typeof window.clearAll === 'function') ? window.clearAll : NS.clearAll;
+        window.clearAll = function() {
+            if (!isTutorialMode) {
+                _achState.currentRunFlawless = false;
                 unlock('hidden_eco');
             }
-            _oCA.apply(this,arguments);
+            if (_oCA) _oCA.apply(this, arguments);
         };
+        if (typeof clearAll !== 'undefined') clearAll = window.clearAll;
+        document.getElementById('clear').onclick = window.clearAll;
 
-        let _oDrop=window.drop;
-        window.drop=function(e) {
-            let result=_oDrop.apply(this,arguments);
-            if(!isTutorialMode) {
-                if(!_achState.currentRunCategories) _achState.currentRunCategories=new Set();
-                let t=e&&e.dataTransfer?e.dataTransfer.getData('text/plain'):null;
-                if(!t&&G.lastDragType) t=G.lastDragType;
-                if(t&&M[t]) {
-                    let cat=M[t].category;
+        let _oDrop = (typeof window.drop === 'function') ? window.drop : NS.drop;
+        window.drop = function(e) {
+            let result;
+            if (_oDrop) result = _oDrop.apply(this, arguments);
+            if (!isTutorialMode) {
+                if (!_achState.currentRunCategories) _achState.currentRunCategories = new Set();
+                let t = e && e.dataTransfer ? e.dataTransfer.getData('text/plain') : null;
+                if (!t && G.lastDragType) t = G.lastDragType;
+                if (t && M[t]) {
+                    let cat = M[t].category;
                     _achState.currentRunCategories.add(cat);
-                    if(cat==='basic') { _achState.basicTypesUsed[t]=true; saveState(); }
+                    if (cat === 'basic') { _achState.basicTypesUsed[t] = true; saveState(); }
                 }
             }
             return result;
         };
+        if (typeof drop !== 'undefined') drop = window.drop;
 
-        if(typeof window.generatePuzzleCode==='function') {
-            let _oGen=window.generatePuzzleCode;
-            window.generatePuzzleCode=function() {
-                let result=_oGen.apply(this,arguments);
-                if(!isTutorialMode) {
-                    unlock('create_first');
-                    incrementCounter('create_10');
-                    let cats={physics:false,symmetry:false,tactical:false};
-                    for(let k in createPlaced) {
-                        let mk=createPlaced[k];
-                        if(M[mk]) {
-                            let c=M[mk].category;
-                            if(c==='physics') cats.physics=true;
-                            if(c==='symmetry') cats.symmetry=true;
-                            if(c==='tactical') cats.tactical=true;
-                        }
+        let _oGen = (typeof window.generatePuzzleCode === 'function') ? window.generatePuzzleCode : NS.generatePuzzleCode;
+        window.generatePuzzleCode = function() {
+            let result;
+            if (_oGen) result = _oGen.apply(this, arguments);
+            if (!isTutorialMode) {
+                unlock('create_first');
+                incrementCounter('create_10');
+                let cats = { physics: false, symmetry: false, tactical: false };
+                for (let k in createPlaced) {
+                    let mk = createPlaced[k];
+                    if (M[mk]) {
+                        let c = M[mk].category;
+                        if (c === 'physics')   cats.physics   = true;
+                        if (c === 'symmetry')  cats.symmetry  = true;
+                        if (c === 'tactical')  cats.tactical  = true;
                     }
-                    _achState.lastCreateCats=cats;
-                    if(cats.physics&&cats.symmetry&&cats.tactical) unlock('create_mixed');
-                    let totalCells = createRows * createCols;
-                    let maxMines = Math.floor(totalCells * 0.6);
-                    if (Object.keys(createPlaced).length >= maxMines && maxMines > 0) {
-                        _achState.lastCreateMaxMines = true;
-                        unlock('create_max_mines');
-                    }
-                    saveState();
                 }
-                return result;
-            };
-        }
-
-        if(typeof window.applyPuzzleCode==='function') {
-            let _oApply=window.applyPuzzleCode;
-            window.applyPuzzleCode=function() {
-                window._currentIsShared=true;
-                return _oApply.apply(this,arguments);
-            };
-        }
-
-        let _oFR=window.fullReset;
-        window.fullReset=function() {
-            _achState.currentRunCategories=new Set();
-            _achState.currentRunDeletes=0;
-            _achState.currentRunFlawless=true;
-            saveState();
-            return _oFR.apply(this,arguments);
+                _achState.lastCreateCats = cats;
+                if (cats.physics && cats.symmetry && cats.tactical) unlock('create_mixed');
+                let totalCells = createRows * createCols;
+                let maxMines = Math.floor(totalCells * 0.6);
+                if (Object.keys(createPlaced).length >= maxMines && maxMines > 0) {
+                    _achState.lastCreateMaxMines = true;
+                    unlock('create_max_mines');
+                }
+                saveState();
+            }
+            return result;
         };
+
+        let _oApply = (typeof window.applyPuzzleCode === 'function') ? window.applyPuzzleCode : NS.applyPuzzleCode;
+        window.applyPuzzleCode = function() {
+            window._currentIsShared = true;
+            if (_oApply) return _oApply.apply(this, arguments);
+        };
+
+        let _oFR = (typeof window.fullReset === 'function') ? window.fullReset : NS.fullReset;
+        window.fullReset = function() {
+            _achState.currentRunCategories = new Set();
+            _achState.currentRunDeletes = 0;
+            _achState.currentRunFlawless = true;
+            saveState();
+            if (_oFR) return _oFR.apply(this, arguments);
+        };
+        if (typeof fullReset !== 'undefined') fullReset = window.fullReset;
 
         let _bgmSlider = document.getElementById('bgmSlider');
         if (_bgmSlider) {
@@ -5409,33 +5432,39 @@ function checkWin(){
             });
         }
 
-        let _oNG = window.newGame;
+        let _oNG = (typeof window.newGame === 'function') ? window.newGame : NS.newGame;
         window.newGame = function() {
-            let result = _oNG.apply(this, arguments);
+            let result;
+            if (_oNG) result = _oNG.apply(this, arguments);
             _achState.newGameClicks = (_achState.newGameClicks || 0) + 1;
             if (_achState.newGameClicks >= 3) unlock('new_game_spam');
             saveState();
             return result;
         };
+        if (typeof newGame !== 'undefined') newGame = window.newGame;
+        document.getElementById('reset').onclick = window.newGame;
 
-        let _oDrop2=window.drop;
-        window.drop=function(e) {
+        let _oDrop2 = window.drop;
+        window.drop = function(e) {
             _achState.newGameClicks = 0;
             saveState();
-            return _oDrop2.apply(this,arguments);
+            if (_oDrop2) return _oDrop2.apply(this, arguments);
         };
-        let _oDel2=window.del;
-        window.del=function(r,c) {
+
+        let _oDel2 = window.del;
+        window.del = function(r, c) {
             _achState.newGameClicks = 0;
             saveState();
-            return _oDel2(r,c);
+            if (_oDel2) return _oDel2(r, c);
         };
-        let _oCA2=window.clearAll;
-        window.clearAll=function() {
+
+        let _oCA2 = window.clearAll;
+        window.clearAll = function() {
             _achState.newGameClicks = 0;
             saveState();
-            return _oCA2.apply(this,arguments);
+            if (_oCA2) return _oCA2.apply(this, arguments);
         };
+
     }
 
     function initToggle() {

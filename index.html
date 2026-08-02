@@ -80,14 +80,17 @@
             top: -5%;
             left: 0;
             width: 100%;
-            height: 100px;
-            background: linear-gradient(180deg, 
-                rgba(66, 153, 225, 0.12) 0%, 
-                rgba(66, 153, 225, 0.04) 50%, 
+            height: 108px;
+            background: linear-gradient(
+                0deg,
+                rgba(66, 153, 225, 0.15) 0%,
+                rgba(66, 153, 225, 0.07) 35%,
                 transparent 100%
             );
             animation: scanDown 3.5s linear infinite;
             pointer-events: none;
+            transform: translateY(-106px);
+            z-index: 1;
         }
 
 
@@ -114,7 +117,6 @@
             100% { opacity: 0; transform: scale(0.4); }
         }
 
-        /* 脑王金色模式适配 */
         body.brain-golden .bg-scan-line {
             background: linear-gradient(90deg, 
                 transparent 0%, 
@@ -129,9 +131,10 @@
                 0 0 40px rgba(255, 200, 50, 0.15);
         }
         body.brain-golden .bg-scan-trail {
-            background: linear-gradient(180deg, 
-                rgba(255, 200, 50, 0.12) 0%, 
-                rgba(255, 200, 50, 0.04) 50%, 
+            background: linear-gradient(
+                0deg,
+                rgba(255, 200, 50, 0.15) 0%,
+                rgba(255, 200, 50, 0.07) 35%,
                 transparent 100%
             );
         }
@@ -2553,7 +2556,7 @@
         </div>
     </div>
 
-    <button class="sidebar-toggle" id="toggleSidebar">⚙️ 菜单</button>
+    <button class="sidebar-toggle" id="toggleSidebar">⚙️菜单</button>
     <div class="sidebar" id="sidebar">
 
         <div class="sidebar-section">
@@ -2629,10 +2632,6 @@
             <div class="sidebar-title bgm-title">🔊 背景音乐</div>
                 <span class="value-display" id="bgmValue">50%</span>
                 <input type="range" min="0" max="100" value="50" class="bgm-slider" id="bgmSlider">
-        </div>
-        
-
-        <div class="sidebar-version">v.7.4.1<br>作者:L1Nzy<br>邮箱:lin060911@qq.com
         </div>
     </div>
 
@@ -5074,9 +5073,14 @@ function checkWin(){
         { id:'hidden_eco', cat:'隐藏', emoji:'♻️', name:'环保主义者', desc:'使用一次清空放置', type:'once', hidden:true },
         { id:'free_20x20', cat:'隐藏', emoji:'📐', name:'！！？大大？！！', desc:'自由模式20×20超大棋盘通关', type:'special',  hidden:true ,check:function(){ return isFreeMode && SR===20 && SC===20; } },
         { id:'brain_slow', cat:'隐藏', emoji:'🐷', name:'脑力亡这一块', desc:'通关脑王难度，但用时超过10分钟', type:'once', hidden:true },
-        { id:'bgm_adjust', cat:'隐藏', emoji:'🐉', name:'聋？帝王之征！', desc:'使用背景音乐调节', type:'once', hidden:true },
+        { id:'bgm_adjust', cat:'隐藏', emoji:'🐲', name:'聋？帝王之征！', desc:'使用背景音乐调节', type:'once', hidden:true },
         { id:'new_game_spam', cat:'隐藏', emoji:'🤺', name:'退！退！退！', desc:'连续三次重开游戏', type:'count', target:3, hidden:true },
         { id:'crazy_thursday', cat:'隐藏', emoji:'🍔', name:'疯狂星期四', desc:'星期四完成任意游戏一次', type:'once', hidden:true },
+        { id:'hidden_grass', cat:'隐藏', emoji:'🌱', name:'长草', desc:'计时器工作时，15秒不操作地雷', type:'once', hidden:true },
+        { id:'hidden_icecream', cat:'隐藏', emoji:'🍦', name:'现在我有冰淇淋！', desc:'6:00-10:00时间段通关一次游戏', type:'once', hidden:true },
+        { id:'hidden_highvalue', cat:'隐藏', emoji:'🪑', name:'真拿你没办法，坐好咯', desc:'通关题目含≥5地块的预设难度游戏', type:'special', hidden:true, check:function(){ if(!diff||isFreeMode) return false; for(let r=0;r<SR;r++) for(let c=0;c<SC;c++) if(G.tar[r][c]>=5) return true; return false; } },
+        { id:'hidden_lowvalue', cat:'隐藏', emoji:'🦐', name:'软脚了，快扶我起来', desc:'通关题目含≤-3地块的预设难度游戏', type:'special', hidden:true, check:function(){ if(!diff||isFreeMode) return false; for(let r=0;r<SR;r++) for(let c=0;c<SC;c++) if(G.tar[r][c]<=-3) return true; return false; } },
+        { id:'hidden_teatime', cat:'隐藏', emoji:'🍵', name:'三點幾嘞，飲茶先啦', desc:'15:00-16:00时间段通关一次游戏', type:'once', hidden:true },
 
     ];
 
@@ -5098,6 +5102,8 @@ function checkWin(){
             sharedWins: 0,
             bgmAdjusted: false,
             lastCreateMaxMines: false,
+            grassIdleStart: 0,
+            grassUnlocked: false,
         };
     }
     function saveState() { try{ localStorage.setItem(STORE_KEY,JSON.stringify(_achState)); }catch(e){} }
@@ -5201,6 +5207,12 @@ function checkWin(){
 
         if(isFreeMode&&SR===20&&SC===20) unlock('free_20x20');
 
+        if (diff && !isFreeMode) {
+            let nowH = new Date().getHours();
+            if (nowH >= 6 && nowH < 10) unlock('hidden_icecream');
+            if (nowH === 15) unlock('hidden_teatime');
+        }
+
         _achState.totalWins = (_achState.totalWins || 0) + 1;
         let t = _achState.totalWins;
         let totalMap = [20, 50, 150, 500];
@@ -5240,6 +5252,15 @@ function checkWin(){
                 try{ if(a.check()) unlock(a.id); }catch(e){}
             }
         });
+
+        var hiddenSpecialIds = ['hidden_highvalue','hidden_lowvalue'];
+        for (var hi = 0; hi < hiddenSpecialIds.length; hi++) {
+            var hidx = hiddenSpecialIds[hi];
+            var ha = ACHIEVEMENTS.find(function(x){ return x.id === hidx; });
+            if (ha && ha.type === 'special' && ha.hidden && !_achState.unlocked[hidx] && ha.check) {
+                try { if (ha.check()) unlock(hidx); } catch(e) {}
+            }
+        }
 
         saveState();
         renderAchievements();
@@ -5339,6 +5360,7 @@ function checkWin(){
                 _achState.currentRunDeletes++;
                 _achState.currentRunFlawless = false;
                 if (_achState.currentRunDeletes >= 20) unlock('hidden_slide');
+                resetGrassTimer();
                 saveState();
             }
             if (_oDel) return _oDel(r, c);
@@ -5350,6 +5372,7 @@ function checkWin(){
             if (!isTutorialMode) {
                 _achState.currentRunFlawless = false;
                 unlock('hidden_eco');
+                resetGrassTimer();
             }
             if (_oCA) _oCA.apply(this, arguments);
         };
@@ -5369,6 +5392,7 @@ function checkWin(){
                     _achState.currentRunCategories.add(cat);
                     if (cat === 'basic') { _achState.basicTypesUsed[t] = true; saveState(); }
                 }
+                resetGrassTimer();
             }
             return result;
         };
@@ -5419,6 +5443,44 @@ function checkWin(){
             if (_oFR) return _oFR.apply(this, arguments);
         };
         if (typeof fullReset !== 'undefined') fullReset = window.fullReset;
+
+        let _grassInterval = null;
+        function startGrassTimer() {
+            if (_grassInterval) return;
+            _achState.grassIdleStart = Date.now();
+            _grassInterval = setInterval(function() {
+                if (!ts) { stopGrassTimer(); return; }
+                let idle = Date.now() - _achState.grassIdleStart;
+                if (idle >= 15000) {
+                    unlock('hidden_grass');
+                    stopGrassTimer();
+                }
+            }, 1000);
+        }
+        function stopGrassTimer() {
+            if (_grassInterval) { clearInterval(_grassInterval); _grassInterval = null; }
+        }
+        function resetGrassTimer() {
+            _achState.grassIdleStart = Date.now();
+        }
+
+        let _origStartTi = startTi;
+        startTi = function() {
+            _origStartTi.apply(this, arguments);
+            startGrassTimer();
+        };
+
+        let _origStopTi = stopTi;
+        stopTi = function() {
+            stopGrassTimer();
+            _origStopTi.apply(this, arguments);
+        };
+
+        let _origFullReset2 = fullReset;
+        fullReset = function() {
+            stopGrassTimer();
+            _origFullReset2.apply(this, arguments);
+        };
 
         let _bgmSlider = document.getElementById('bgmSlider');
         if (_bgmSlider) {
@@ -5503,7 +5565,7 @@ function checkWin(){
         const container = document.getElementById('bgEffects');
         if (!container) return;
 
-        const mineEmojis = ['💣','🚩','❓','💥','🕳️','☢️','🌶️','✖️','🍺','🌀','🛡️','🐮','💩','🗿','🍗'];
+        const mineEmojis = ['💣','🚩','❓','💥','🕳️','☢️','🌶️','✖️','🍺','🌀','🛡️','🐮','🗿'];
 
         function spawnMineGhost() {
             if (!container) return;
@@ -5535,5 +5597,6 @@ function checkWin(){
 
     })();
     </script>
+    <footer class="sidebar-version">v8.2.0<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
 </body>
 </html>

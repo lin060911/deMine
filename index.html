@@ -118,14 +118,6 @@
     <div class="info">已放置：<span id="placed">0</span> / 总雷数：<span id="max">0</span></div>
     <div id="board" class="board"></div>
 
-    <div class="teach-bubble" id="teachBubble">
-        <div class="teach-progress" id="teachProgress"></div>
-        <div class="teach-bubble-icon" id="teachBubbleIcon">📖</div>
-        <div class="teach-bubble-title" id="teachBubbleTitle">教学关卡</div>
-        <div class="teach-bubble-text" id="teachBubbleText">欢迎来到教学！</div>
-        <div class="teach-bubble-hint" id="teachBubbleHint">按提示操作即可</div>
-    </div>
-
     <div class="teach-complete-modal" id="teachCompleteModal">
         <div class="icon" id="teachCompleteIcon">🎉</div>
         <h2 id="teachCompleteTitle">做得好！</h2>
@@ -191,7 +183,20 @@
         <button class="back-btn" onclick="exitCreateMode()">🔙退出创造模式</button>
     </div>
 
-    <div class="mine-slot-box" id="slot"></div>
+    <div class="mine-slot-box" id="slot">
+        <div class="teach-bubble" id="teachBubble">
+            <div class="teach-progress" id="teachProgress"></div>
+            <div class="teach-bubble-head">
+                <div class="teach-bubble-icon" id="teachBubbleIcon">📖</div>
+                <div class="teach-bubble-title" id="teachBubbleTitle">教学关卡</div>
+            </div>
+            <div class="teach-bubble-main">
+                <div class="teach-bubble-text" id="teachBubbleText">欢迎来到教学！</div>
+                <div class="teach-bubble-mines" id="teachBubbleMines"></div>
+            </div>
+            <div class="teach-bubble-hint" id="teachBubbleHint">按提示操作即可</div>
+        </div>
+    </div>
 
     <div class="preset-start-card" id="presetStartCard" style="display:none;">
         <div class="preset-start-icon" id="presetStartIcon">😎</div>
@@ -215,7 +220,7 @@
         <div class="sidebar-section">
             <div class="sidebar-title">📖 游戏规则</div>
             <div class="rule-content">
-                <h3>🎯 玩法：反向扫雷（布雷）</h3>
+                <h3>💡 玩法：反向扫雷（布雷）</h3>
                 <ul>
                     <li><strong>目标：</strong><br>在棋盘上放置规定数量的地雷（普通雷 + 特殊雷），使得棋盘上每个格子显示的数字，恰好等于它周围（或特定规则下）所有地雷对它的总影响值。</li>
                     <li><strong>操作：</strong><br>点选：点击选中地雷，再点击棋盘放置<br>拖拽：左键拖拽放置地雷<br>右键删除。</li>

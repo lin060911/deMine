@@ -67,7 +67,7 @@
             background: linear-gradient(90deg, 
                 transparent 0%, 
                 rgba(66, 153, 225, 0.5) 12%, 
-                rgba(99, 179, 237, 0.75) 50%, 
+                rgba(99, 179, 237, 0.7) 50%, 
                 rgba(66, 153, 225, 0.5) 88%, 
                 transparent 100%
             );
@@ -75,7 +75,7 @@
                 0 0 6px rgba(66, 153, 225, 0.45),
                 0 0 18px rgba(66, 153, 225, 0.25),
                 0 0 36px rgba(66, 153, 225, 0.12);
-            animation: scanDown 5s linear infinite;
+            animation: scanDown 20s linear infinite;
             opacity: 0.55;
         }
 
@@ -87,12 +87,12 @@
             height: 120px;
             background: linear-gradient(
                 0deg,
-                rgba(66, 153, 225, 0.12) 0%,
-                rgba(66, 153, 225, 0.06) 30%,
-                rgba(66, 153, 225, 0.02) 60%,
+                rgba(66, 153, 225, 0.36) 0%,
+                rgba(66, 153, 225, 0.24) 30%,
+                rgba(66, 153, 225, 0.12) 60%,
                 transparent 100%
             );
-            animation: scanDown 5s linear infinite;
+            animation: scanDown 20s linear infinite;
             pointer-events: none;
             transform: translateY(-118px);
             z-index: 1;

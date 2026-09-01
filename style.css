@@ -425,7 +425,7 @@
         .emoji-drag:active { cursor: grabbing; }
 
         .normal-bomb { font-size:22px; }
-        .big-bomb { font-size:34px; filter: drop-shadow(0 3px 4px rgba(0,0,0,0.15)); }
+        .big-bomb { font-size:28px; filter: drop-shadow(0 3px 4px rgba(0,0,0,0.15)); }
         .high-bomb {
             font-size: 24px;
             filter: saturate(1000%) brightness(1.2) drop-shadow(0 2px 4px rgba(255,0,0,0.3));
@@ -435,21 +435,21 @@
         .chiliV-bomb { font-size:22px; }
         .chiliH-bomb { font-size:22px; transform:rotate(90deg); }
         .chiliPlus-bomb { font-size:24px;}
-        .chiliDiag-bomb { font-size:22px; }
+        .chiliDiag-bomb { font-size:24px; }
         .chiliBigDiag-bomb { font-size:28px; }
-        .ring-bomb { font-size:24px; }
-        .mirror-bomb { font-size:24px; }
-        .radiation-bomb { font-size:24px; }
-        .eight-bomb { font-size:24px; }
-        .blackhole-bomb { font-size:24px; }
-        .yin-yang-bomb { font-size:24px; }
-        .negative-mirror-bomb {font-size: 24px;}
-        .amplifier-bomb { font-size:24px; }
+        .ring-bomb { font-size:22px; }
+        .mirror-bomb { font-size:22px; }
+        .radiation-bomb { font-size:22px; }
+        .eight-bomb { font-size:22px; }
+        .blackhole-bomb { font-size:22px; }
+        .yin-yang-bomb { font-size:22px; }
+        .negative-mirror-bomb {font-size: 22px;}
+        .amplifier-bomb { font-size:22px; }
         .locator-bomb { font-size:22px; }
-        .shield-bomb { font-size:24px; }
-        .siphon-bomb { font-size:24px; }
-        .big-blackhole-bomb { font-size:34px; }
-        .tri-sym-bomb { font-size:24px; }
+        .shield-bomb { font-size:22px; }
+        .siphon-bomb { font-size:22px; }
+        .big-blackhole-bomb { font-size:28px; }
+        .tri-sym-bomb { font-size:22px; }
 
         .mine-item::after {
             content: attr(data-tip);
@@ -1886,15 +1886,7 @@
             overflow: hidden;
             box-shadow: inset 0 1px 2px rgba(0,0,0,0.08);
         }
-        .teach-progress-bar-inline .teach-progress-fill {
-            height: 100%;
-            width: 0%;
-            background: linear-gradient(90deg, #fbbf24, #f59e0b, #fcd34d);
-            background-size: 200% 100%;
-            transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
-            border-radius: 6px;
-            animation: progressShine 2.5s linear infinite;
-        }
+
         .teach-progress-bar-inline .teach-progress-text {
             font-size: 13px;
             color: rgba(255,255,255,0.95);
@@ -1905,34 +1897,142 @@
             text-shadow: 0 1px 2px rgba(0,0,0,0.15);
         }
 
-        .teach-bubble {
-            position: fixed;
-            top: 65%;
-            left: 28%;
-            transform: translate(-50%, calc(-50% - 60px));
+        .teach-progress-bar-inline .teach-progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #7dd3fc, #2dd4bf, #5eead4);
+            background-size: 200% 100%;
+            transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 6px;
+            box-shadow: 0 0 10px rgba(45, 212, 191, 0.55);
+            animation: progressShine 2.5s linear infinite;
+        }
+
+        #slot.teach-slot-host {
+            position: relative;
+            flex-direction: column;
+            flex-wrap: nowrap;
+            gap: 0;
+            padding: 16px 26px 18px;
+            margin-top: 24px;
+            min-width: 320px;
+            max-width: 560px;
+            border-radius: 20px;
             background: linear-gradient(135deg, #667eea 0%, #4ba29b 100%);
-            color: #fff;
-            padding: 20px 30px;
-            border-radius: 18px;
-            box-shadow: 0 10px 36px rgba(102, 126, 234, 0.45), inset 0 1px 0 rgba(255,255,255,0.1);
-            z-index: 200;
-            width: 340px;
-            max-width: 360px;
-            text-align: center;
-            font-size: 15px;
-            line-height: 1.7;
-            display: none;
+            box-shadow: 0 14px 40px rgba(102,126,234,0.45), inset 0 1px 0 rgba(255,255,255,0.18);
             animation: teachBubbleIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
         }
-        .teach-bubble.visible { display: block; }
-        .teach-bubble .teach-bubble-icon { font-size: 40px; margin-bottom: 8px; animation: modalIconFloat 2.2s ease-in-out infinite; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.15)); }
-        .teach-bubble .teach-bubble-title { font-weight: 700; font-size: 24px; margin-bottom: 6px; text-shadow: 0 1px 3px rgba(0,0,0,0.15); }
-        .teach-bubble .teach-bubble-text { font-size: 15px; margin-bottom: 4px; white-space: pre-line; line-height: 1.6; }
-        .teach-bubble .teach-bubble-hint { font-size: 12px; opacity: 0.85; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.2); }
+        #slot.teach-slot-host::after {
+            content: '';
+            position: absolute;
+            top: -14px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0; height: 0;
+            border-left: 16px solid transparent;
+            border-right: 16px solid transparent;
+            border-bottom: 16px solid #5f79e6;
+            filter: drop-shadow(0 -3px 5px rgba(102,126,234,0.28));
+        }
+
+        .teach-bubble {
+            display: none;
+            width: 100%;
+            max-width: 100%;
+            color: #fff;
+            font-size: 15px;
+            line-height: 1.7;
+            text-align: center;
+        }
+        .teach-bubble.visible {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            animation: teachBubbleFade 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        }
+        .teach-bubble-main {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 18px;
+            width: 100%;
+            margin-top: 10px;
+        }
+        .teach-bubble .teach-progress:empty { display: none; }
+        .teach-bubble .teach-bubble-head {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .teach-bubble .teach-bubble-icon { font-size: 36px; line-height: 1; animation: modalIconFloat 2.2s ease-in-out infinite; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.15)); }
+        .teach-bubble .teach-bubble-title { font-weight: 700; font-size: 22px; text-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+        .teach-bubble .teach-bubble-text {
+            flex: 1 1 auto;
+            min-width: 0;
+            text-align: left;
+            font-size: 15px;
+            white-space: pre-line;
+            line-height: 1.6;
+        }
+        .teach-bubble .teach-bubble-hint {
+            width: 100%;
+            font-size: 12.5px;
+            opacity: 0.9;
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255,255,255,0.25);
+            text-align: center;
+        }
+        .teach-bubble .teach-bubble-hint:empty { display: none; }
+
+        .teach-bubble-mines {
+            display: flex;
+            flex: 0 0 auto;
+            gap: 12px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            max-width: 260px;
+            padding-left: 18px;
+            border-left: 1px solid rgba(255,255,255,0.28);
+        }
+        .teach-bubble-mines:empty { display: none; }
+        .teach-bubble-mines .mine-item {
+            width: 80px;
+            height: 85px;
+            font-size: 12px;
+            border: 2px solid rgba(255,255,255,0.8);
+            background: linear-gradient(160deg, #ffffff, #eef3f9);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.18), inset 0 0 0 1px rgba(255,255,255,0.6);
+        }
+        .teach-bubble-mines .mine-item:hover:not(.disabled):not(.selected) {
+            border-color: #00d572;
+            box-shadow: 0 10px 22px rgba(12,164,93,0.32), inset 0 0 0 1px rgba(0,213,114,0.2);
+        }
+        .teach-bubble-mines .mine-item.selected {
+            border-color: #289d34;
+            background: linear-gradient(160deg, #e6fffa, #d6f5ec);
+            box-shadow: 0 8px 18px rgba(40,157,52,0.3), inset 0 0 0 1px rgba(40,157,52,0.15);
+        }
+        .teach-bubble.mines-only .teach-bubble-head,
+        .teach-bubble.mines-only .teach-bubble-text,
+        .teach-bubble.mines-only .teach-bubble-hint { display: none; }
+        .teach-bubble.mines-only .teach-bubble-mines {
+            max-width: none;
+            margin: 0 auto;
+            padding-left: 0;
+            border-left: none;
+        }
         @keyframes teachBubbleIn {
-            0%   { opacity: 0; transform: translate(-50%, calc(-50% - 50px)) scale(0.9) rotate(-1deg); }
-            60%  { opacity: 1; transform: translate(-50%, calc(-50% - 62px)) scale(1.02) rotate(0.5deg); }
-            100% { opacity: 1; transform: translate(-50%, calc(-50% - 60px)) scale(1) rotate(0deg); }
+            0%   { opacity: 0; transform: translateY(20px) scale(0.94); }
+            60%  { opacity: 1; transform: translateY(-5px) scale(1.015); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes teachBubbleFade {
+            0%   { opacity: 0; transform: scale(0.97); }
+            100% { opacity: 1; transform: scale(1); }
         }
         .cell-teach-target {
             box-shadow: inset 0 0 0 3px #667eea, 0 0 14px rgba(102,126,234,0.5) !important;
@@ -1983,7 +2083,7 @@
             margin-bottom: 4px;
         }
         .teach-mine-slot .mine-item {
-            width: 68px; height: 72px; font-size: 12px;
+            width: 80px; height: 85px; font-size: 12px;
         }
         .teach-complete-modal {
             display: none;

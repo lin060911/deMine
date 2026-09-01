@@ -1,6 +1,3 @@
-/* audio.js - 音频系统（音效 + 背景音乐 + 成就音效） */
-/* 从 V8.2.1.html 自动拆分生成 */
-
     const AudioFX = (function() {
         let ctx = null, masterGain = null, muted = false, lastHoverTime = 0, reverbNode = null;
         function init() {

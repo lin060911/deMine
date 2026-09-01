@@ -30,7 +30,7 @@
                 linear-gradient(180deg, #c2e286 2%, #b1e4b3 60%, #e8f4f8);
             
             padding: 20px;
-            min-height: 100vh;
+            min-height: calc(100vh + 1px);          
             position: relative;
             overflow-x: hidden;
             transition: background 2.8s cubic-bezier(0.4, 0, 0.2, 1);

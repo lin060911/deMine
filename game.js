@@ -1125,7 +1125,8 @@ function checkWin(){
 
         function render(){
             let b=document.getElementById('board'); b.innerHTML='';
-            b.style.gridTemplateRows=`repeat(${SR},40px)`; b.style.gridTemplateColumns=`repeat(${SC},40px)`;
+            b.style.setProperty('--rows',SR); b.style.setProperty('--cols',SC);
+            b.style.gridTemplateRows=`repeat(${SR},var(--cell))`; b.style.gridTemplateColumns=`repeat(${SC},var(--cell))`;
             for(let r=0;r<SR;r++) for(let c=0;c<SC;c++){
                 let d=document.createElement('div'); d.className='cell'; d.dataset.r=r; d.dataset.c=c;
                 let t=G.tar[r][c], p=G.p[r][c], k=r+','+c;
@@ -1636,8 +1637,9 @@ function checkWin(){
             let lvl = TEACH_LEVELS[teachLevelIdx];
             let b = document.getElementById('board');
             b.innerHTML = '';
-            b.style.gridTemplateRows = `repeat(${SR},40px)`;
-            b.style.gridTemplateColumns = `repeat(${SC},40px)`;
+            b.style.setProperty('--rows', SR); b.style.setProperty('--cols', SC);
+            b.style.gridTemplateRows = `repeat(${SR},var(--cell))`;
+            b.style.gridTemplateColumns = `repeat(${SC},var(--cell))`;
             for (let r = 0; r < SR; r++) {
                 for (let c = 0; c < SC; c++) {
                     let d = document.createElement('div');
@@ -2083,7 +2085,8 @@ function checkWin(){
             if (saved === 'drag' || saved === 'click') {
                 window._placeMode = saved;
             } else {
-                window._placeMode = 'drag'; 
+                const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+                window._placeMode = isTouch ? 'click' : 'drag';
             }
             applyPlaceModeUI();
         }
@@ -2274,8 +2277,9 @@ function checkWin(){
             let rows = createRows, cols = createCols;
             let board = document.createElement('div');
             board.className = 'board';
-            board.style.gridTemplateRows = `repeat(${rows},40px)`;
-            board.style.gridTemplateColumns = `repeat(${cols},40px)`;
+            board.style.setProperty('--rows', rows); board.style.setProperty('--cols', cols);
+            board.style.gridTemplateRows = `repeat(${rows},var(--cell))`;
+            board.style.gridTemplateColumns = `repeat(${cols},var(--cell))`;
             let tempP = Array.from({length: rows}, () => Array(cols).fill(0));
             let oldSR = SR, oldSC = SC; SR = rows; SC = cols;
             for (let k in createPlaced) {

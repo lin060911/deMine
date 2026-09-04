@@ -1137,7 +1137,9 @@ function checkWin(){
 
         function calcCellSize(rows, cols) {
             const MAX = 40, MIN = 16, GAP = 2, PAD = 8;
-            const vw = Math.min(window.innerWidth || 0, document.documentElement.clientWidth || 0);
+            let vw = window.innerWidth || 0;
+            if (!vw && document.documentElement) vw = document.documentElement.clientWidth || 0;
+            if (!vw && document.body) vw = document.body.clientWidth || 0;
             if (!vw || vw > 700) return MAX;
             const byW = Math.floor((vw - 14 - PAD - GAP * (cols - 1)) / cols);
             const vh = window.innerHeight || 0;
@@ -1151,6 +1153,22 @@ function checkWin(){
             board.style.gridTemplateRows = `repeat(${rows},${cs}px)`;
             board.style.gridTemplateColumns = `repeat(${cols},${cs}px)`;
             board.style.setProperty('--cell-size', cs + 'px');
+            board.dataset.cellSize = cs;
+        }
+
+        function sizeCellsIn(board) {
+            if (!board) return;
+            const cs = parseInt(board.dataset.cellSize, 10) || 40;
+            const fs = Math.max(11, Math.min(18, Math.round(cs * 0.45)));
+            Array.prototype.forEach.call(board.querySelectorAll('.cell'), function (el) {
+                el.style.width = cs + 'px';
+                el.style.height = cs + 'px';
+                el.style.fontSize = fs + 'px';
+            });
+            const es = Math.max(12, Math.round(cs * 0.58));
+            Array.prototype.forEach.call(board.querySelectorAll('.cell span'), function (el) {
+                el.style.fontSize = es + 'px';
+            });
         }
 
         function getSelectedType(kind) {
@@ -1359,8 +1377,8 @@ function checkWin(){
         });
 
         (function initPointerDrag() {
-            const MOVE_THRESHOLD = 6;    
-            const LONG_PRESS_MS = 480;   
+            const MOVE_THRESHOLD = 6;
+            const LONG_PRESS_MS = 480;
             let st = null;
 
             function clearTimers(s) { if (s && s.lpTimer) { clearTimeout(s.lpTimer); s.lpTimer = 0; } }
@@ -1424,7 +1442,7 @@ function checkWin(){
             }
 
             function onDown(e) {
-                if (!e || e.pointerType === 'mouse') return;   
+                if (!e || e.pointerType === 'mouse') return;
                 if (st) return;
                 const target = e.target;
                 if (!target || !target.closest) return;
@@ -1432,7 +1450,7 @@ function checkWin(){
 
                 const slotItem = target.closest('.mine-item');
                 if (slotItem) {
-                    if (window._placeMode !== 'drag') return;          
+                    if (window._placeMode !== 'drag') return; 
                     if (slotItem.classList.contains('disabled')) return;
                     const type = slotItem.dataset.mineType;
                     if (!type || slotTypeFull(type, kind)) return;
@@ -1544,6 +1562,7 @@ function checkWin(){
                 bindCellDrag(d, 'main');
                 b.appendChild(d);
             }
+            sizeCellsIn(b);
             document.getElementById('placed').textContent=Object.keys(G.placed).length;
             document.getElementById('max').textContent=G.max;
             renderSlot(); checkWin();
@@ -2021,6 +2040,7 @@ function checkWin(){
                     b.appendChild(d);
                 }
             }
+            sizeCellsIn(b);
         }
 
         function renderTeachSlot() {
@@ -2624,6 +2644,7 @@ function checkWin(){
                 }
             }
             area.appendChild(board);
+            sizeCellsIn(board);
         }
 
         function renderCreateMineSlot() {

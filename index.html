@@ -84,7 +84,7 @@
     </div>
 
     <h1 class="game-title">反向💣扫雷</h1>
-    <div class="rule">ℹ️操作tips:拖拽/点选✅放置地雷 | 🚫右键(手机长按)删除 | 当前:<b id="modeBadge">拖拽</b> <span class="rule-mode-link" onclick="openSettingSidebar()">⚙️切换</span></div>
+    <div class="rule">ℹ️操作tips:拖拽/点选✅放置地雷 | 🚫右键(手机长按)删除<br> 当前:<b id="modeBadge">拖拽</b> <span class="rule-mode-link" onclick="openSettingSidebar()">⚙️切换</span></div>
 
     <div id="tutorialProgressBar">
         <div class="progress-header">
@@ -237,8 +237,9 @@
                 <ul>
                     <li>🟩 合适：该格子的当前影响值 [等于] 显示数字（正确）。</li>
                     <li>🟨 偏低：该格子的当前影响值 [小于] 显示数字（还需在周围加雷）。</li>
-                    <li>🟥 偏高：该格子的当前影响值 [大于] 显示数字（周围雷太多，需删除）。</li>
+                    <li>🟥 偏高：该格子的当前影响值 [大于] 显示数字（还需减少影响值）。</li>
                 </ul>
+                <p>💡 在⚙️设置栏开启<strong>🔺 实时影响值</strong>后，凡是当前影响值<strong>不为 0</strong> 且<strong>不等于显示数字</strong>的地块，右下角会出现一个小三角形，里面写着它当前的实时影响值。</p>
                 <h3>🔓 系列开关机制</h3>
                 <ul>
                     <li>基础系列始终开启</li>
@@ -377,9 +378,30 @@
             <div class="mode-hint" id="modeHint">按住地雷拖到棋盘格子上松手即可放置</div>
         </div>
         <div class="sidebar-section">
-            <div class="sidebar-title bgm-title">🔊 背景音乐</div>
-                <span class="value-display" id="bgmValue">50%</span>
-                <input type="range" min="0" max="100" value="50" class="bgm-slider" id="bgmSlider">
+            <div class="sidebar-title sound-title">🔊 声音</div>
+            <div class="sound-item">
+                <div class="sound-item-head">
+                    <span class="sound-item-label">🎵 背景音乐</span>
+                    <span class="value-display bgm-value" id="bgmValue">50%</span>
+                </div>
+                <input type="range" min="0" max="100" value="50" class="sound-slider bgm-slider" id="bgmSlider">
+            </div>
+            <div class="sound-item">
+                <div class="sound-item-head">
+                    <span class="sound-item-label">💥 游戏音效</span>
+                    <span class="value-display sfx-value" id="sfxValue">100%</span>
+                </div>
+                <input type="range" min="0" max="100" value="100" class="sound-slider sfx-slider" id="sfxSlider">
+            </div>
+            <div class="sound-hint">o(*^▽^*)┛🎵</div>
+        </div>
+        <div class="sidebar-section">
+            <div class="sidebar-title hint-title">🔢 地块提示</div>
+            <div class="switch-row">
+                <div class="switch-label">🔺 实时影响值</div>
+                <div class="switch-toggle" id="influenceHintToggle" onclick="toggleInfluenceHint()"></div>
+            </div>
+            <div class="switch-hint">开启后，当前影响值 <strong>不为 0</strong> 且 <strong>不等于题目数字</strong> 的地块，会在右下角显示一个小三角形，里面是该地块当前的实时影响值</div>
         </div>
     </div>
 

@@ -1702,7 +1702,7 @@ function sizeCellsIn(board) {
         el.style.fontSize = fs + "px";
     });
     const es = Math.max(12, Math.round(cs * .58));
-    Array.prototype.forEach.call(board.querySelectorAll(".cell span"), function(el) {
+    Array.prototype.forEach.call(board.querySelectorAll(".cell span[class*='-bomb']"), function(el) {
         el.style.fontSize = es + "px";
     });
 }
@@ -2204,6 +2204,48 @@ window.addEventListener("resize", function() {
     });
 })();
 
+let influenceHintOn = localStorage.getItem("mineInfluenceHint") === "true";
+
+function setInfluenceHint(on, silent) {
+    influenceHintOn = !!on;
+    try {
+        localStorage.setItem("mineInfluenceHint", influenceHintOn ? "true" : "false");
+    } catch (e) {}
+    let tg = document.getElementById("influenceHintToggle");
+    if (tg) tg.classList.toggle("on", influenceHintOn);
+    if (!silent && typeof AudioFX !== "undefined" && AudioFX.toggle) AudioFX.toggle(influenceHintOn);
+    if (silent) return;
+    if (typeof createModeActive !== "undefined" && createModeActive) return;
+    if (typeof G === "undefined" || !G.tar || G.tar.length !== SR) return;
+    if (typeof render === "function") render();
+}
+
+function toggleInfluenceHint() {
+    setInfluenceHint(!influenceHintOn);
+}
+
+function appendInfluenceBadge(cell, cur, tar) {
+    if (!influenceHintOn) return;
+    if (cur === 0 || cur === tar) return;
+    for (let i = 0; i < cell.childNodes.length; i++) {
+        const n = cell.childNodes[i];
+        if (n.nodeType === 3 && n.nodeValue.trim() !== "") {
+            const numSpan = document.createElement("span");
+            numSpan.className = "cell-num";
+            numSpan.textContent = n.nodeValue.trim();
+            cell.replaceChild(numSpan, n);
+            break;
+        }
+    }
+    cell.classList.add("has-influence");
+    let badge = document.createElement("div");
+    let cls = "cell-influence " + (cur > tar ? "influence-over" : "influence-low");
+    if (Math.abs(cur) >= 10) cls += " influence-wide";
+    badge.className = cls;
+    badge.textContent = cur;
+    cell.appendChild(badge);
+}
+
 function render() {
     if (teachActive) {
         renderTeachBoard();
@@ -2229,6 +2271,7 @@ function render() {
             let ty = G.placed[k];
             d.innerHTML = `<span class="${M[ty].cls}">${M[ty].e}</span>`;
         }
+        appendInfluenceBadge(d, p, t);
         d.onclick = () => {
             if (G.placed[k]) return;
             if (!selectedMineType) return;
@@ -2819,6 +2862,7 @@ function renderTeachBoard() {
                 let ty = G.placed[k];
                 d.innerHTML = `<span class="${M[ty].cls}">${M[ty].e}</span>`;
             }
+            appendInfluenceBadge(d, p, t);
             d.onclick = () => {
                 if (G.placed[k]) return;
                 let type = window._teachSelectedType;
@@ -3773,22 +3817,62 @@ newGame = function() {
 
 (function() {
     "use strict";
+    const SOUND_STORE_KEY = "mineSoundSettings";
     const bgmSlider = document.getElementById("bgmSlider");
     const bgmValue = document.getElementById("bgmValue");
+    const sfxSlider = document.getElementById("sfxSlider");
+    const sfxValue = document.getElementById("sfxValue");
+    let saved = {};
+    try {
+        saved = JSON.parse(localStorage.getItem(SOUND_STORE_KEY)) || {};
+    } catch (e) {
+        saved = {};
+    }
+    const clamp = v => Math.max(0, Math.min(100, parseInt(v, 10) || 0));
+    const bgmInit = typeof saved.bgm === "number" ? clamp(saved.bgm) : 50;
+    const sfxInit = typeof saved.sfx === "number" ? clamp(saved.sfx) : 100;
+    function saveSound() {
+        try {
+            localStorage.setItem(SOUND_STORE_KEY, JSON.stringify({
+                bgm: clamp(bgmSlider.value),
+                sfx: clamp(sfxSlider.value)
+            }));
+        } catch (e) {}
+    }
+    function paintValue(el, val) {
+        if (!el) return;
+        el.textContent = val + "%";
+        el.classList.toggle("muted", val === 0);
+    }
+    function applyBgm(val) {
+        if (window.RetroBGM && window.RetroBGM.setVolume) window.RetroBGM.setVolume(val / 100);
+    }
+    function applySfx(val) {
+        if (typeof AudioFX === "undefined") return;
+        if (val > 0) AudioFX.resume();
+        if (AudioFX.setVolume) AudioFX.setVolume(val / 100);
+    }
     function initSlider() {
-        const bgmInit = 50;
         bgmSlider.value = bgmInit;
-        bgmValue.textContent = bgmInit + "%";
-        if (window.RetroBGM && window.RetroBGM.setVolume) {
-            window.RetroBGM.setVolume(bgmInit / 100);
-        }
+        paintValue(bgmValue, bgmInit);
+        applyBgm(bgmInit);
+        sfxSlider.value = sfxInit;
+        paintValue(sfxValue, sfxInit);
+        applySfx(sfxInit);
+        if (typeof setInfluenceHint === "function") setInfluenceHint(influenceHintOn, true);
     }
     bgmSlider.addEventListener("input", function() {
-        const val = parseInt(this.value, 10);
-        bgmValue.textContent = val + "%";
-        if (window.RetroBGM && window.RetroBGM.setVolume) {
-            window.RetroBGM.setVolume(val / 100);
-        }
+        const val = clamp(this.value);
+        paintValue(bgmValue, val);
+        applyBgm(val);
+        saveSound();
+    });
+    sfxSlider.addEventListener("input", function() {
+        const val = clamp(this.value);
+        paintValue(sfxValue, val);
+        applySfx(val);
+        if (val > 0 && typeof AudioFX !== "undefined" && AudioFX.pop) AudioFX.pop();
+        saveSound();
     });
     if (document.readyState === "complete") {
         initSlider();

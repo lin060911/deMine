@@ -126,6 +126,13 @@
         </div>
     </div>
 
+    <div class="auto-modal teach-rule-modal" id="teachRuleModal" style="display:none;">
+        <div class="icon">📖</div>
+        <h2>规则小课堂</h2>
+        <div class="teach-rule-body" id="teachRuleBody"></div>
+        <button id="teachRuleOkBtn" onclick="closeTeachRuleModal()">我明白了，开始教学 ▶</button>
+    </div>
+
     <div class="create-mode-panel" id="createModePanel">
         <div class="create-card">
             <div class="create-card-title">
@@ -192,6 +199,7 @@
                 <div class="teach-bubble-mines" id="teachBubbleMines"></div>
             </div>
             <div class="teach-bubble-hint" id="teachBubbleHint">按提示操作即可</div>
+            <button class="teach-rule-link" id="teachRuleBtn" type="button" onclick="openTeachRuleModal(true)">📖 再看看规则</button>
         </div>
     </div>
 

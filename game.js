@@ -1413,6 +1413,11 @@ function closeHellLockedModal() {
 
 document.getElementById("overlay").addEventListener("click", () => {
     AudioFX.confirm();
+    let ruleModal = document.getElementById("teachRuleModal");
+    if (ruleModal && ruleModal.style.display === "block") {
+        hideTeachRuleModal();
+        return;
+    }
     document.getElementById("overlay").style.display = "none";
     document.getElementById("welcomeModal").style.display = "none";
     document.getElementById("tutorialPrompt").style.display = "none";
@@ -2595,6 +2600,95 @@ let teachPlaceList = [];
 
 let teachCompleted = [];
 
+let teachRulePending = false;
+
+const TEACH_RULE_FALLBACK = `
+        <div class="teach-rule-sec">
+            <div class="teach-rule-sec-title">🎯 目标</div>
+            <p>在棋盘上放置规定数量的地雷（普通雷 + 特殊雷），使得棋盘上每个格子显示的数字，恰好等于它周围（或特定规则下）所有地雷对它的总影响值。</p>
+        </div>
+        <div class="teach-rule-sec">
+            <div class="teach-rule-sec-title">🏁 胜利条件</div>
+            <p>所有地雷放完，且棋盘数字与地雷影响匹配（棋盘上都是🟩）。</p>
+        </div>
+        <div class="teach-rule-sec">
+            <div class="teach-rule-sec-title">🧩 地块状态解读</div>
+            <p class="teach-rule-intro">游戏会根据你当前的布雷情况，实时用颜色提示每个格子：</p>
+            <ul>
+                <li>🟩 合适：该格子的当前影响值 [等于] 显示数字（正确）。</li>
+                <li>🟨 偏低：该格子的当前影响值 [小于] 显示数字（还需在周围加雷）。</li>
+                <li>🟥 偏高：该格子的当前影响值 [大于] 显示数字（周围雷太多，需删除）。</li>
+            </ul>
+        </div>`;
+
+function buildTeachRuleContent() {
+    const box = document.querySelector("#ruleSidebar .rule-content");
+    let goalHTML = "", winHTML = "", stateHTML = "";
+    if (box) {
+        const stripLabel = html => String(html).replace(/^\s*<strong>[^<]*<\/strong>\s*(?:<br\s*\/?>)?/i, "").trim();
+        Array.prototype.forEach.call(box.querySelectorAll("li"), li => {
+            const head = (li.textContent || "").replace(/\s+/g, "");
+            if (!goalHTML && head.indexOf("目标：") === 0) goalHTML = stripLabel(li.innerHTML);
+            else if (!winHTML && head.indexOf("胜利条件：") === 0) winHTML = stripLabel(li.innerHTML);
+        });
+        Array.prototype.forEach.call(box.querySelectorAll("h3"), h3 => {
+            if ((h3.textContent || "").indexOf("地块状态解读") < 0) return;
+            let intro = "", lists = "";
+            let node = h3.nextElementSibling;
+            while (node && node.tagName !== "H3") {
+                if (node.tagName === "P") intro = node.innerHTML;
+                else if (node.tagName === "UL") lists += node.innerHTML;
+                node = node.nextElementSibling;
+            }
+            stateHTML = (intro ? `<p class="teach-rule-intro">${intro}</p>` : "") + (lists ? `<ul>${lists}</ul>` : "");
+        });
+    }
+    if (!goalHTML || !winHTML || !stateHTML) return TEACH_RULE_FALLBACK;
+    return `
+        <div class="teach-rule-sec">
+            <div class="teach-rule-sec-title">🎯 目标</div>
+            <p>${goalHTML}</p>
+        </div>
+        <div class="teach-rule-sec">
+            <div class="teach-rule-sec-title">🏁 胜利条件</div>
+            <p>${winHTML}</p>
+        </div>
+        <div class="teach-rule-sec">
+            <div class="teach-rule-sec-title">🧩 地块状态解读</div>
+            ${stateHTML}
+        </div>`;
+}
+
+function openTeachRuleModal(playSound) {
+    const modal = document.getElementById("teachRuleModal");
+    if (!modal) return;
+    const body = document.getElementById("teachRuleBody");
+    if (body) {
+        body.innerHTML = buildTeachRuleContent();
+        body.scrollTop = 0;
+    }
+    const okBtn = document.getElementById("teachRuleOkBtn");
+    if (okBtn) okBtn.textContent = teachRulePending ? "我明白了，开始教学 ▶" : "知道了 ✌️";
+    document.getElementById("overlay").style.display = "block";
+    modal.style.display = "block";
+    if (playSound) AudioFX.modalOpen();
+}
+
+function hideTeachRuleModal() {
+    const modal = document.getElementById("teachRuleModal");
+    if (modal) modal.style.display = "none";
+    document.getElementById("overlay").style.display = "none";
+    if (teachRulePending) {
+        teachRulePending = false;
+        if (teachActive) loadTeachLevel();
+    }
+}
+
+function closeTeachRuleModal() {
+    AudioFX.confirm();
+    hideTeachRuleModal();
+}
+
 function openTeachMode() {
     AudioFX.confirm();
     document.querySelector(".panel").style.display = "none";
@@ -2613,7 +2707,10 @@ function openTeachMode() {
     document.getElementById("teachProgressBar").style.display = "block";
     updateTeachProgressBar();
     ensureTeachSlotHost(true);
-    loadTeachLevel();
+    document.getElementById("board").innerHTML = "";
+    document.getElementById("slot").style.display = "none";
+    teachRulePending = true;
+    openTeachRuleModal(false);
 }
 
 function openPracticeMode() {
@@ -2978,6 +3075,8 @@ function teachNextLevel() {
 function teachExit() {
     AudioFX.confirm();
     document.querySelector(".panel").style.display = "flex";
+    teachRulePending = false;
+    document.getElementById("teachRuleModal").style.display = "none";
     document.getElementById("teachCompleteModal").classList.remove("visible");
     document.getElementById("teachBubble").classList.remove("visible", "mines-only");
     clearTeachSlotHost();
@@ -3000,6 +3099,8 @@ function teachExit() {
 function teachExitToPractice() {
     AudioFX.confirm();
     document.querySelector(".panel").style.display = "flex";
+    teachRulePending = false;
+    document.getElementById("teachRuleModal").style.display = "none";
     document.getElementById("teachCompleteModal").classList.remove("visible");
     document.getElementById("teachBubble").classList.remove("visible", "mines-only");
     clearTeachSlotHost();
@@ -3053,6 +3154,7 @@ function fullReset() {
     teachPlaceList = [];
     teachPlacedTypes = {};
     teachExpectedTypes = {};
+    teachRulePending = false;
     document.getElementById("brainWinModal").style.display = "none";
     document.getElementById("presetStartCard").style.display = "none";
     document.getElementById("board").style.display = "";

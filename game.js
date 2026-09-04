@@ -2011,8 +2011,11 @@ window.addEventListener("resize", function() {
             clearTimeout(tid);
         };
         const swallow = function(ev) {
-            ev.stopPropagation();
-            ev.preventDefault();
+            const t = ev.target;
+            if (t && t.closest && (t.closest(".cell") || t.closest(".mine-item"))) {
+                ev.stopPropagation();
+                ev.preventDefault();
+            }
             cleanup();
         };
         document.addEventListener("click", swallow, true);

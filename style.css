@@ -347,6 +347,10 @@
         }
 
         .mine-here:active { cursor: grabbing; }
+
+        /* 创造模式：每次放/删雷都会重建棋盘，整块重播动画太晃眼，这里关掉 */
+        #createBoardArea .board { animation: none; }
+        #createBoardArea .cell.mine-here { animation: none; }
         .n1{color:#3182ce} .n2{color:#38a169} .n3{color:#e53e3e}
         .n4{color:#2c5282} .n5{color:#9b2c2c} .n6{color:#00a3af}
         .n7{color:#1a202c} .n8{color:#718096} .n9{color:#7a31ce}
@@ -624,11 +628,11 @@
             100% { transform: translateY(112vh) rotate(380deg) scale(0.8); opacity: 0; }
         }
 
-        .sidebar {
+        .game-sidebar,
+        .setting-sidebar {
             position: fixed;
             top: 0;
             right: 0;
-            width: 460px;
             height: 100vh;
             background: linear-gradient(180deg, #ffffff, #f8fafc);
             box-shadow: -4px 0 20px rgba(0,0,0,0.08);
@@ -638,14 +642,19 @@
             padding: 22px 24px;
             overflow-y: auto;
         }
-        .sidebar.open {
+        .game-sidebar { width: 460px; }
+        .setting-sidebar { width: 400px; }
+        .game-sidebar.open,
+        .setting-sidebar.open {
             transform: translateX(0);
         }
-        .sidebar-toggle {
+
+        .right-sidebar-container { position: static; }
+
+        .game-sidebar-toggle,
+        .setting-sidebar-toggle {
             position: fixed;
-            top: 35%;
             right: 0;
-            background: linear-gradient(180deg, #3285e8, #1a6bd0);
             color: #fff;
             border: none;
             padding: 22px 14px;
@@ -655,17 +664,31 @@
             z-index: 997;
             font-weight: bold;
             font-size: 16px;
-            margin-left: 0;
+            margin: 0;
             transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.35s ease, box-shadow 0.35s ease;
             box-shadow: -2px 0 8px rgba(0,0,0,0.1);
             will-change: transform;
         }
-        .sidebar-toggle:hover{
+        .game-sidebar-toggle {
+            top: 24%;
+            background: linear-gradient(180deg, #3285e8, #1a6bd0);
+        }
+        .game-sidebar-toggle:hover {
             background: linear-gradient(180deg, #4a9aff, #2a7be8);
             transform: scale(1.08);
             box-shadow: -4px 0 16px rgba(52,133,232,0.35);
         }
-        .sidebar-toggle:active {
+        .setting-sidebar-toggle {
+            top: 60%;
+            background: linear-gradient(180deg, #8b5cf6, #6d3fd6);
+        }
+        .setting-sidebar-toggle:hover {
+            background: linear-gradient(180deg, #a179ff, #7c4de8);
+            transform: scale(1.08);
+            box-shadow: -4px 0 16px rgba(139,92,246,0.35);
+        }
+        .game-sidebar-toggle:active,
+        .setting-sidebar-toggle:active {
             transform: scale(1.03);
             transition-duration: 0.12s;
         }
@@ -824,9 +847,6 @@
         }
         .sidebar-title.create-title {
             border-left-color: #27cb94;
-        }
-        .sidebar-title.record-title {
-            border-left-color: #e8d50b;
         }
 
         .rule-content {
@@ -1017,6 +1037,9 @@
             background: linear-gradient(135deg, #edf2f7, #e2e8f0);
             transform: scale(1.02);
             box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+        }
+        .record-item.is-brain {
+            background: linear-gradient(135deg, #fffcbb 0%, #c0f1ff 25%, #c0d7ff 50%, #ddbfff 75%, #f8bfff 100%);
         }
         .record-label { font-weight: 700; margin-bottom: 4px; }
         .record-best { color: #38a169; font-weight: 700; }
@@ -2321,7 +2344,7 @@
         .achievement-sidebar.open { transform: translateX(0); }
         .achievement-sidebar-toggle {
             position: fixed;
-            top: 45%;
+            top: 42%;
             right: 0;
             background: linear-gradient(180deg, #e8b830, #d5a627);
             color: #fff;
@@ -2333,8 +2356,7 @@
             z-index: 998;
             font-weight: bold;
             font-size: 16px;
-            margin-left: 0;
-            margin: 32px 0;
+            margin: 0;
             transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.35s ease, box-shadow 0.35s ease;
             box-shadow: -2px 0 8px rgba(0,0,0,0.1);
             will-change: transform;
@@ -2655,7 +2677,8 @@
                 border-bottom: none;
             }
 
-            .sidebar,
+            .game-sidebar,
+            .setting-sidebar,
             .info-sidebar,
             .rule-sidebar,
             .achievement-sidebar {
@@ -2675,7 +2698,8 @@
                 -webkit-overflow-scrolling: touch;
             }
             .info-sidebar, .rule-sidebar { --sidebar-pad-left: 16px; }
-            .sidebar::before,
+            .game-sidebar::before,
+            .setting-sidebar::before,
             .info-sidebar::before,
             .rule-sidebar::before,
             .achievement-sidebar::before {
@@ -2687,7 +2711,8 @@
                 background: #cbd5e0;
                 border-radius: 3px;
             }
-            .sidebar.open,
+            .game-sidebar.open,
+            .setting-sidebar.open,
             .info-sidebar.open,
             .rule-sidebar.open,
             .achievement-sidebar.open { transform: translateY(0); }
@@ -2702,11 +2727,35 @@
                 top: auto;
                 bottom: 0;
                 left: 0;
-                right: 0;
-                width: 100%;
+                right: 60%;
+                width: auto;
                 height: auto;
                 flex-direction: row;
+                flex-wrap: wrap;
                 justify-content: flex-start;
+                align-items: center;
+                gap: 8px;
+                padding: 0 4px 12px 10px;
+                padding: 0 4px calc(12px + env(safe-area-inset-bottom, 0px)) 10px;
+                z-index: 996;
+                pointer-events: none;
+                transition: opacity 0.25s ease;
+            }
+            .left-sidebar-container > button { pointer-events: auto; }
+
+            /* 手机端：五个抽屉按钮收进底部一行，左两右三，各自 40% / 60%，放不下时换行 */
+            .right-sidebar-container {
+                position: fixed;
+                top: auto;
+                bottom: 0;
+                left: 40%;
+                right: 0;
+                width: auto;
+                height: auto;
+                display: flex;
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: flex-end;
                 align-items: center;
                 gap: 8px;
                 padding: 0 10px 12px;
@@ -2715,38 +2764,39 @@
                 pointer-events: none;
                 transition: opacity 0.25s ease;
             }
-            .left-sidebar-container > button { pointer-events: auto; }
+            .right-sidebar-container > button { pointer-events: auto; }
             .rule-sidebar-toggle,
-            .info-sidebar-toggle {
+            .info-sidebar-toggle,
+            .achievement-sidebar-toggle,
+            .game-sidebar-toggle,
+            .setting-sidebar-toggle {
                 position: static;
                 writing-mode: horizontal-tb;
                 margin: 0;
-                padding: 9px 14px;
-                font-size: 13px;
+                padding: 8px 11px;
+                font-size: 12.5px;
                 border-radius: 13px;
                 box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+                white-space: nowrap;
             }
-            .sidebar-toggle,
-            .achievement-sidebar-toggle {
-                top: auto;
-                bottom: 12px;
-                bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-                writing-mode: horizontal-tb;
-                padding: 9px 15px;
-                font-size: 13px;
-                border-radius: 13px;
+            .achievement-sidebar-toggle,
+            .game-sidebar-toggle,
+            .setting-sidebar-toggle {
                 z-index: 996;
                 transition: opacity 0.25s ease, background 0.35s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
             }
-            .sidebar-toggle { right: 10px; }
-            .achievement-sidebar-toggle { right: 84px; margin: 0; }
+            .rule-sidebar-toggle:hover,
+            .info-sidebar-toggle:hover,
+            .achievement-sidebar-toggle:hover,
+            .game-sidebar-toggle:hover,
+            .setting-sidebar-toggle:hover { transform: none; }
 
-            body:has(.sidebar.open, .info-sidebar.open, .rule-sidebar.open, .achievement-sidebar.open)
-                :is(.left-sidebar-container, .sidebar-toggle, .achievement-sidebar-toggle) {
+            body:has(.game-sidebar.open, .setting-sidebar.open, .info-sidebar.open, .rule-sidebar.open, .achievement-sidebar.open)
+                :is(.left-sidebar-container, .right-sidebar-container) {
                 opacity: 0;
                 pointer-events: none;
             }
-            body:has(.sidebar.open, .info-sidebar.open, .rule-sidebar.open, .achievement-sidebar.open)::after {
+            body:has(.game-sidebar.open, .setting-sidebar.open, .info-sidebar.open, .rule-sidebar.open, .achievement-sidebar.open)::after {
                 content: '';
                 position: fixed;
                 inset: 0;

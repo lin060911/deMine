@@ -892,39 +892,55 @@ let tutorialStep = 0;
 
 let isTutorialMode = false;
 
+function closeSidebarsExcept(keepId) {
+    [ "ruleSidebar", "infoSidebar", "achSidebar", "gameSidebar", "settingSidebar" ].forEach(id => {
+        if (id === keepId) return;
+        const el = document.getElementById(id);
+        if (el) el.classList.remove("open");
+    });
+}
+
 document.getElementById("toggleRuleSidebar").onclick = () => {
     AudioFX.confirm();
     const ruleSb = document.getElementById("ruleSidebar");
-    ruleSb.classList.toggle("open");
-    const infoSb = document.getElementById("infoSidebar");
-    if (ruleSb.classList.contains("open") && infoSb.classList.contains("open")) infoSb.classList.remove("open");
+    const willOpen = !ruleSb.classList.contains("open");
+    closeSidebarsExcept("ruleSidebar");
+    ruleSb.classList.toggle("open", willOpen);
 };
 
 document.getElementById("toggleInfoSidebar").onclick = () => {
     AudioFX.confirm();
     const infoSb = document.getElementById("infoSidebar");
-    infoSb.classList.toggle("open");
-    const ruleSb = document.getElementById("ruleSidebar");
-    if (infoSb.classList.contains("open") && ruleSb.classList.contains("open")) ruleSb.classList.remove("open");
+    const willOpen = !infoSb.classList.contains("open");
+    closeSidebarsExcept("infoSidebar");
+    infoSb.classList.toggle("open", willOpen);
 };
 
-document.getElementById("toggleSidebar").onclick = () => {
+document.getElementById("toggleGameSidebar").onclick = () => {
     AudioFX.confirm();
-    document.getElementById("sidebar").classList.toggle("open");
-    renderSeriesSwitches();
+    const gameSb = document.getElementById("gameSidebar");
+    const willOpen = !gameSb.classList.contains("open");
+    closeSidebarsExcept("gameSidebar");
+    gameSb.classList.toggle("open", willOpen);
+    if (willOpen) renderSeriesSwitches();
+};
+
+document.getElementById("toggleSettingSidebar").onclick = () => {
+    AudioFX.confirm();
+    const setSb = document.getElementById("settingSidebar");
+    const willOpen = !setSb.classList.contains("open");
+    closeSidebarsExcept("settingSidebar");
+    setSb.classList.toggle("open", willOpen);
 };
 
 document.addEventListener("click", e => {
-    const ruleSb = document.getElementById("ruleSidebar");
-    const ruleBtn = document.getElementById("toggleRuleSidebar");
-    const infoSb = document.getElementById("infoSidebar");
-    const infoBtn = document.getElementById("toggleInfoSidebar");
-    const sb = document.getElementById("sidebar");
-    const btn = document.getElementById("toggleSidebar");
     const modeLink = e.target && e.target.closest ? e.target.closest(".rule-mode-link") : null;
-    if (!ruleSb.contains(e.target) && e.target !== ruleBtn && ruleSb.classList.contains("open")) ruleSb.classList.remove("open");
-    if (!infoSb.contains(e.target) && e.target !== infoBtn && infoSb.classList.contains("open")) infoSb.classList.remove("open");
-    if (!sb.contains(e.target) && e.target !== btn && !modeLink && sb.classList.contains("open")) sb.classList.remove("open");
+    [ [ "ruleSidebar", "toggleRuleSidebar" ], [ "infoSidebar", "toggleInfoSidebar" ], [ "achSidebar", "toggleAchSidebar" ], [ "gameSidebar", "toggleGameSidebar" ], [ "settingSidebar", "toggleSettingSidebar" ] ].forEach(([ id, btnId ]) => {
+        const sb = document.getElementById(id);
+        if (!sb || !sb.classList.contains("open")) return;
+        const btn = document.getElementById(btnId);
+        if (!sb.contains(e.target) && e.target !== btn && !modeLink) sb.classList.remove("open");
+    });
 });
 
 function renderSeriesSwitches() {
@@ -1209,7 +1225,7 @@ function resetTi() {
 function saveRec() {
     if (!diff) return;
     if (isFreeMode) {
-        renderRec();
+        renderRecordList();
         return;
     }
     lt[diff] = ct;
@@ -1220,7 +1236,7 @@ function saveRec() {
     }
     wins[diff] = (wins[diff] || 0) + 1;
     localStorage.setItem("mineWins", JSON.stringify(wins));
-    renderRec();
+    renderRecordList();
     if (diff === "hell" && !brainUnlockedNotified) {
         if (checkBrainUnlocked()) {
             brainUnlockedNotified = true;
@@ -1239,16 +1255,45 @@ function fmtTime(ms) {
     return `${String(Math.floor(ms / 6e4)).padStart(2, "0")}:${String(Math.floor(ms / 1e3) % 60).padStart(2, "0")}.${String(Math.floor(ms % 1e3 / 10)).padStart(2, "0")}`;
 }
 
-function renderRec() {
-    const list = document.getElementById("recordList");
+const RECORD_DIFFS = [ "easy", "medium", "hard", "hell", "brain" ];
+
+const RECORD_META = {
+    easy: {
+        icon: "😎",
+        color: "#38a169"
+    },
+    medium: {
+        icon: "😮",
+        color: "#dc7f33"
+    },
+    hard: {
+        icon: "😤",
+        color: "#d73a3a"
+    },
+    hell: {
+        icon: "👿",
+        color: "#6b21a8"
+    },
+    brain: {
+        icon: "🤯",
+        color: "#ffd700"
+    }
+};
+
+function renderRecordList() {
+    const list = document.getElementById("achRecordList");
     if (!list) return;
     let html = "";
-    [ "easy", "medium", "hard", "hell", "brain" ].forEach(d => {
-        let label = DIFF_LABEL[d] || d;
-        let icon = d === "brain" ? "🤯" : d === "hell" ? "👿" : d === "hard" ? "😤" : d === "medium" ? "😮" : "😎";
-        let extraStyle = d === "brain" ? "#ffd700;background: linear-gradient(135deg, #fffcbb 0%, #c0f1ff 25%, #c0d7ff 50%, #ddbfff 75%, #f8bfff 100%);" : d === "hell" ? "#6b21a8;" : d === "hard" ? "#d73a3a;" : d === "medium" ? "#dc7f33;" : "#38a169;";
-        html += `<div class="record-item" style="border-color:${extraStyle}">`;
-        html += `<div class="record-label">${icon}${label}</div>`;
+    RECORD_DIFFS.forEach(d => {
+        const meta = RECORD_META[d] || {
+            icon: "💣",
+            color: "#cbd5e0"
+        };
+        const label = DIFF_LABEL[d] || d;
+        html += `<div class="record-item${d === "brain" ? " is-brain" : ""}" style="border-left-color:${meta.color}">`;
+        html += `<div class="record-label">${meta.icon}${label}</div>`;
+        html += `最快用时：<span class="record-best">${fmtTime(rec[d])}</span><br>`;
+        html += `通关次数：<span class="record-count">${wins[d] || 0} 次</span><br>`;
         html += `本次用时：<span class="record-current">${fmtTime(lt[d])}</span>`;
         html += `</div>`;
     });
@@ -1258,7 +1303,7 @@ function renderRec() {
 document.addEventListener("mouseover", e => {
     let el = e.target;
     if (el.closest(".switch-toggle") || el.closest(".switch-row")) return;
-    if (el.matches && el.matches("button, .preset-btn, .num-btn, .apply-btn, .sidebar-toggle, .info-sidebar-toggle, .rule-sidebar-toggle, .tutorial-btn-inline, .mine-item, .win button, .auto-modal button")) {
+    if (el.matches && el.matches("button, .preset-btn, .num-btn, .apply-btn, .game-sidebar-toggle, .setting-sidebar-toggle, .achievement-sidebar-toggle, .info-sidebar-toggle, .rule-sidebar-toggle, .tutorial-btn-inline, .mine-item, .win button, .auto-modal button")) {
         if (el.classList.contains("disabled") || el.classList.contains("locked") || el.classList.contains("locked-row")) return;
         AudioFX.pop();
     }
@@ -1918,12 +1963,12 @@ window.togglePlaceMode = function() {
     setPlaceMode(window._placeMode === "drag" ? "click" : "drag");
 };
 
-window.openSidebar = function() {
-    const sb = document.getElementById("sidebar");
+window.openSettingSidebar = function() {
+    const sb = document.getElementById("settingSidebar");
     if (!sb) return;
     AudioFX.confirm();
+    closeSidebarsExcept("settingSidebar");
     sb.classList.add("open");
-    renderSeriesSwitches();
 };
 
 initPlaceMode();
@@ -3092,7 +3137,7 @@ function teachExit() {
     fullReset();
     genGame();
     render();
-    renderRec();
+    renderRecordList();
     document.getElementById("win").style.display = "none";
 }
 
@@ -3136,7 +3181,7 @@ function newGame() {
     }
     genGame();
     render();
-    renderRec();
+    renderRecordList();
     document.getElementById("win").style.display = "none";
 }
 
@@ -3190,7 +3235,7 @@ function beginPresetGame() {
     document.getElementById("tutorialProgressBar").style.display = "none";
     genGame();
     render();
-    renderRec();
+    renderRecordList();
     document.getElementById("win").style.display = "none";
     if (!isFreeMode) {
         ts = true;
@@ -3210,7 +3255,7 @@ document.getElementById("reset").onclick = newGame;
 document.getElementById("clear").onclick = clearAll;
 
 window.onload = () => {
-    renderRec();
+    renderRecordList();
     renderMineInfo();
     renderSeriesSwitches();
     if (checkBrainUnlocked() && !brainUnlockedNotified) {
@@ -3239,7 +3284,7 @@ window.addEventListener("load", function() {
             AudioFX.modalOpen();
             let btn = document.getElementById("tutorialConfirmBtn");
             btn.disabled = true;
-            let cd = 5;
+            let cd = 3;
             let cdEl = document.getElementById("tutorialCountdown");
             let iv = setInterval(() => {
                 cd--;
@@ -3679,7 +3724,7 @@ function applyPuzzleCode() {
         G.placed = {};
         resetP();
         render();
-        renderRec();
+        renderRecordList();
         document.getElementById("win").style.display = "none";
         document.getElementById("timer").style.display = "block";
         diff = null;
@@ -4380,7 +4425,7 @@ window._gameNS = {
         }
         saveState();
         renderAchievements();
-        renderRecords();
+        renderRecordList();
     }
     function renderAchievements() {
         let container = document.getElementById("achList");
@@ -4415,22 +4460,6 @@ window._gameNS = {
         let tc = document.getElementById("achTotalCount");
         if (uc) uc.textContent = unlocked;
         if (tc) tc.textContent = total;
-    }
-    function renderRecords() {
-        let container = document.getElementById("achRecordList");
-        if (!container) return;
-        let html = "";
-        [ "easy", "medium", "hard", "hell", "brain" ].forEach(d => {
-            let label = DIFF_LABEL[d] || d;
-            let icon = d === "brain" ? "🤯" : d === "hell" ? "👿" : d === "hard" ? "😤" : d === "medium" ? "😮" : "😎";
-            let ec = d === "brain" ? "#ffd700" : d === "hell" ? "#6b21a8" : d === "hard" ? "#d73a3a" : d === "medium" ? "#dc7f33" : "#38a169";
-            html += `<div class="record-item" style="border-color:${ec}">`;
-            html += `<div class="record-label">${icon}${label}</div>`;
-            html += `最快用时：<span class="record-best">${fmtTime(rec[d])}</span><br>`;
-            html += `通关次数：<span class="record-count">${wins[d] || 0} 次</span>`;
-            html += `</div>`;
-        });
-        container.innerHTML = html;
     }
     function installHooks() {
         if (window._achHooksInstalled) return;
@@ -4627,21 +4656,18 @@ window._gameNS = {
         if (!btn || !sb) return;
         btn.addEventListener("click", () => {
             AudioFX.confirm();
-            sb.classList.toggle("open");
+            const willOpen = !sb.classList.contains("open");
+            closeSidebarsExcept("achSidebar");
+            sb.classList.toggle("open", willOpen);
             renderAchievements();
-            renderRecords();
-        });
-        document.addEventListener("click", e => {
-            if (!sb.contains(e.target) && e.target !== btn && sb.classList.contains("open")) {
-                sb.classList.remove("open");
-            }
+            renderRecordList();
         });
     }
     function init() {
         installHooks();
         initToggle();
         renderAchievements();
-        renderRecords();
+        renderRecordList();
         newGame();
     }
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();

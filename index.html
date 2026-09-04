@@ -31,7 +31,7 @@
         <h2>你好!</h2>
         <p>这是你第一次游玩<span>『反向💣扫雷』</span><br>先来试试<span>教学</span>模式吧！</p>
         <button id="tutorialConfirmBtn" class="confirm-btn" onclick="openTeachMode()" disabled>开始教学<br>[GO!]ヾ(≧▽≦*)o</button>
-        <p style="font-size: 12px; color: #888; margin-top: 8px;" id="tutorialCountdown">按钮将在5秒后可用...</p>
+        <p style="font-size: 12px; color: #888; margin-top: 8px;" id="tutorialCountdown">按钮将在3秒后可用...</p>
     </div>
 
     <div class="auto-modal" id="tutorialCompleteModal" style="display:none;">
@@ -84,7 +84,7 @@
     </div>
 
     <h1 class="game-title">反向💣扫雷</h1>
-    <div class="rule">ℹ️操作tips:拖拽/点选✅放置地雷 | 🚫右键(手机长按)删除 | 当前:<b id="modeBadge">拖拽</b> <span class="rule-mode-link" onclick="openSidebar()">⚙️切换</span></div>
+    <div class="rule">ℹ️操作tips:拖拽/点选✅放置地雷 | 🚫右键(手机长按)删除 | 当前:<b id="modeBadge">拖拽</b> <span class="rule-mode-link" onclick="openSettingSidebar()">⚙️切换</span></div>
 
     <div id="tutorialProgressBar">
         <div class="progress-header">
@@ -259,7 +259,12 @@
         </div>
     </div>
 
-    <button class="achievement-sidebar-toggle" id="toggleAchSidebar">📝记录</button>
+    <div class="right-sidebar-container">
+        <button class="achievement-sidebar-toggle" id="toggleAchSidebar">📝记录</button>
+        <button class="game-sidebar-toggle" id="toggleGameSidebar">🕹️游戏</button>
+        <button class="setting-sidebar-toggle" id="toggleSettingSidebar">⚙️设置</button>
+    </div>
+
     <div class="achievement-sidebar" id="achSidebar">
         <div class="achievement-stats" id="achStats">
             <span class="stats-num" id="achUnlockedCount">0</span>
@@ -287,20 +292,7 @@
         </div>
     </div>
 
-    <button class="sidebar-toggle" id="toggleSidebar">⚙️菜单</button>
-    <div class="sidebar" id="sidebar">
-        <div class="sidebar-section">
-            <div class="sidebar-title mode-title">🖱️ 操作方式</div>
-            <div class="mode-switch" id="modeSwitch">
-                <button class="mode-switch-btn" id="modeBtnDrag" onclick="setPlaceMode('drag')">
-                    <span class="mode-switch-emoji">✋</span>拖拽放置
-                </button>
-                <button class="mode-switch-btn" id="modeBtnClick" onclick="setPlaceMode('click')">
-                    <span class="mode-switch-emoji">🖱️</span>点选放置
-                </button>
-            </div>
-            <div class="mode-hint" id="modeHint">按住地雷拖到棋盘格子上松手即可放置</div>
-        </div>
+    <div class="game-sidebar" id="gameSidebar">
         <div class="sidebar-section">
             <div class="sidebar-title preset-title">🎯 难度选择</div>
             <div class="preset-row">
@@ -367,9 +359,22 @@
             </div>
         </div>
         <div class="sidebar-section">
-            <div class="sidebar-title record-title">🥇 成绩</div>
-            <div class="record-tip">在 [📝记录] 栏 查看每个难度的最佳成绩o((>ω< ))o</div>
-            <div id="recordList"></div>
+            <div class="record-tip">🥇 各难度成绩请到 <strong>📝记录</strong> 栏查看 o((>ω< ))o</div>
+        </div>
+    </div>
+
+    <div class="setting-sidebar" id="settingSidebar">
+        <div class="sidebar-section">
+            <div class="sidebar-title mode-title">🖱️ 操作方式</div>
+            <div class="mode-switch" id="modeSwitch">
+                <button class="mode-switch-btn" id="modeBtnDrag" onclick="setPlaceMode('drag')">
+                    <span class="mode-switch-emoji">✋</span>拖拽放置
+                </button>
+                <button class="mode-switch-btn" id="modeBtnClick" onclick="setPlaceMode('click')">
+                    <span class="mode-switch-emoji">🖱️</span>点选放置
+                </button>
+            </div>
+            <div class="mode-hint" id="modeHint">按住地雷拖到棋盘格子上松手即可放置</div>
         </div>
         <div class="sidebar-section">
             <div class="sidebar-title bgm-title">🔊 背景音乐</div>

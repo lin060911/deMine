@@ -2,12 +2,6 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="format-detection" content="telephone=no">
-    <meta name="theme-color" content="#b1e4b3">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <title>反向扫雷</title>
     <link rel="icon" type="image/png" sizes="32 * 32" href="image/bomb.png">
     <link rel="stylesheet" href="style.css">
@@ -16,11 +10,6 @@
 <body>
 
     <div class="auto-modal-overlay" id="overlay"></div>
-
-    <button class="mode-toggle-btn" id="modeToggleBtn" onclick="togglePlaceMode()" title="点击切换放置方式">
-        <span class="mode-icon" id="modeToggleIcon">🖱️</span>
-        <span class="mode-label" id="modeToggleLabel">当前放置方式为：点选</span>
-    </button>
 
     <div class="falling-container" id="fallingContainer"></div>
     <div class="bg-effects" id="bgEffects">
@@ -93,7 +82,7 @@
     </div>
 
     <h1 class="game-title">反向💣扫雷</h1>
-    <div class="rule">ℹ️操作tips:拖拽/点选✅放置地雷 | 🚫右键删除</div>
+    <div class="rule">ℹ️操作tips:拖拽/点选✅放置地雷 | 🚫右键(手机长按)删除 | 当前:<b id="modeBadge">拖拽</b> <span class="rule-mode-link" onclick="openSidebar()">⚙️切换</span></div>
 
     <div id="tutorialProgressBar">
         <div class="progress-header">
@@ -229,7 +218,8 @@
                 <h3>💡 玩法：反向扫雷（布雷）</h3>
                 <ul>
                     <li><strong>目标：</strong><br>在棋盘上放置规定数量的地雷（普通雷 + 特殊雷），使得棋盘上每个格子显示的数字，恰好等于它周围（或特定规则下）所有地雷对它的总影响值。</li>
-                    <li><strong>操作：</strong><br>点选：点击选中地雷，再点击棋盘放置<br>拖拽：左键拖拽放置地雷<br>右键删除。</li>
+                    <li><strong>操作：</strong><br>点选：点击选中地雷，再点击棋盘放置<br>拖拽：按住地雷拖到格子上松手（手机端同样可用）<br>删除：右键点击（手机端长按地雷）。</li>
+                    <li><strong>切换放置方式：</strong><br>在⚙️菜单的<strong>🖱️ 操作方式</strong>里切换，切换不会影响当前这一局的棋盘与计时。</li>
                     <li><strong>胜利条件：</strong><br>所有地雷放完，且棋盘数字与地雷影响匹配（棋盘上都是🟩）。</li>
                 </ul>
                 <h3>🧩 地块状态解读</h3>
@@ -290,6 +280,18 @@
     <button class="sidebar-toggle" id="toggleSidebar">⚙️菜单</button>
     <div class="sidebar" id="sidebar">
         <div class="sidebar-section">
+            <div class="sidebar-title mode-title">🖱️ 操作方式</div>
+            <div class="mode-switch" id="modeSwitch">
+                <button class="mode-switch-btn" id="modeBtnDrag" onclick="setPlaceMode('drag')">
+                    <span class="mode-switch-emoji">✋</span>拖拽放置
+                </button>
+                <button class="mode-switch-btn" id="modeBtnClick" onclick="setPlaceMode('click')">
+                    <span class="mode-switch-emoji">🖱️</span>点选放置
+                </button>
+            </div>
+            <div class="mode-hint" id="modeHint">按住地雷拖到棋盘格子上松手即可放置</div>
+        </div>
+        <div class="sidebar-section">
             <div class="sidebar-title preset-title">🎯 难度选择</div>
             <div class="preset-row">
                 <button class="preset-btn preset-easy" id="btnEasy" onclick="setPre('easy')">😎简单</button>
@@ -338,6 +340,8 @@
             <button class="apply-btn" onclick="applySet()">应用设置</button>
             </div>
         </div>
+
+
 
         <div class="sidebar-section">
             <div class="sidebar-title lock-title">🔓 系列开关</div>

@@ -1669,7 +1669,7 @@
             transition-duration: 0.1s;
         }
         .clear-input-btn {
-            background: linear-gradient(180deg, #f06060, #e53e3e);
+            background: linear-gradient(180deg, #f07160, #e5573e);
             border: 3px solid #fc8181;
             color: white;
             font-weight: 700;
@@ -2970,3 +2970,38 @@
             .mine-item:hover:not(.disabled):not(.selected) { transform: none; }
             .cell:hover { box-shadow: inset 0 0 0 1px rgba(0,0,0,0.03); }
         }
+
+        /* ===== v1.1 追加 ①：主棋盘落雷动画只播最新一颗 =====
+           差量渲染后 .mine-here 不再每次重建都重新触发动画；
+           只有新增了 .just-dropped 的那一格才播放 cellMineDrop。 */
+        #board.rm-diff .cell.mine-here { animation: none; }
+        #board.rm-diff .cell.mine-here.just-dropped {
+            animation: cellMineDrop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        }
+
+        /* ===== v1.1 追加 ②：全局提示条 ===== */
+        .rm-toast {
+            position: fixed;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%) translateY(20px);
+            background: rgba(45, 55, 72, 0.94);
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            line-height: 1.5;
+            z-index: 99999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .25s ease, transform .25s cubic-bezier(.34,1.56,.64,1);
+            box-shadow: 0 8px 24px rgba(0,0,0,.24);
+            max-width: 86vw;
+            text-align: center;
+        }
+        .rm-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        /* ===== v1.1 追加 ③：存档管理 ===== */
+        .save-manage-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+        .save-hint { font-size: 12px; color: #718096; margin-top: 8px; line-height: 1.7; }

@@ -84,7 +84,7 @@
     </div>
 
     <h1 class="game-title">反向💣扫雷</h1>
-    <div class="rule">ℹ️操作tips:拖拽/点选✅放置地雷 | 🚫右键(手机长按)删除<br> 当前:<b id="modeBadge">拖拽</b> <span class="rule-mode-link" onclick="openSettingSidebar()">⚙️切换</span></div>
+    <div class="rule">ℹ️操作tips:拖拽/点选✅放置地雷 | 🚫右键(手机长按)删除<br> 当前操作方式:<b id="modeBadge">拖拽</b> <span class="rule-mode-link" onclick="openSettingSidebar()">⚙️切换</span></div>
 
     <div id="tutorialProgressBar">
         <div class="progress-header">
@@ -403,11 +403,35 @@
             </div>
             <div class="switch-hint">开启后，当前影响值 <strong>不为 0</strong> 且 <strong>不等于题目数字</strong> 的地块，会在右下角显示一个小三角形，里面是该地块当前的实时影响值</div>
         </div>
+        <div class="sidebar-section">
+            <div class="sidebar-title">💾 存档管理</div>
+            <div class="save-manage-row">
+                <button class="apply-input-btn" onclick="RMSave.exportSave()">📤 导出</button>
+                <button class="apply-input-btn" onclick="RMSave.pickFile()">📥 导入</button>
+                <button class="clear-input-btn" onclick="RMSave.resetSave()">🗑️ 清空存档</button>
+            </div>
+            <input type="file" id="saveFileInput" accept="application/json,.json" style="display:none">
+            <div class="save-hint" id="saveHint">存档将导出为 JSON 文件<br>换设备 / 清缓存前可备份 🧳</div>
+        </div>
     </div>
 
-    <footer class="sidebar-version">v1.0.0<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
+    <footer class="sidebar-version">v1.1.0<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
 
-    <script src="audio.js"></script>
-    <script src="game.js"></script>
+    <script src="js/00-core.js"></script>
+    <script src="js/01-storage.js"></script>
+    <script src="js/02-audio.js"></script>
+    <script src="js/03-timer.js"></script>
+    <script src="js/04-mines.js"></script>
+    <script src="js/05-generator.js"></script>
+    <script src="js/06-render.js"></script>
+    <script src="js/07-board.js"></script>
+    <script src="js/08-ui.js"></script>
+    <script src="js/09-tutorial.js"></script>
+    <script src="js/10-game.js"></script>
+    <script src="js/11-create.js"></script>
+    <script src="js/12-settings.js"></script>
+    <script src="js/13-achievements.js"></script>
+    <script src="js/14-bgeffects.js"></script>
+    <script src="js/15-boot.js"></script>
 </body>
 </html>

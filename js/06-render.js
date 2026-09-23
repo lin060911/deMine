@@ -289,6 +289,11 @@ function appendInfluenceBadge(cell, cur, tar) {
             log("render:updateCell", "未知地雷类型: " + type);
             type = null;
         }
+
+        // 有雷时该格的题目数字消失（与原版一致：地雷 emoji 独占格子）
+        var numShown = type ? "none" : "";
+        if (numEl.style.display !== numShown) numEl.style.display = numShown;
+
         if (type) {
             var m = M[type];
             if (prev !== type) {
@@ -310,8 +315,16 @@ function appendInfluenceBadge(cell, cur, tar) {
         }
         el._mineType = type;
 
-        // ④ 影响值角标
-        syncInfluence(el, p, t);
+        // ④ 影响值角标（有雷的格子不显示，与原版一致）
+        if (type) {
+            if (el._badge) {
+                if (el._badge.parentNode) el._badge.parentNode.removeChild(el._badge);
+                el._badge = null;
+            }
+            el.classList.remove("has-influence");
+        } else {
+            syncInfluence(el, p, t);
+        }
 
         // ⑤ 拖拽绑定：只在雷的有无发生变化时才重绑
         if (prev !== type) bindCellDrag(el, "main");

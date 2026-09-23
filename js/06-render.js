@@ -242,7 +242,7 @@ function appendInfluenceBadge(cell, cur, tar) {
             if (badge && badge.parentNode) badge.parentNode.removeChild(badge);
             el._badge = null;
             el.classList.remove("has-influence");
-            return;
+            return false;
         }
         var cls = "cell-influence " + (cur > tar ? "influence-over" : "influence-low");
         if (Math.abs(cur) >= 10) cls += " influence-wide";
@@ -257,6 +257,7 @@ function appendInfluenceBadge(cell, cur, tar) {
         var txt = String(cur);
         if (badge.textContent !== txt) badge.textContent = txt;
         el.classList.add("has-influence");
+        return true;
     }
 
     var unknownTypes = 0;
@@ -315,16 +316,13 @@ function appendInfluenceBadge(cell, cur, tar) {
         }
         el._mineType = type;
 
-        // ④ 影响值角标（有雷的格子不显示，与原版一致）
-        if (type) {
-            if (el._badge) {
-                if (el._badge.parentNode) el._badge.parentNode.removeChild(el._badge);
-                el._badge = null;
-            }
-            el.classList.remove("has-influence");
-        } else {
-            syncInfluence(el, p, t);
-        }
+        // ④ 影响值角标：有雷的格子同样显示（只要当前影响值 ≠ 0 且 ≠ 题目数字）
+        var badgeOn = syncInfluence(el, p, t);
+
+        // 有雷时数字已隐藏，角标会压在 emoji 上，把 emoji 往左上挪一点腾出位置
+        // （与无雷时 .cell.has-influence .cell-num 的位移保持一致）
+        var mineShift = badgeOn ? "translate(-16%, -16%)" : "";
+        if (mineEl.style.transform !== mineShift) mineEl.style.transform = mineShift;
 
         // ⑤ 拖拽绑定：只在雷的有无发生变化时才重绑
         if (prev !== type) bindCellDrag(el, "main");
@@ -345,15 +343,29 @@ function appendInfluenceBadge(cell, cur, tar) {
                 if (p === t) d.classList.add("cell-valid");
                 else if (p < t) d.classList.add("cell-low");
                 else d.classList.add("cell-over");
+                var numSpan = null;
                 if (t !== 0) {
-                    d.textContent = t;
+                    numSpan = document.createElement("span");
+                    numSpan.className = "cell-num";
+                    numSpan.textContent = t;
+                    d.appendChild(numSpan);
                     d.classList.add("n" + Math.min(t, 8));
                 }
-                if (G.placed[k] && M[G.placed[k]]) {
+                var mineSpan = null;
+                var mtype = G.placed[k];
+                if (mtype && M[mtype]) {
                     d.classList.add("mine-here");
-                    d.innerHTML = '<span class="' + M[G.placed[k]].cls + '">' + M[G.placed[k]].e + "</span>";
+                    mineSpan = document.createElement("span");
+                    mineSpan.className = M[mtype].cls + " cell-mine";
+                    mineSpan.textContent = M[mtype].e;
+                    d.appendChild(mineSpan);
+                    // 有雷时题目数字消失（与原版一致），但角标照常显示
+                    if (numSpan) numSpan.style.display = "none";
                 }
                 appendInfluenceBadge(d, p, t);
+                if (mineSpan && d.querySelector(".cell-influence")) {
+                    mineSpan.style.transform = "translate(-16%, -16%)";
+                }
                 frag.appendChild(d);
             }
         }

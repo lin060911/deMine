@@ -354,7 +354,7 @@ const TEACH_RULE_FALLBACK = `
         </div>`;
 
 function buildTeachRuleContent() {
-    const box = document.querySelector("#ruleSidebar .rule-content");
+    const box = document.querySelector("#infoSidebar .rule-content");
     let goalHTML = "", winHTML = "", stateHTML = "";
     if (box) {
         const stripLabel = html => String(html).replace(/^\s*<strong>[^<]*<\/strong>\s*(?:<br\s*\/?>)?/i, "").trim();

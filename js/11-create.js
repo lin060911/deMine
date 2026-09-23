@@ -105,6 +105,24 @@ function createSizeInput(dim, val) {
     AudioFX.pop();
 }
 
+/* 打开「✍️创造」侧边栏时调用：只准备参数，【不动任何游戏状态】。
+   这样用户可以在侧栏里慢慢调尺寸，当前这一局的棋盘与计时完全不受影响。 */
+function prepareCreateParams() {
+    // 已经在创造模式里（主区有创造棋盘）时，不要重置尺寸，免得打断编辑
+    if (createModeActive) return;
+    createRows = 10;
+    createCols = 10;
+    const s1 = document.getElementById("createSize");
+    const s2 = document.getElementById("createSize2");
+    if (s1) s1.value = 10;
+    if (s2) s2.value = 10;
+    showCreateError("");
+}
+window.prepareCreateParams = prepareCreateParams;
+
+/* 点「🛠️ 生成空棋盘」才真正进入创造模式：此刻才重置并切换棋盘归属。
+   （currentBoardKind() 依赖 createModeActive，过早置真会让游戏棋盘上的
+     操作被误判为创造棋盘操作） */
 function enterCreateMode() {
     AudioFX.confirm();
     fullReset();
@@ -114,10 +132,6 @@ function enterCreateMode() {
     document.getElementById("slot").style.display = "none";
     document.getElementById("presetStartCard").style.display = "none";
     document.getElementById("timer").style.display = "none";
-    createRows = 10;
-    createCols = 10;
-    document.getElementById("createSize").value = 10;
-    document.getElementById("createSize2").value = 10;
     document.getElementById("puzzleCodeOutput").textContent = "点击生成后显示";
     document.getElementById("shareCodeBtn").disabled = true;
     showCreateError("");
@@ -128,8 +142,17 @@ function enterCreateMode() {
     createPlaced = {};
 }
 
+/* 保留旧入口名：直接生成空棋盘（等价于在侧栏设好参数后点生成） */
+function startCreateBoard() {
+    enterCreateMode();
+    initCreateBoard();
+}
+window.startCreateBoard = startCreateBoard;
+
 function initCreateBoard() {
     AudioFX.confirm();
+    // 首次生成时才真正进入创造模式（重置当前局、切换棋盘归属）
+    if (!createModeActive) enterCreateMode();
     let r = clampSize(document.getElementById("createSize").value);
     let c = clampSize(document.getElementById("createSize2").value);
     if (r * c > CREATE_MAX_CELLS) {

@@ -12,290 +12,16 @@
 <body>
 
     <div class="auto-modal-overlay" id="overlay"></div>
-
-    <div class="falling-container" id="fallingContainer"></div>
-    <div class="bg-effects" id="bgEffects">
-        <div class="bg-scan-trail"></div>
-        <div class="bg-scan-line"></div>
-    </div>
-
-    <div class="auto-modal" id="welcomeModal">
-        <div class="icon">👋</div>
-        <h2>欢迎回来!</h2>
-        <p>欢迎回到<span>『反向💣扫雷』</span><br>如果忘了咋玩，可以点击左侧的规则哦( ´◡‿ゝ◡`)</p>
-        <button onclick="closeWelcomeModal()">(≧∇≦)ﾉ了解</button>
-    </div>
-
-    <div class="auto-modal" id="tutorialPrompt" style="display:none;">
-        <div class="icon">🤗</div>
-        <h2>你好!</h2>
-        <p>这是你第一次游玩<span>『反向💣扫雷』</span><br>先来试试<span>教学</span>模式吧！</p>
-        <button id="tutorialConfirmBtn" class="confirm-btn" onclick="openTeachMode()" disabled>开始教学<br>[GO!]ヾ(≧▽≦*)o</button>
-        <p style="font-size: 12px; color: #888; margin-top: 8px;" id="tutorialCountdown">按钮将在3秒后可用...</p>
-    </div>
-
-    <div class="auto-modal" id="tutorialCompleteModal" style="display:none;">
-        <div class="icon">🥳</div>
-        <h2>恭喜完成!</h2>
-        <p id="tutorialCompleteText">已完成该关卡</p>
-        <button onclick="closeTutorialComplete()">我真厉害<br>( *︾▽︾)</button>
-    </div>
-
-    <div class="auto-modal" id="moreTutorialGuide" style="display:none;">
-        <div class="icon">🧐</div>
-        <h2>更多关卡</h2>
-        <p>点击左侧💣炸弹信息栏<br>可开启更多系列关卡<br>通关后自动解锁该系列地雷！</p>
-        <button onclick="closeMoreTutorialGuide()">知道了</button>
-    </div>
-
-    <div class="auto-modal" id="presetLockedModal" style="display:none;">
-        <div class="icon">😣</div>
-        <h2>无法使用!</h2>
-        <p id="presetLockedText">需要在⚙️菜单中开启至少3个系列开关<br>才能使用预设难度哦！</p>
-        <button onclick="closePresetLockedModal()">知道了</button>
-    </div>
-
-    <div class="auto-modal" id="hellLockedModal" style="display:none;">
-        <div class="icon">👿</div>
-        <h2>地狱之门紧闭</h2>
-        <p>需要开启<b>全部5个</b>系列开关<br>才能挑战地狱难度！<br>当前已开启 <span id="hellLockedCount">0</span>/5 个</p>
-        <button onclick="closeHellLockedModal()">知道了</button>
-    </div>
-
-    <div class="auto-modal" id="brainUnlockedModal" style="display:none;">
-        <div class="icon">🤯</div>
-        <h2>脑王难度已开启</h2>
-        <p>您已自由出入地狱<br>诚邀您挑战<b>脑力之王</b>难度！</p>
-        <button onclick="closeBrainUnlockedModal()">迎接挑战 💪</button>
-    </div>
-
-    <div class="auto-modal" id="brainLockedModal" style="display:none;">
-        <div class="icon">😓</div>
-        <h2>脑王难度锁定中</h2>
-        <p>需要同时满足以下条件：<br>1️⃣ 地狱难度通关≥<b>10</b>次（当前 <span id="brainHellWins">0</span>/10）<br>2️⃣ 开启<b>全部5个</b>系列开关（当前 <span id="brainSeriesCount">0</span>/5）</p>
-        <button onclick="closeBrainLockedModal()">知道了</button>
-    </div>
-
-    <div class="brain-win-modal" id="brainWinModal" style="display:none;">
-        <div class="icon">🕶️</div>
-        <h2>哇，大佬!</h2>
-        <p>您通关了<b>脑王难度</b>！<br>这副大佬专属墨镜是您的了<br>但...这还不是理论难度极限...</p>
-        <button onclick="closeBrainWinModal()">收下墨镜 😎</button>
-    </div>
-
-    <h1 class="game-title">反向💣扫雷</h1>
-    <div class="rule">ℹ️操作tips:拖拽/点选✅放置地雷 | 🚫右键(手机长按)删除<br> 当前操作方式:<b id="modeBadge">拖拽</b> <span class="rule-mode-link" onclick="openSettingSidebar()">⚙️切换</span></div>
-
-    <div id="tutorialProgressBar">
-        <div class="progress-header">
-            <span class="progress-title" id="tutorialTitle">新手关卡</span>
-            <span class="progress-text" id="tutorialProgressText">0/5</span>
-        </div>
-        <div class="progress-track">
-            <div class="progress-fill" id="tutorialProgressFill"></div>
-        </div>
-    </div>
-
-    <div class="panel">
-        <button id="reset">新游戏</button>
-        <button id="clear">清空放置</button>
-        <button id="createBtn" onclick="enterCreateMode()">创造✍️</button>
-        <button id="tutorialBtn" onclick="openTeachMode()">教学🧐</button>
-    </div>
-
-    <div class="timer-box" id="timer">00:00.00</div>
-
-    <div class="teach-progress-bar-inline" id="teachProgressBar" style="display:none;">
-        <span class="teach-progress-title" id="teachProgressTitle">教学进度</span>
-        <div class="teach-progress-track">
-            <div class="teach-progress-fill" id="teachProgressFill"></div>
-        </div>
-        <span class="teach-progress-text" id="teachProgressText">0/10</span>
-    </div>
-    <div class="info">已放置：<span id="placed">0</span> / 总雷数：<span id="max">0</span></div>
-    <div id="board" class="board"></div>
-
-    <div class="teach-complete-modal" id="teachCompleteModal">
-        <div class="icon" id="teachCompleteIcon">🎉</div>
-        <h2 id="teachCompleteTitle">做得好！</h2>
-        <p id="teachCompleteText">你已完成本关教学！</p>
-        <div id="teachModalBtns">
-            <button id="teachNextBtn" onclick="teachNextLevel()">下一关 ➡️</button>
-            <button id="teachExitBtn" onclick="teachExit()" style="margin-left:10px;background:#e53e3e;color:#fff;">退出教学</button>
-            <button id="teachPracticeBtn" onclick="teachExitToPractice()" style="margin-left:10px;background:#4299e1;color:#fff;display:none;">📖 进入新手关卡</button>
-        </div>
-    </div>
-
-    <div class="auto-modal teach-rule-modal" id="teachRuleModal" style="display:none;">
-        <div class="icon">📖</div>
-        <h2>规则小课堂</h2>
-        <div class="teach-rule-body" id="teachRuleBody"></div>
-        <button id="teachRuleOkBtn" onclick="closeTeachRuleModal()">我明白了，开始教学 ▶</button>
-    </div>
-
-    <div class="create-mode-panel" id="createModePanel">
-        <div class="create-card">
-            <div class="create-card-title">
-                <span class="title-icon">📐</span> 棋盘尺寸
+    <div class="challenge-modal" id="challengeModal" style="display:none;">
+        <div class="challenge-card">
+            <div class="challenge-head">
+                <span class="challenge-icon">🕹️</span>
+                <h2>游戏选择</h2>
+                <button class="challenge-close" type="button" onclick="closeChallengeModal()">✕</button>
             </div>
-            <div class="create-size-row">
-                <div class="create-size-field">
-                    <label>横·行数</label>
-                    <div class="create-size-control">
-                        <button class="create-size-btn minus" onclick="createSizeStep('rows',-1)">−</button>
-                        <input class="create-size-display" id="createSize" type="number" value="10" min="4" max="20" onchange="createSizeInput('rows',this.value)">
-                        <button class="create-size-btn plus" onclick="createSizeStep('rows',1)">+</button>
-                    </div>
-                </div>
-                <div class="create-size-x">×</div>
-                <div class="create-size-field">
-                    <label>竖·列数</label>
-                    <div class="create-size-control">
-                        <button class="create-size-btn minus" onclick="createSizeStep('cols',-1)">−</button>
-                        <input class="create-size-display" id="createSize2" type="number" value="10" min="4" max="20" onchange="createSizeInput('cols',this.value)">
-                        <button class="create-size-btn plus" onclick="createSizeStep('cols',1)">+</button>
-                    </div>
-                </div>
-            </div>
-            <div class="create-size-hint">范围 4~20 行/列</div>
-            <div class="create-error" id="createError"></div>
-            <div class="create-btn-group" style="margin-top:14px;">
-                <button class="create-btn" onclick="initCreateBoard()">🛠️ 生成空棋盘</button>
-            </div>
-        </div>
-
-        <div class="create-info-bar" id="createInfoBar" style="display:none;">
-            <span class="info-chip">棋盘 <strong id="infoRows">-</strong> 行 × <strong id="infoCols">-</strong> 列</span>
-            <span class="info-chip">已放地雷 <strong id="infoPlaced">0</strong></span>
-            <span class="info-chip">可用类型 <strong id="infoTypes">-</strong></span>
-        </div>
-
-        <div id="createBoardArea" style="position:relative;display:none;"></div>
-
-        <div id="createMineSlot" class="mine-slot-box" style="display:none;"></div>
-
-        <div class="create-card" id="createCodeCard" style="display:none;">
-            <div class="create-card-title">
-                <span class="title-icon">🔗</span>题库码
-            </div>
-            <div class="generate-code-area">
-                <button class="create-btn-primary" onclick="generatePuzzleCode()">🔧生成题库码</button>
-                <div class="code-output" id="puzzleCodeOutput">点击生成后显示</div>
-                <button class="share-btn" id="shareCodeBtn" onclick="copyPuzzleCode()" disabled>🤝分享</button><br>
-            </div>
-        </div>
-        <button class="back-btn" onclick="exitCreateMode()">🔙退出创造模式</button>
-    </div>
-
-    <div class="mine-slot-box" id="slot">
-        <div class="teach-bubble" id="teachBubble">
-            <div class="teach-progress" id="teachProgress"></div>
-            <div class="teach-bubble-head">
-                <div class="teach-bubble-icon" id="teachBubbleIcon">📖</div>
-                <div class="teach-bubble-title" id="teachBubbleTitle">教学关卡</div>
-            </div>
-            <div class="teach-bubble-main">
-                <div class="teach-bubble-text" id="teachBubbleText">欢迎来到教学！</div>
-                <div class="teach-bubble-mines" id="teachBubbleMines"></div>
-            </div>
-            <div class="teach-bubble-hint" id="teachBubbleHint">按提示操作即可</div>
-            <button class="teach-rule-link" id="teachRuleBtn" type="button" onclick="openTeachRuleModal(true)">📖 再看看规则</button>
-        </div>
-    </div>
-
-    <div class="preset-start-card" id="presetStartCard" style="display:none;">
-        <div class="preset-start-icon" id="presetStartIcon">😎</div>
-        <div class="preset-start-title" id="presetStartTitle">准备好了吗？</div>
-        <div class="preset-start-desc" id="presetStartDesc">点击开始后题目将展现并启动计时(≧▽≦)</div>
-        <button class="preset-start-btn" id="presetStartBtn" onclick="beginPresetGame()">开始</button>
-        <div class="preset-start-tag" id="presetStartTag"><span id="presetStartTagText">简单</span></div>
-    </div>
-
-    <div class="win" id="win">
-        <div>🎉 恭喜通关！</div>
-        <button onclick="newGame()">再来一局</button>
-    </div>
-
-    <div class="left-sidebar-container">
-        <button class="rule-sidebar-toggle" id="toggleRuleSidebar">📖规则</button>
-        <button class="info-sidebar-toggle" id="toggleInfoSidebar">💣信息</button>
-    </div>
-
-    <div class="rule-sidebar" id="ruleSidebar">
+            <div class="challenge-body">
         <div class="sidebar-section">
-            <div class="sidebar-title">📖 游戏规则</div>
-            <div class="rule-content">
-                <h3>💡 玩法：反向扫雷（布雷）</h3>
-                <ul>
-                    <li><strong>目标：</strong><br>在棋盘上放置规定数量的地雷（普通雷 + 特殊雷），使得棋盘上每个格子显示的数字，恰好等于它周围（或特定规则下）所有地雷对它的总影响值。</li>
-                    <li><strong>操作：</strong><br>点选：点击选中地雷，再点击棋盘放置<br>拖拽：按住地雷拖到格子上松手（手机端同样可用）<br>删除：右键点击（手机端长按地雷）。</li>
-                    <li><strong>切换放置方式：</strong><br>在⚙️菜单的<strong>🖱️ 操作方式</strong>里切换，切换不会影响当前这一局的棋盘与计时。</li>
-                    <li><strong>胜利条件：</strong><br>所有地雷放完，且棋盘数字与地雷影响匹配（棋盘上都是🟩）。</li>
-                </ul>
-                <h3>🧩 地块状态解读</h3>
-                <p>游戏会根据你当前的布雷情况，实时用颜色提示每个格子：</p>
-                <ul>
-                    <li>🟩 合适：该格子的当前影响值 [等于] 显示数字（正确）。</li>
-                    <li>🟨 偏低：该格子的当前影响值 [小于] 显示数字（还需在周围加雷）。</li>
-                    <li>🟥 偏高：该格子的当前影响值 [大于] 显示数字（还需减少影响值）。</li>
-                </ul>
-                <p>💡 在⚙️设置栏开启<strong>🔺 实时影响值</strong>后，凡是当前影响值<strong>不为 0</strong> 且<strong>不等于显示数字</strong>的地块，右下角会出现一个小三角形，里面写着它当前的实时影响值。</p>
-                <h3>🔓 系列开关机制</h3>
-                <ul>
-                    <li>基础系列始终开启</li>
-                    <li>其他系列需通过对应专项练习（5关）后自动解锁并开启</li>
-                    <li>简单/中等/困难：需开启≥3个系列开关</li>
-                    <li>地狱👿：需开启<b>全部</b>系列开关</li>
-                    <li>脑王🤯：地狱通关≥10次 + 全部系列开启</li>
-                    <li>🔧自由模式：可自定义参数+自由调整系列开关，不记录成绩</li>
-                </ul>
-            </div>
-        </div>
-    </div>
-
-    <div class="info-sidebar" id="infoSidebar">
-        <div class="sidebar-section">
-            <div class="sidebar-title">💣 炸弹信息</div>
-            <div id="mineInfoList"></div>
-        </div>
-    </div>
-
-    <div class="right-sidebar-container">
-        <button class="achievement-sidebar-toggle" id="toggleAchSidebar">📝记录</button>
-        <button class="game-sidebar-toggle" id="toggleGameSidebar">🕹️游戏</button>
-        <button class="setting-sidebar-toggle" id="toggleSettingSidebar">⚙️设置</button>
-    </div>
-
-    <div class="achievement-sidebar" id="achSidebar">
-        <div class="achievement-stats" id="achStats">
-            <span class="stats-num" id="achUnlockedCount">0</span>
-            <span class="stats-label">/ <span id="achTotalCount">0</span>🏆 成就已解锁</span>
-        </div>
-        <div class="achievement-section" id="recSection">
-            <div class="achievement-section-title records-title">🥇 成绩</div>
-            <div id="achRecordList"></div>
-        </div>
-        <div class="achievement-section" id="achSection">
-            <div class="achievement-section-title">🏆 成就</div>
-            <div id="achList"></div>
-        </div>
-        <div class="sidebar-version">谢谢你玩[反向💣扫雷]<br>ヾ(•ω•`)o</div>
-    </div>
-
-    <div class="achievement-popup-overlay" id="achPopupOverlay">
-        <div class="achievement-popup" id="achPopup">
-            <div class="popup-emoji" id="popupEmoji">🏆</div>
-            <div class="popup-text">
-                <h3>🎉 成就解锁！</h3>
-                <div class="popup-name" id="popupName"></div>
-                <div class="popup-desc" id="popupDesc"></div>
-            </div>
-        </div>
-    </div>
-
-    <div class="game-sidebar" id="gameSidebar">
-        <div class="sidebar-section">
-            <div class="sidebar-title preset-title">🎯 难度选择</div>
+            <div class="sidebar-title preset-title">🎯 难度挑战</div>
             <div class="preset-row">
                 <button class="preset-btn preset-easy" id="btnEasy" onclick="setPre('easy')">😎简单</button>
                 <button class="preset-btn preset-medium" id="btnMedium" onclick="setPre('medium')">😮中等</button>
@@ -351,16 +77,309 @@
             <div id="seriesSwitchList"></div>
             <div class="switch-hint" id="seriesSwitchHint">完成对应关卡可解锁系列</div>
         </div>
+
         <div class="sidebar-section">
-            <div class="sidebar-title create-title">✍️ 创造工坊</div>
+            <div class="record-tip">🥇 各难度成绩请到 <strong>📝记录</strong> 栏查看 o((>ω< ))o</div>
+        </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="falling-container" id="fallingContainer"></div>
+    <div class="bg-effects" id="bgEffects">
+        <div class="bg-scan-trail"></div>
+        <div class="bg-scan-line"></div>
+    </div>
+
+    <div class="auto-modal" id="welcomeModal">
+        <div class="icon">👋</div>
+        <h2>欢迎回来!</h2>
+        <p>欢迎回到<span>『反向💣扫雷』</span><br>如果忘了咋玩，可以点击左侧的规则哦( ´◡‿ゝ◡`)</p>
+        <button onclick="closeWelcomeModal()">(≧∇≦)ﾉ了解</button>
+    </div>
+
+    <div class="auto-modal" id="tutorialPrompt" style="display:none;">
+        <div class="icon">🤗</div>
+        <h2>你好!</h2>
+        <p>这是你第一次游玩<span>『反向💣扫雷』</span><br>先来试试<span>教学</span>模式吧！</p>
+        <button id="tutorialConfirmBtn" class="confirm-btn" onclick="openTeachMode()" disabled>开始教学<br>[GO!]ヾ(≧▽≦*)o</button>
+        <p style="font-size: 12px; color: #888; margin-top: 8px;" id="tutorialCountdown">按钮将在3秒后可用...</p>
+    </div>
+
+    <div class="auto-modal" id="tutorialCompleteModal" style="display:none;">
+        <div class="icon">🥳</div>
+        <h2>恭喜完成!</h2>
+        <p id="tutorialCompleteText">已完成该关卡</p>
+        <button onclick="closeTutorialComplete()">我真厉害<br>( *︾▽︾)</button>
+    </div>
+
+    <div class="auto-modal" id="moreTutorialGuide" style="display:none;">
+        <div class="icon">🧐</div>
+        <h2>更多关卡</h2>
+        <p>打开左侧💣信息栏的<b>炸弹信息</b><br>可开启更多系列关卡<br>通关后自动解锁该系列地雷！</p>
+        <button onclick="closeMoreTutorialGuide()">知道了</button>
+    </div>
+
+    <div class="auto-modal" id="presetLockedModal" style="display:none;">
+        <div class="icon">😣</div>
+        <h2>无法使用!</h2>
+        <p id="presetLockedText">需要在主按钮<b>🎯挑战</b>里开启至少3个系列开关<br>才能使用预设难度哦！</p>
+        <button onclick="closePresetLockedModal()">知道了</button>
+    </div>
+
+    <div class="auto-modal" id="hellLockedModal" style="display:none;">
+        <div class="icon">👿</div>
+        <h2>地狱之门紧闭</h2>
+        <p>需要开启<b>全部5个</b>系列开关<br>才能挑战地狱难度！<br>当前已开启 <span id="hellLockedCount">0</span>/5 个</p>
+        <button onclick="closeHellLockedModal()">知道了</button>
+    </div>
+
+    <div class="auto-modal" id="brainUnlockedModal" style="display:none;">
+        <div class="icon">🤯</div>
+        <h2>脑王难度已开启</h2>
+        <p>您已自由出入地狱<br>诚邀您挑战<b>脑力之王</b>难度！</p>
+        <button onclick="closeBrainUnlockedModal()">迎接挑战 💪</button>
+    </div>
+
+    <div class="auto-modal" id="brainLockedModal" style="display:none;">
+        <div class="icon">😓</div>
+        <h2>脑王难度锁定中</h2>
+        <p>需要同时满足以下条件：<br>1️⃣ 地狱难度通关≥<b>10</b>次（当前 <span id="brainHellWins">0</span>/10）<br>2️⃣ 开启<b>全部5个</b>系列开关（当前 <span id="brainSeriesCount">0</span>/5）</p>
+        <button onclick="closeBrainLockedModal()">知道了</button>
+    </div>
+
+    <div class="brain-win-modal" id="brainWinModal" style="display:none;">
+        <div class="icon">🕶️</div>
+        <h2>哇，大佬!</h2>
+        <p>您通关了<b>脑王难度</b>！<br>这副大佬专属墨镜是您的了<br>但...这还不是理论难度极限...</p>
+        <button onclick="closeBrainWinModal()">收下墨镜 😎</button>
+    </div>
+
+    <h1 class="game-title">反向💣扫雷</h1>
+    <div class="rule">ℹ️操作tips:拖拽/点选✅放置地雷 | 🚫右键(手机长按)删除<br> 当前操作方式:<b id="modeBadge">拖拽</b> <span class="rule-mode-link" onclick="openSettingSidebar()">⚙️切换</span></div>
+
+    <div id="tutorialProgressBar">
+        <div class="progress-header">
+            <span class="progress-title" id="tutorialTitle">新手关卡</span>
+            <span class="progress-text" id="tutorialProgressText">0/5</span>
+        </div>
+        <div class="progress-track">
+            <div class="progress-fill" id="tutorialProgressFill"></div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <button id="reset">新游戏</button>
+        <button id="clear">清空放置</button>        
+        <button id="tutorialBtn" onclick="openTeachMode()">教学🧐</button>
+        <button id="challengeBtn" onclick="openChallengeModal()">难度🕹️</button>
+    </div>
+
+    <div class="timer-box" id="timer">00:00.00</div>
+
+    <div class="teach-progress-bar-inline" id="teachProgressBar" style="display:none;">
+        <span class="teach-progress-title" id="teachProgressTitle">教学进度</span>
+        <div class="teach-progress-track">
+            <div class="teach-progress-fill" id="teachProgressFill"></div>
+        </div>
+        <span class="teach-progress-text" id="teachProgressText">0/10</span>
+    </div>
+    <div class="info">已放置：<span id="placed">0</span> / 总雷数：<span id="max">0</span></div>
+    <div id="board" class="board"></div>
+
+    <div class="teach-complete-modal" id="teachCompleteModal">
+        <div class="icon" id="teachCompleteIcon">🎉</div>
+        <h2 id="teachCompleteTitle">做得好！</h2>
+        <p id="teachCompleteText">你已完成本关教学！</p>
+        <div id="teachModalBtns">
+            <button id="teachNextBtn" onclick="teachNextLevel()">下一关 ➡️</button>
+            <button id="teachExitBtn" onclick="teachExit()" style="margin-left:10px;background:#e53e3e;color:#fff;">退出教学</button>
+            <button id="teachPracticeBtn" onclick="teachExitToPractice()" style="margin-left:10px;background:#4299e1;color:#fff;display:none;">📖 进入新手关卡</button>
+        </div>
+    </div>
+
+    <div class="auto-modal teach-rule-modal" id="teachRuleModal" style="display:none;">
+        <div class="icon">📖</div>
+        <h2>游戏规则</h2>
+        <div class="teach-rule-body" id="teachRuleBody"></div>
+        <button id="teachRuleOkBtn" onclick="closeTeachRuleModal()">我明白了，开始教学 ▶</button>
+    </div>
+
+    <div class="create-mode-panel" id="createModePanel">
+        <div class="create-info-bar" id="createInfoBar" style="display:none;">
+            <span class="info-chip">棋盘 <strong id="infoRows">-</strong> 行 × <strong id="infoCols">-</strong> 列</span>
+            <span class="info-chip">已放地雷 <strong id="infoPlaced">0</strong></span>
+            <span class="info-chip">可用类型 <strong id="infoTypes">-</strong></span>
+        </div>
+
+        <div id="createBoardArea" style="position:relative;display:none;"></div>
+
+        <div id="createMineSlot" class="mine-slot-box" style="display:none;"></div>
+
+        <div class="create-card" id="createCodeCard" style="display:none;">
+            <div class="create-card-title">
+                <span class="title-icon">🔗</span>题库码
+            </div>
+            <div class="generate-code-area">
+                <button class="create-btn-primary" onclick="generatePuzzleCode()">🔧生成题库码</button>
+                <div class="code-output" id="puzzleCodeOutput">点击生成后显示</div>
+                <button class="share-btn" id="shareCodeBtn" onclick="copyPuzzleCode()" disabled>🤝分享</button><br>
+            </div>
+        </div>
+        <button class="back-btn" onclick="exitCreateMode()">🔙退出创造模式</button>
+    </div>
+
+    <div class="mine-slot-box" id="slot">
+        <div class="teach-bubble" id="teachBubble">
+            <div class="teach-progress" id="teachProgress"></div>
+            <div class="teach-bubble-head">
+                <div class="teach-bubble-icon" id="teachBubbleIcon">📖</div>
+                <div class="teach-bubble-title" id="teachBubbleTitle">教学关卡</div>
+            </div>
+            <div class="teach-bubble-main">
+                <div class="teach-bubble-text" id="teachBubbleText">欢迎来到教学！</div>
+                <div class="teach-bubble-mines" id="teachBubbleMines"></div>
+            </div>
+            <div class="teach-bubble-hint" id="teachBubbleHint">按提示操作即可</div>
+            <button class="teach-rule-link" id="teachRuleBtn" type="button" onclick="openTeachRuleModal(true)">📖 再看看规则</button>
+        </div>
+    </div>
+
+    <div class="preset-start-card" id="presetStartCard" style="display:none;">
+        <div class="preset-start-icon" id="presetStartIcon">😎</div>
+        <div class="preset-start-title" id="presetStartTitle">准备好了吗？</div>
+        <div class="preset-start-desc" id="presetStartDesc">点击开始后题目将展现并启动计时(≧▽≦)</div>
+        <button class="preset-start-btn" id="presetStartBtn" onclick="beginPresetGame()">开始</button>
+        <div class="preset-start-tag" id="presetStartTag"><span id="presetStartTagText">简单</span></div>
+    </div>
+
+    <div class="win" id="win">
+        <div>🎉 恭喜通关！</div>
+        <button onclick="newGame()">再来一局</button>
+    </div>
+
+    <div class="left-sidebar-container">
+        <button class="info-sidebar-toggle" id="toggleInfoSidebar">ℹ️信息</button>
+        <button class="achievement-sidebar-toggle" id="toggleAchSidebar">📝记录</button>
+    </div>
+
+    <div class="info-sidebar" id="infoSidebar">
+        <div class="sidebar-section rm-acc rm-acc-closed" id="accRule">
+            <button class="rm-acc-head" type="button" onclick="toggleAcc('accRule')">
+                <span class="rm-acc-icon">📖</span>
+                <span class="rm-acc-title">规则信息</span>
+                <span class="rm-acc-arrow">▸</span>
+            </button>
+            <div class="rm-acc-body">
+                <div class="rule-content">            
+                <div class="sidebar-title rule-title">📖 规则信息</div>
+                <h3>💡 玩法：反向扫雷（布雷）</h3>
+                <ul>
+                    <li><strong>目标：</strong><br>在棋盘上放置规定数量的地雷（普通雷 + 特殊雷），使得棋盘上每个格子显示的数字，恰好等于它周围（或特定规则下）所有地雷对它的总影响值。</li>
+                    <li><strong>操作：</strong><br>点选：点击选中地雷，再点击棋盘放置<br>拖拽：按住地雷拖到格子上松手（手机端同样可用）<br>删除：右键点击（手机端长按地雷）。</li>
+                    <li><strong>切换放置方式：</strong><br>在⚙️菜单的<strong>🖱️ 操作方式</strong>里切换，切换不会影响当前这一局的棋盘与计时。</li>
+                    <li><strong>胜利条件：</strong><br>所有地雷放完，且棋盘数字与地雷影响匹配（棋盘上都是🟩）。</li>
+                </ul>
+                <h3>🧩 地块状态解读</h3>
+                <p>游戏会根据你当前的布雷情况，实时用颜色提示每个格子：</p>
+                <ul>
+                    <li>🟩 合适：该格子的当前影响值 [等于] 显示数字（正确）。</li>
+                    <li>🟨 偏低：该格子的当前影响值 [小于] 显示数字（还需在周围加雷）。</li>
+                    <li>🟥 偏高：该格子的当前影响值 [大于] 显示数字（还需减少影响值）。</li>
+                </ul>
+                <p>💡 在⚙️设置栏开启<strong>🔺 实时影响值</strong>后，凡是当前影响值<strong>不为 0</strong> 且<strong>不等于显示数字</strong>的地块，右下角会出现一个小三角形，里面写着它当前的实时影响值。</p>
+                <h3>🔓 系列开关机制</h3>
+                <ul>
+                    <li>基础系列始终开启</li>
+                    <li>其他系列需通过对应专项练习（5关）后自动解锁并开启</li>
+                    <li>简单/中等/困难：需开启≥3个系列开关</li>
+                    <li>地狱👿：需开启<b>全部</b>系列开关</li>
+                    <li>脑王🤯：地狱通关≥10次 + 全部系列开启</li>
+                    <li>🔧自由模式：可自定义参数+自由调整系列开关，不记录成绩</li>
+                </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar-section rm-acc rm-acc-open" id="accMine">
+            <div class="sidebar-title boom-title">💣 炸弹信息</div>
+            <div class="rm-acc-body">
+                <div id="mineInfoList"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="right-sidebar-container">
+        <button class="create-sidebar-toggle" id="toggleCreateSidebar">✍️创造</button>
+        <button class="setting-sidebar-toggle" id="toggleSettingSidebar">⚙️设置</button>
+    </div>
+
+    <div class="achievement-sidebar" id="achSidebar">
+        <div class="achievement-stats" id="achStats">
+            <span class="stats-num" id="achUnlockedCount">0</span>
+            <span class="stats-label">/ <span id="achTotalCount">0</span>🏆 成就已解锁</span>
+        </div>
+        <div class="achievement-section" id="recSection">
+            <div class="achievement-section-title records-title">🥇 成绩</div>
+            <div id="achRecordList"></div>
+        </div>
+        <div class="achievement-section" id="achSection">
+            <div class="achievement-section-title">🏆 成就</div>
+            <div id="achList"></div>
+        </div>
+        <div class="sidebar-version">谢谢你玩[反向💣扫雷]<br>ヾ(•ω•`)o</div>
+    </div>
+
+    <div class="achievement-popup-overlay" id="achPopupOverlay">
+        <div class="achievement-popup" id="achPopup">
+            <div class="popup-emoji" id="popupEmoji">🏆</div>
+            <div class="popup-text">
+                <h3>🎉 成就解锁！</h3>
+                <div class="popup-name" id="popupName"></div>
+                <div class="popup-desc" id="popupDesc"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="create-sidebar" id="createSidebar">
+        <div class="sidebar-section">
+            <div class="sidebar-title create-title">📐 棋盘尺寸</div>
+            <div class="create-size-row">
+                <div class="create-size-field">
+                    <label>横·行数</label>
+                    <div class="create-size-control">
+                        <button class="create-size-btn minus" onclick="createSizeStep('rows',-1)">−</button>
+                        <input class="create-size-display" id="createSize" type="number" value="10" min="4" max="20" onchange="createSizeInput('rows',this.value)">
+                        <button class="create-size-btn plus" onclick="createSizeStep('rows',1)">+</button>
+                    </div>
+                </div>
+                <div class="create-size-x">×</div>
+                <div class="create-size-field">
+                    <label>竖·列数</label>
+                    <div class="create-size-control">
+                        <button class="create-size-btn minus" onclick="createSizeStep('cols',-1)">−</button>
+                        <input class="create-size-display" id="createSize2" type="number" value="10" min="4" max="20" onchange="createSizeInput('cols',this.value)">
+                        <button class="create-size-btn plus" onclick="createSizeStep('cols',1)">+</button>
+                    </div>
+                </div>
+            </div>
+            <div class="create-size-hint">范围 4~20 行/列</div>
+            <div class="create-error" id="createError"></div>
+            <div class="create-btn-group" style="margin-top:14px;">
+                <button class="create-btn" onclick="initCreateBoard()">🛠️ 生成空棋盘</button>
+            </div>
+        </div>
+        <div class="sidebar-section">
+            <div class="sidebar-title create-title">✍️ 题库码</div>
             <div class="puzzle-input-group">
                 <input type="text" id="puzzleCodeInput" placeholder="粘贴题库码">
                 <button class="apply-input-btn" onclick="applyPuzzleCode()">应用</button>
                 <button class="clear-input-btn" onclick="clearPuzzleInput()">清空</button>
             </div>
+            <div class="create-size-hint">粘贴他人分享的题库码，即可载入该题目</div>
         </div>
         <div class="sidebar-section">
-            <div class="record-tip">🥇 各难度成绩请到 <strong>📝记录</strong> 栏查看 o((>ω< ))o</div>
+            <div class="record-tip">🛠️ 生成空棋盘后，主页面会切换为创造棋盘<br>退出创造将回到新的一局</div>
         </div>
     </div>
 
@@ -378,14 +397,16 @@
             <div class="mode-hint" id="modeHint">按住地雷拖到棋盘格子上松手即可放置</div>
         </div>
         <div class="sidebar-section">
-            <div class="sidebar-title sound-title">🔊 声音</div>
+            <div class="sidebar-title sound-title">🔊 音量设置</div>
+            <div class="sound-hint"><br></div>
             <div class="sound-item">
                 <div class="sound-item-head">
                     <span class="sound-item-label">🎵 背景音乐</span>
                     <span class="value-display bgm-value" id="bgmValue">50%</span>
                 </div>
                 <input type="range" min="0" max="100" value="50" class="sound-slider bgm-slider" id="bgmSlider">
-            </div>
+            </div>            
+            <div class="sound-hint"><br></div>
             <div class="sound-item">
                 <div class="sound-item-head">
                     <span class="sound-item-label">💥 游戏音效</span>
@@ -393,15 +414,15 @@
                 </div>
                 <input type="range" min="0" max="100" value="100" class="sound-slider sfx-slider" id="sfxSlider">
             </div>
-            <div class="sound-hint">o(*^▽^*)┛🎵</div>
+            <div class="sound-hint"><br></div>
         </div>
         <div class="sidebar-section">
-            <div class="sidebar-title hint-title">🔢 地块提示</div>
+            <div class="sidebar-title hint-title">🔢 地块提示</div><br>
             <div class="switch-row">
                 <div class="switch-label">🔺 实时影响值</div>
                 <div class="switch-toggle" id="influenceHintToggle" onclick="toggleInfluenceHint()"></div>
             </div>
-            <div class="switch-hint">开启后，当前影响值 <strong>不为 0</strong> 且 <strong>不等于题目数字</strong> 的地块，会在右下角显示一个小三角形，里面是该地块当前的实时影响值</div>
+            <div class="switch-hint">开启后，当前影响值 <strong>不为 0</strong> 且 <strong>不等于题目数字</strong> 的地块，会在右下角显示该地块当前的实时影响值<br><br></div>
         </div>
         <div class="sidebar-section">
             <div class="sidebar-title">💾 存档管理</div>
@@ -415,7 +436,7 @@
         </div>
     </div>
 
-    <footer class="sidebar-version">v1.1.0<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
+    <footer class="sidebar-version">v1.2.0<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
 
     <script src="js/00-core.js"></script>
     <script src="js/01-storage.js"></script>

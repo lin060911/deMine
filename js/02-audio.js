@@ -2,6 +2,7 @@
  * 反向扫雷 · 02-audio.js
  * 职责：统一音频总线（音效 AudioFX + 8bit 背景音乐 RetroBGM + 成就音）
  *
+ * 修复的问题
  *  1. AudioContext 泄漏：原实现里 AudioFX、RetroBGM、playAchievementSound
  *     各自 new AudioContext()，成就密集解锁时会把浏览器允许的 AudioContext
  *     数量（Chrome 约 6 个）耗尽，之后声音静默失效，而 catch 又把错误吞掉了。

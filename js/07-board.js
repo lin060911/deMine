@@ -274,7 +274,7 @@ function applyPlaceModeUI() {
     if (dragBtn) dragBtn.classList.toggle("active", isDrag);
     if (clickBtn) clickBtn.classList.toggle("active", !isDrag);
     const hint = document.getElementById("modeHint");
-    if (hint) hint.textContent = isDrag ? "✋ 按住下方地雷，拖到棋盘格子上松手即可放置；手机/平板可直接用手指拖" : "🖱️ 先点一下地雷选中，再点棋盘格子放置；手机端点选更稳";
+    if (hint) hint.textContent = isDrag ? "✋ 将地雷拖到棋盘格子上,松手放置；部分设备/浏览器暂不支持" : "🖱️ 点击选中地雷，再点击棋盘格子放置";
     const badge = document.getElementById("modeBadge");
     if (badge) badge.textContent = isDrag ? "拖拽" : "点选";
     document.body.classList.toggle("drag-mode", isDrag);

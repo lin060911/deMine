@@ -4,20 +4,12 @@
  * ========================================================================== */
 
 function closeSidebarsExcept(keepId) {
-    [ "ruleSidebar", "infoSidebar", "achSidebar", "gameSidebar", "settingSidebar" ].forEach(id => {
+    [ "infoSidebar", "achSidebar", "createSidebar", "settingSidebar" ].forEach(id => {
         if (id === keepId) return;
         const el = document.getElementById(id);
         if (el) el.classList.remove("open");
     });
 }
-
-document.getElementById("toggleRuleSidebar").onclick = () => {
-    AudioFX.confirm();
-    const ruleSb = document.getElementById("ruleSidebar");
-    const willOpen = !ruleSb.classList.contains("open");
-    closeSidebarsExcept("ruleSidebar");
-    ruleSb.classList.toggle("open", willOpen);
-};
 
 document.getElementById("toggleInfoSidebar").onclick = () => {
     AudioFX.confirm();
@@ -27,14 +19,63 @@ document.getElementById("toggleInfoSidebar").onclick = () => {
     infoSb.classList.toggle("open", willOpen);
 };
 
-document.getElementById("toggleGameSidebar").onclick = () => {
+document.getElementById("toggleCreateSidebar").onclick = () => {
     AudioFX.confirm();
-    const gameSb = document.getElementById("gameSidebar");
-    const willOpen = !gameSb.classList.contains("open");
-    closeSidebarsExcept("gameSidebar");
-    gameSb.classList.toggle("open", willOpen);
-    if (willOpen) renderSeriesSwitches();
+    const createSb = document.getElementById("createSidebar");
+    const willOpen = !createSb.classList.contains("open");
+    closeSidebarsExcept("createSidebar");
+    createSb.classList.toggle("open", willOpen);
+    if (willOpen) prepareCreateParams();
 };
+
+/* ---- 信息栏折叠部件：规则信息 / 炸弹信息 ---- */
+/* 常驻展开的部件（炸弹信息是解锁系列的唯一入口，永远保持展开） */
+const ACC_ALWAYS_OPEN = ["accMine"];
+
+function toggleAcc(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    // 常驻展开的部件：点了也不收起，只给个音效反馈
+    if (ACC_ALWAYS_OPEN.indexOf(id) >= 0) {
+        el.classList.add("rm-acc-open", "rm-acc-fixed");
+        el.classList.remove("rm-acc-closed");
+        AudioFX.pop();
+        return;
+    }
+    const willOpen = !el.classList.contains("rm-acc-open");
+    // 同一栏内手风琴：展开一个就收起另一个（常驻项除外）
+    const box = el.parentNode;
+    if (box && willOpen) {
+        Array.prototype.forEach.call(box.querySelectorAll(".rm-acc"), function(x) {
+            if (x === el) return;
+            if (ACC_ALWAYS_OPEN.indexOf(x.id) >= 0) return;
+            x.classList.remove("rm-acc-open");
+            x.classList.add("rm-acc-closed");
+        });
+    }
+    el.classList.toggle("rm-acc-open", willOpen);
+    el.classList.toggle("rm-acc-closed", !willOpen);
+    AudioFX.pop();
+}
+window.toggleAcc = toggleAcc;
+
+/* ---- 挑战弹窗：难度选择 + 系列开关 ---- */
+function openChallengeModal() {
+    AudioFX.confirm();
+    closeSidebarsExcept(null);
+    renderSeriesSwitches();
+    updatePresetButtons();
+    const m = document.getElementById("challengeModal");
+    if (m) m.style.display = "block";
+}
+
+function closeChallengeModal() {
+    const m = document.getElementById("challengeModal");
+    if (m) m.style.display = "none";
+}
+
+window.openChallengeModal = openChallengeModal;
+window.closeChallengeModal = closeChallengeModal;
 
 document.getElementById("toggleSettingSidebar").onclick = () => {
     AudioFX.confirm();
@@ -46,12 +87,23 @@ document.getElementById("toggleSettingSidebar").onclick = () => {
 
 document.addEventListener("click", e => {
     const modeLink = e.target && e.target.closest ? e.target.closest(".rule-mode-link") : null;
-    [ [ "ruleSidebar", "toggleRuleSidebar" ], [ "infoSidebar", "toggleInfoSidebar" ], [ "achSidebar", "toggleAchSidebar" ], [ "gameSidebar", "toggleGameSidebar" ], [ "settingSidebar", "toggleSettingSidebar" ] ].forEach(([ id, btnId ]) => {
+    [ [ "infoSidebar", "toggleInfoSidebar" ], [ "achSidebar", "toggleAchSidebar" ], [ "createSidebar", "toggleCreateSidebar" ], [ "settingSidebar", "toggleSettingSidebar" ] ].forEach(([ id, btnId ]) => {
         const sb = document.getElementById(id);
         if (!sb || !sb.classList.contains("open")) return;
         const btn = document.getElementById(btnId);
         if (!sb.contains(e.target) && e.target !== btn && !modeLink) sb.classList.remove("open");
     });
+});
+
+document.addEventListener("click", function(e) {
+    const m = document.getElementById("challengeModal");
+    if (!m || m.style.display !== "block") return;
+    const card = m.querySelector(".challenge-card");
+    if (e.target === m) closeChallengeModal();
+    else if (card && !card.contains(e.target) && e.target.closest && !e.target.closest("#challengeBtn")) closeChallengeModal();
+});
+document.addEventListener("keydown", function(e) {
+    if (e.key === "Escape") closeChallengeModal();
 });
 
 function renderSeriesSwitches() {
@@ -79,7 +131,7 @@ function renderSeriesSwitches() {
     if (onCount < 5) {
         hint.className = "switch-hint";
         let need = onCount < 3 ? "≥3个才能使用<strong>简单/中等/困难</strong>" : "<strong>简单/中等/困难</strong>已可用✅<br>所有系列全开才能挑战<strong>地狱/脑王</strong>";
-        hint.innerHTML = `当前开启<strong> ${onCount}/5 </strong>个系列<br>${need}<br>💡前往<strong>页面左侧[💣信息]</strong>通关系列<strong>挑战</strong>可解锁`;
+        hint.innerHTML = `当前开启<strong> ${onCount}/5 </strong>个系列<br>${need}<br>💡在<strong>💣信息 → 炸弹信息</strong>里通关系列<strong>挑战</strong>可解锁`;
     } else {
         hint.className = "switch-hint unlock-hint";
         let brainReady = (wins.hell || 0) >= BRAIN_HELL_WINS_REQ;
@@ -165,6 +217,8 @@ function isPresetDifficulty(d) {
 }
 
 function setPre(d) {
+    // 自由模式要留在弹窗里调参数，其它难度选完即关
+    if (d !== "free") closeChallengeModal();
     fullReset();
     if (d === "free") {
         isFreeMode = true;
@@ -177,7 +231,7 @@ function setPre(d) {
         resetTi();
         document.getElementById("timer").style.display = "none";
         AudioFX.confirm();
-        applySet();
+        // 不再立即开新局：留在弹窗里让玩家调好参数，再点「应用设置」开始
         return;
     }
     if (!checkPresetAllowed(d)) {
@@ -287,6 +341,7 @@ function setVal(key, dir) {
 
 function applySet() {
     AudioFX.confirm();
+    closeChallengeModal();
     SP = Math.min(SP, T);
     TY = Math.min(TY, SP);
     if (isFreeMode) {

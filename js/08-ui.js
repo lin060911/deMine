@@ -267,6 +267,31 @@ document.getElementById("toggleSettingSidebar").onclick = () => {
     setSb.classList.toggle("open", willOpen);
 };
 
+/* ---- 手机端：底部四个侧边栏按钮的收起 / 展开 ----
+   只在小屏生效（CSS 用媒体查询控制显隐），默认展开。
+   按钮本身是运行时注入的，不必改 index.html。 */
+function ensureBarToggle() {
+    if (document.getElementById("rmBarToggle")) return;
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.id = "rmBarToggle";
+    btn.className = "rm-bar-toggle";
+    btn.setAttribute("aria-label", "收起或展开底部按钮");
+    btn.innerHTML = '<span class="rm-bar-arrow">▾</span>';
+    btn.addEventListener("click", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var collapsed = document.body.classList.toggle("rm-bar-collapsed");
+        btn.setAttribute("aria-expanded", collapsed ? "false" : "true");
+        btn.title = collapsed ? "展开底部按钮" : "收起底部按钮";
+        try {
+            AudioFX.pop();
+        } catch (err) {}
+    });
+    document.body.appendChild(btn);
+}
+window.ensureBarToggle = ensureBarToggle;
+
 document.addEventListener("click", e => {
     const modeLink = e.target && e.target.closest ? e.target.closest(".rule-mode-link") : null;
     [ [ "infoSidebar", "toggleInfoSidebar" ], [ "achSidebar", "toggleAchSidebar" ], [ "createSidebar", "toggleCreateSidebar" ], [ "settingSidebar", "toggleSettingSidebar" ] ].forEach(([ id, btnId ]) => {

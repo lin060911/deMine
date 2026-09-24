@@ -180,6 +180,7 @@ function createPlace(r, c, type) {
     const key = r + "," + c;
     if (!type || createPlaced[key]) return;
     createPlaced[key] = type;
+    _createLastDropKey = key;
     AudioFX.place();
     renderCreateBoard();
     renderCreateMineSlot();
@@ -207,6 +208,8 @@ function createMove(fromKey, r, c) {
     renderCreateMineSlot();
     refreshCreateInfoBar();
 }
+
+let _createLastDropKey = null;
 
 function renderCreateBoard() {
     let area = document.getElementById("createBoardArea");
@@ -244,6 +247,10 @@ function renderCreateBoard() {
             let key = r + "," + c;
             if (createPlaced[key]) {
                 cell.classList.add("mine-here");
+                if (key === _createLastDropKey) {
+                    cell.classList.add("just-dropped");
+                    _createLastDropKey = null;
+                }
                 let ty = createPlaced[key];
                 cell.innerHTML = `<span class="${M[ty].cls}">${M[ty].e}</span>`;
             }
@@ -377,6 +384,9 @@ function exitCreateMode() {
     document.getElementById("createModePanel").classList.remove("visible");
     document.getElementById("board").style.display = "";
     document.getElementById("slot").style.display = "";
+    // 创造模式用的是自定义尺寸（如 15×15），退出后必须恢复标准参数，
+    // 否则下一局会带着创造模式的 SR/SC。预设难度内部还会再按 PRE 覆盖一次。
+    if (!isPresetDifficulty(diff)) applyStandardParams();
     if (diff && !isFreeMode) {
         if (isPresetPending) enterPresetPending(pendingDiff); else newGame();
     } else {

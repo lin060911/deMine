@@ -12,7 +12,7 @@ var RM = window.RM || {};
 
 window.RM = RM;
 
-RM.VERSION = "1.1.0";
+RM.VERSION = "1.2.1";
 
 RM.SAVE_SCHEMA = 1;
 
@@ -123,6 +123,49 @@ const DIFF_LABEL = {
     brain: "脑王",
     free: "自由"
 };
+
+/* 标准参数：退出创造 / 教学 / 系列挑战等特殊棋盘尺寸的模式后，统一恢复到这里。
+   以 PRE.free（10 / 6 / 3 / 3）为准，与页面默认显示保持一致。 */
+const STD_PARAM = {
+    size: PRE.free.size,
+    total: PRE.free.total,
+    type: PRE.free.type,
+    spec: PRE.free.spec
+};
+
+/* 把 S/SR/SC/T/TY/SP 一次性写死为一组参数，并同步弹窗里的数字显示。
+   所有模式切换都必须经过它，避免上一局的 SR/SC 残留污染下一局。 */
+function applyBoardParams(p) {
+    S = p.size;
+    SR = p.size;
+    SC = p.size;
+    T = p.total;
+    TY = p.type;
+    SP = p.spec;
+    SP = Math.min(SP, T);
+    TY = Math.min(TY, SP);
+    var ids = { size: S, total: T, type: TY, spec: SP };
+    for (var k in ids) {
+        if (!Object.prototype.hasOwnProperty.call(ids, k)) continue;
+        var el = document.getElementById(k);
+        if (el) el.textContent = ids[k];
+    }
+}
+
+/* 恢复为标准的自由模式参数（10 / 6 / 3 / 3） */
+function applyStandardParams() {
+    applyBoardParams(STD_PARAM);
+}
+window.applyStandardParams = applyStandardParams;
+
+/* 严格按照某个预设难度设置棋盘参数 */
+function applyPresetParams(d) {
+    var p = PRE[d];
+    if (!p) return false;
+    applyBoardParams(p);
+    return true;
+}
+window.applyPresetParams = applyPresetParams;
 
 const BRAIN_HELL_WINS_REQ = 10;
 

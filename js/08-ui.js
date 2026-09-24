@@ -59,6 +59,188 @@ function toggleAcc(id) {
 }
 window.toggleAcc = toggleAcc;
 
+/* ---- 通用确认弹窗（运行时注入，不改 index.html） ----
+   opt = { icon, title, body, buttons:[{label,cls,act}], onAction(act) } */
+var _rmConfirm = { el: null, ov: null, cb: null };
+
+function ensureConfirmModal() {
+    if (_rmConfirm.el) return;
+    // 自带一份样式：不依赖导入弹窗是否注入过（15-boot.js 是按需注入的）
+    if (!document.getElementById("rmConfirmStyle")) {
+        var st = document.createElement("style");
+        st.id = "rmConfirmStyle";
+        st.textContent = [
+            ".rm-btn-row{display:flex;gap:10px;margin-top:12px;}",
+            "button.rm-btn{flex:1;padding:11px 6px!important;border-radius:10px!important;",
+            "border:3px solid transparent!important;background-image:none;color:#fff!important;",
+            "font-weight:700;font-size:15px;cursor:pointer;line-height:1.3;display:block;margin:0;",
+            "transition:transform .2s cubic-bezier(.34,1.56,.64,1),box-shadow .2s;",
+            "box-shadow:0 2px 6px rgba(0,0,0,.12);}",
+            "button.rm-btn:hover{transform:scale(1.05);box-shadow:0 8px 20px rgba(0,0,0,.2);}",
+            "button.rm-btn b{display:block;font-size:15px;}",
+            "button.rm-btn small{display:block;font-size:11px;font-weight:600;opacity:.9;margin-top:2px;}",
+            ".rm-btn-primary{background:linear-gradient(180deg,#4299e1,#2b7ac4)!important;border-color:#63b3ed!important;}",
+            ".rm-btn-merge{background:linear-gradient(180deg,#34dca0,#1ab883)!important;border-color:#6ef0c0!important;}",
+            ".rm-btn-cancel{background:linear-gradient(180deg,#a0aec0,#718096)!important;border-color:#cbd5e0!important;}",
+            /* 置顶：难度弹窗是 1200，这里必须更高，否则会被挡住 */
+            ".rm-confirm-overlay{z-index:1300!important;}",
+            ".rm-confirm-modal{z-index:1301!important;}"
+        ].join("\n");
+        document.head.appendChild(st);
+    }
+    var ov = document.createElement("div");
+    ov.className = "auto-modal-overlay rm-confirm-overlay";
+    ov.style.display = "none";
+    document.body.appendChild(ov);
+    var el = document.createElement("div");
+    el.className = "auto-modal rm-confirm-modal";
+    el.style.display = "none";
+    document.body.appendChild(el);
+    ov.addEventListener("click", closeConfirmModal);
+    el.addEventListener("click", function(e) {
+        var b = e.target && e.target.closest ? e.target.closest("button[data-act]") : null;
+        if (!b) return;
+        // 别让冒泡到 document 的"点外面就关侧栏"处理器把刚打开的侧栏又关掉
+        if (e.stopPropagation) e.stopPropagation();
+        var act = b.getAttribute("data-act");
+        var cb = _rmConfirm.cb;
+        closeConfirmModal();
+        if (cb) cb(act);
+    });
+    _rmConfirm.ov = ov;
+    _rmConfirm.el = el;
+}
+
+function openConfirmModal(opt) {
+    ensureConfirmModal();
+    var html = '<div class="icon">' + (opt.icon || "❓") + "</div>" +
+        "<h2>" + (opt.title || "") + "</h2>" +
+        "<p>" + (opt.body || "") + "</p>" +
+        '<div class="rm-btn-row">';
+    (opt.buttons || []).forEach(function(b) {
+        html += '<button type="button" class="rm-btn ' + (b.cls || "") + '" data-act="' + b.act + '">' +
+            "<b>" + b.label + "</b>" + (b.sub ? "<small>" + b.sub + "</small>" : "") + "</button>";
+    });
+    html += "</div>";
+    _rmConfirm.el.innerHTML = html;
+    _rmConfirm.cb = opt.onAction || null;
+    _rmConfirm.ov.style.display = "block";
+    _rmConfirm.el.style.display = "block";
+    AudioFX.modalOpen();
+}
+
+function closeConfirmModal() {
+    if (_rmConfirm.ov) _rmConfirm.ov.style.display = "none";
+    if (_rmConfirm.el) _rmConfirm.el.style.display = "none";
+    _rmConfirm.cb = null;
+}
+window.closeConfirmModal = closeConfirmModal;
+
+/* ---- 统一关闭所有弹窗与遮罩 ----
+   从弹窗里跳转去别处（信息栏 / 开始挑战）时，必须把当前开着的
+   难度弹窗、通用遮罩、胜利框等一并收掉，否则跳转后被旧弹窗盖住。 */
+function closeAllModals() {
+    try {
+        // 通用遮罩（欢迎 / 教学完成 / 难度锁定 / 地狱脑王锁定等共用）
+        var ov = document.getElementById("overlay");
+        if (ov) ov.style.display = "none";
+        // 所有 .auto-modal（含运行时注入的确认弹窗）
+        Array.prototype.forEach.call(document.querySelectorAll(".auto-modal"), function(m) {
+            m.style.display = "none";
+        });
+        // 难度弹窗（独立容器，不属于 .auto-modal）
+        var cm = document.getElementById("challengeModal");
+        if (cm) cm.style.display = "none";
+        // 脑王通关框 / 教学完成框 / 胜利框
+        [ "brainWinModal", "teachCompleteModal", "win" ].forEach(function(id) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            el.style.display = "none";
+            el.classList.remove("visible");
+        });
+    } catch (e) {
+        if (window.RM) RM.warn("closeAllModals", e);
+    }
+}
+window.closeAllModals = closeAllModals;
+
+/* ---- 基础挑战是否已完成（系列挑战的前置门禁） ---- */
+function isBasicChallengeDone() {
+    try {
+        return Store.get("tutorialCompleted") === "true";
+    } catch (e) {
+        return false;
+    }
+}
+window.isBasicChallengeDone = isBasicChallengeDone;
+
+/* ---- 跳转到炸弹信息里某个系列：开栏 → 滚动 → 高亮闪烁 ---- */
+function gotoSeriesChallenge(catKey) {
+    var sb = document.getElementById("infoSidebar");
+    if (!sb) return;
+    closeAllModals();
+    closeSidebarsExcept("infoSidebar");
+    sb.classList.add("open");
+    // 炸弹信息是常驻展开的，这里兜底确保一次
+    var acc = document.getElementById("accMine");
+    if (acc) {
+        acc.classList.add("rm-acc-open");
+        acc.classList.remove("rm-acc-closed");
+    }
+    var box = document.getElementById("mineInfoList");
+    var target = box ? box.querySelector('.category-section[data-cat="' + catKey + '"]') : null;
+    if (!target) return;
+    Array.prototype.forEach.call(box.querySelectorAll(".category-section"), function(x) {
+        x.classList.remove("rm-cat-flash");
+    });
+    // 先滚过去再闪，避免玩家看不到
+    setTimeout(function() {
+        try {
+            if (typeof target.scrollIntoView === "function") {
+                target.scrollIntoView({ behavior: "smooth", block: "center" });
+            } else if (sb.scrollTop !== undefined && target.offsetTop !== undefined) {
+                sb.scrollTop = Math.max(0, target.offsetTop - 40);
+            }
+        } catch (e) {}
+        void target.offsetWidth;
+        target.classList.add("rm-cat-flash");
+        setTimeout(function() {
+            target.classList.remove("rm-cat-flash");
+        }, 2600);
+    }, 260);
+}
+window.gotoSeriesChallenge = gotoSeriesChallenge;
+
+/* ---- 点击锁定的系列开关 → 询问是否前往该系列挑战 ---- */
+function onLockedSeriesClick(catKey) {
+    if (catKey === "basic") return;
+    AudioFX.locked();
+    var cat = CATEGORY[catKey] || { name: catKey, emoji: "🔒" };
+    openConfirmModal({
+        icon: "🔒",
+        title: "「" + cat.name + "」未解锁",
+        body: "完成该系列的 <strong>5 关挑战</strong> 即可解锁<br>" +
+            "解锁后就能在 🎯难度 里开启这个系列开关 ✅",
+        buttons: [ {
+            label: "前往挑战",
+            sub: "打开炸弹信息",
+            cls: "rm-btn-primary",
+            act: "go"
+        }, {
+            label: "取消",
+            cls: "rm-btn-cancel",
+            act: "cancel"
+        } ],
+        onAction: function(act) {
+            if (act === "go") {
+                closeAllModals();
+                gotoSeriesChallenge(catKey);
+            }
+        }
+    });
+}
+window.onLockedSeriesClick = onLockedSeriesClick;
+
 /* ---- 挑战弹窗：难度选择 + 系列开关 ---- */
 function openChallengeModal() {
     AudioFX.confirm();
@@ -121,7 +303,7 @@ function renderSeriesSwitches() {
         if (catKey === "basic") {
             html += `<div class="switch-toggle on" style="cursor:default;opacity:0.7"></div>`;
         } else {
-            html += `<div class="switch-toggle ${on ? "on" : ""} ${unlocked ? "" : "disabled"}" onclick="event.stopPropagation();${unlocked ? "toggleSeries('" + catKey + "')" : ""}"></div>`;
+            html += `<div class="switch-toggle ${on ? "on" : ""} ${unlocked ? "" : "disabled"}" onclick="event.stopPropagation();${unlocked ? "toggleSeries('" + catKey + "')" : "onLockedSeriesClick('" + catKey + "')"}"></div>`;
         }
         html += `</div>`;
     });
@@ -255,19 +437,8 @@ function setPre(d) {
     }
     isFreeMode = false;
     seriesLocked = true;
-    const p = PRE[d];
-    S = p.size;
-    SR = p.size;
-    SC = p.size;
-    T = p.total;
-    TY = p.type;
-    SP = p.spec;
-    SP = Math.min(SP, T);
-    TY = Math.min(TY, SP);
-    document.getElementById("size").textContent = S;
-    document.getElementById("total").textContent = T;
-    document.getElementById("type").textContent = TY;
-    document.getElementById("spec").textContent = SP;
+    // 严格按预设写入棋盘参数：上一局是教学 5×5 或创造 15×15 都不会残留
+    applyPresetParams(d);
     diff = d;
     pendingDiff = d;
     document.getElementById("customPanel").classList.remove("visible");
@@ -566,6 +737,9 @@ function closeTutorialComplete() {
     AudioFX.confirm();
     document.getElementById("overlay").style.display = "none";
     document.getElementById("tutorialCompleteModal").style.display = "none";
+    // 挑战（基础/系列）用的是 T=5 的专属配比，结束后恢复标准参数，
+    // 免得下一局还带着 10×10/5 颗雷的旧参数
+    if (!isPresetDifficulty(diff)) applyStandardParams();
     if (!currentTutorialType) setTimeout(() => {
         document.getElementById("overlay").style.display = "block";
         document.getElementById("moreTutorialGuide").style.display = "block";

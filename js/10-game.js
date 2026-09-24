@@ -11,6 +11,8 @@ function newGame() {
     AudioFX.confirm();
     fullReset();
     if (isPresetDifficulty(diff) && !isFreeMode && !isTutorialMode) {
+        // 预设难度：每一局都严格按预设参数，特殊模式退出来也不会带错尺寸
+        applyPresetParams(diff);
         enterPresetPending(diff);
         return;
     }
@@ -62,6 +64,8 @@ function fullReset() {
 
 function beginPresetGame() {
     AudioFX.confirm();
+    // 每一局都严格按当前难度预设重置参数，杜绝跨模式污染
+    if (isPresetDifficulty(diff)) applyPresetParams(diff);
     document.getElementById("presetStartCard").style.display = "none";
     document.getElementById("board").style.display = "";
     document.getElementById("slot").style.display = "";

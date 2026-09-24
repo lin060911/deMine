@@ -56,20 +56,54 @@ function genGame() {
     resetP();
 }
 
+/* 系列挑战专用：本局必定出现的该系列雷种（每个系列 2 种）。
+   genTutorialGame 会写在这里，末关弹窗要展示"解锁了哪几种雷"。 */
+let lastChallengeTypes = [];
+
+function shuffleArr(arr) {
+    let a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+        let j = Math.floor(Math.random() * (i + 1));
+        let tmp = a[i];
+        a[i] = a[j];
+        a[j] = tmp;
+    }
+    return a;
+}
+
 function genTutorialGame(categoryKey) {
     let allowed = [ "normal", "big5", "high", "chiliV", "chiliH", "chiliPlus" ];
+    let forced = null;
     if (categoryKey) {
+        // 纯系列局：剔除基础特殊雷（大五/高爆/辣椒系），只留 普通雷 + 该系列雷
         let catBombs = Object.keys(M).filter(k => M[k].category === categoryKey);
-        allowed = allowed.concat(catBombs);
+        allowed = [ "normal" ].concat(catBombs);
+        // 从该系列随机挑 2 种，本局必定出现（系列雷种不足 2 种时全上）
+        forced = shuffleArr(catBombs).slice(0, Math.min(2, catBombs.length));
     }
     let pool = {};
     pool.normal = Math.max(1, T - SP);
     let specials = allowed.filter(k => k !== "normal");
     let remain = T - pool.normal;
-    while (remain > 0) {
-        let t = specials[Math.floor(Math.random() * specials.length)];
-        pool[t] = (pool[t] || 0) + 1;
-        remain--;
+    if (forced && forced.length) {
+        // 先让每种至少 1 颗，剩下的再随机分配，保证 2 种都真的出现
+        forced.forEach(t => {
+            pool[t] = 1;
+            remain--;
+        });
+        while (remain > 0) {
+            let t = forced[Math.floor(Math.random() * forced.length)];
+            pool[t] = (pool[t] || 0) + 1;
+            remain--;
+        }
+        lastChallengeTypes = forced.slice();
+    } else {
+        while (remain > 0) {
+            let t = specials[Math.floor(Math.random() * specials.length)];
+            pool[t] = (pool[t] || 0) + 1;
+            remain--;
+        }
+        lastChallengeTypes = [];
     }
     for (let k of Object.keys(M)) {
         if (pool[k] === undefined) pool[k] = 0;
@@ -146,17 +180,17 @@ function renderMineInfo() {
         let cat = CATEGORY[catKey];
         let bombs = Object.keys(M).filter(k => M[k].category === catKey);
         if (bombs.length === 0) return;
-        html += `<div class="category-section">`;
+        html += `<div class="category-section" data-cat="${catKey}">`;
         html += `<div class="category-header"><strong>${cat.emoji} ${cat.name}</strong>`;
         if (catKey === "basic") {
             html += `<span style="margin-left:auto;font-size:12px;color:#38a169;">✅始终开启</span>`;
-            html += `<button class="tutorial-btn-inline" onclick="openPracticeMode()">新手关卡</button>`;
+            html += `<button class="tutorial-btn-inline" onclick="openPracticeMode()">基础挑战</button>`;
         } else if (unlocked) {
             html += `<button class="tutorial-btn-inline" onclick="startCategoryTutorial('${catKey}')">练习</button>`;
             html += `<span style="margin-left:8px;font-size:12px;color:#38a169;">🔓已解锁</span>`;
         } else {
             html += `<button class="tutorial-btn-inline" onclick="startCategoryTutorial('${catKey}')" style="border-color:#805ad5;color:#805ad5;background:#f5f0ff;">挑战</button>`;
-            html += `<span style="margin-left:8px;font-size:12px;color:#a0aec0;">🔒未解锁</span>`;
+            html += `<span style="margin-left:8px;font-size:12px;color:#a0aec0;">🔒 挑战完成解锁</span>`;
         }
         html += `</div>`;
         bombs.forEach(key => {

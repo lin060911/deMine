@@ -1,6 +1,6 @@
 /* ==========================================================================
  * 反向扫雷 · 09-tutorial.js
- * 职责：系列教学关 + 新手关卡（TEACH_LEVELS）全流程
+ * 职责：系列挑战 + 基础挑战 + 引导教学（TEACH_LEVELS）全流程
  * ========================================================================== */
 
 function onTutorialWin() {
@@ -26,19 +26,34 @@ function onTutorialWin() {
         AudioFX.modalOpen();
         let txt;
         if (!cat) {
-            txt = "🎉 新手关卡完成！<br>现在你可以去挑战各系列的关卡了<br>通过对应系列挑战即可解锁该系列地雷 ✅";
+            txt = "🎉 基础挑战完成！<br>现在你可以去挑战各系列的关卡了<br>通过对应系列挑战即可解锁该系列地雷 ✅";
         } else {
-            txt = `🎉 已解锁「${CATEGORY[cat].name}」！<br>该系列地雷已加入题库 ✅`;
+            // 末关大弹窗：列出本系列解锁的雷种，比一句"已加入题库"更有获得感
+            let mineLine = "";
+            try {
+                let bombs = Object.keys(M).filter(k => M[k].category === cat);
+                if (bombs.length) {
+                    mineLine = "<div style=\"margin:10px 0 8px;display:flex;flex-wrap:wrap;gap:6px;justify-content:center;\">" +
+                        bombs.map(k => "<span style=\"background:#f7fafc;border:1px solid #e2e8f0;border-radius:8px;" +
+                            "padding:4px 8px;font-size:12px;color:#2d3748;\">" + M[k].e + " " + M[k].n + "</span>").join("") +
+                        "</div>";
+                }
+            } catch (e) {}
+            txt = `🎉 已解锁「${CATEGORY[cat].emoji} ${CATEGORY[cat].name}」！` + mineLine +
+                "<span style=\"font-size:12px;color:#718096\">该系列地雷已加入题库 ✅</span>";
         }
         document.getElementById("tutorialCompleteText").innerHTML = txt;
         document.getElementById("tutorialProgressBar").style.display = "none";
         isTutorialMode = false;
         if (!cat) Store.set("tutorialCompleted", "true");
     } else {
+        // 中间关：轻提示，不打断，短暂停顿后自动进下一关
         setTimeout(() => {
-            alert(`破解一关！目前第${tutorialStep + 1}/5关  o((>ω< ))o`);
+            try {
+                RM.toast(`破解一关！目前第${tutorialStep + 1}/5关  o((>ω< ))o`, 1800);
+            } catch (e) {}
             setupTutorialBoard(cat);
-        }, 100);
+        }, 520);
     }
 }
 
@@ -70,7 +85,10 @@ function setupTutorialBoard(catKey) {
     fullReset();
     currentTutorialType = catKey;
     isTutorialMode = true;
+    // 挑战固定 10×10：必须显式写 SR/SC，否则会沿用上一局（如 hard 的 12×12）
     S = 10;
+    SR = 10;
+    SC = 10;
     T = 5;
     TY = 3;
     SP = 3;
@@ -86,10 +104,10 @@ function showTutorialProgress(catKey) {
     bar.style.display = "block";
     let title = document.getElementById("tutorialTitle");
     if (!catKey) {
-        title.textContent = "新手关卡";
+        title.textContent = "基础挑战";
         tutorialStep = parseInt(Store.get("tutorialStep")) || 0;
     } else {
-        title.textContent = CATEGORY[catKey].name + "关卡";
+        title.textContent = CATEGORY[catKey].name + "挑战";
         tutorialStep = parseInt(Store.get("tutorial_" + catKey)) || 0;
     }
     updateTutorialProgress();
@@ -100,8 +118,43 @@ function updateTutorialProgress() {
     document.getElementById("tutorialProgressText").textContent = tutorialStep + "/5";
 }
 
+/* 系列挑战的前置门禁：基础挑战没通关之前，所有系列挑战都不可进入 */
+function showBasicRequiredModal(catKey) {
+    var cat = (typeof CATEGORY !== "undefined" && CATEGORY[catKey]) ? CATEGORY[catKey] : { name: catKey, emoji: "🔒" };
+    AudioFX.locked();
+    openConfirmModal({
+        icon: "📖",
+        title: "先完成基础挑战",
+        body: "「" + cat.emoji + " <strong>" + cat.name + "</strong>」的挑战<br>" +
+            "需要先通关 <strong>基础挑战</strong>（5 关）才能解锁哦<br>" +
+            "<span style=\"font-size:12px;color:#718096\">在 💣信息 → 炸弹信息 里也能找到入口</span>",
+        buttons: [ {
+            label: "去完成基础挑战",
+            sub: "立即开始",
+            cls: "rm-btn-primary",
+            act: "go"
+        }, {
+            label: "取消",
+            cls: "rm-btn-cancel",
+            act: "cancel"
+        } ],
+        onAction: function(act) {
+            if (act === "go") {
+                if (typeof closeAllModals === "function") closeAllModals();
+                startTutorial();
+            }
+        }
+    });
+}
+window.showBasicRequiredModal = showBasicRequiredModal;
+
 function startCategoryTutorial(catKey) {
     AudioFX.confirm();
+    // 门禁：基础挑战未完成时，系列挑战一律不可进入
+    if (catKey && !isBasicChallengeDone()) {
+        showBasicRequiredModal(catKey);
+        return;
+    }
     currentTutorialType = catKey;
     isTutorialMode = true;
     tutorialStep = seriesUnlocked[catKey] ? parseInt(Store.get("tutorial_" + catKey)) || 0 : 0;
@@ -482,6 +535,8 @@ function loadTeachLevel() {
     document.getElementById("max").textContent = String(teachExpectedCount);
 }
 
+let _teachLastDropKey = null;
+
 function renderTeachBoard() {
     let lvl = TEACH_LEVELS[teachLevelIdx];
     let b = document.getElementById("board");
@@ -504,6 +559,11 @@ function renderTeachBoard() {
             let k = r + "," + c;
             if (G.placed[k]) {
                 d.classList.add("mine-here");
+                // 只有本次新落下的那颗播落雷动画（用完即清，避免后续重绘重播）
+                if (k === _teachLastDropKey) {
+                    d.classList.add("just-dropped");
+                    _teachLastDropKey = null;
+                }
                 let ty = G.placed[k];
                 d.innerHTML = `<span class="${M[ty].cls}">${M[ty].e}</span>`;
             }
@@ -613,6 +673,7 @@ function teachDrop(r, c, forceType) {
     } : {});
     if ((teachPlacedTypes[dragType] || 0) >= (mt[dragType] || 0)) return;
     G.placed[k] = dragType;
+    _teachLastDropKey = k;
     teachPlaceList.push({
         r: r,
         c: c,
@@ -765,7 +826,7 @@ function teachLevelComplete() {
     let exitBtn = document.getElementById("teachExitBtn");
     let practiceBtn = document.getElementById("teachPracticeBtn");
     if (isLast) {
-        document.getElementById("teachCompleteText").innerHTML = "🎓 恭喜完成全部教学！<br>准备好挑战新手关卡了吗？";
+        document.getElementById("teachCompleteText").innerHTML = "🎓 恭喜完成全部教学！<br>准备好挑战基础挑战了吗？";
         nextBtn.textContent = "完成 🏆";
         nextBtn.onclick = teachExit;
         nextBtn.style.display = "";
@@ -817,12 +878,7 @@ function teachExit() {
     document.querySelectorAll(".cell-teach-target").forEach(el => el.classList.remove("cell-teach-target"));
     teachActive = false;
     document.getElementById("teachProgressBar").style.display = "none";
-    S = 10;
-    SR = 10;
-    SC = 10;
-    T = 6;
-    TY = 3;
-    SP = 4;
+    applyStandardParams();
     fullReset();
     genGame();
     render();
@@ -845,12 +901,7 @@ function teachExitToPractice() {
     teachExpectedCount = 0;
     teachPlaceList = [];
     teachPlacedTypes = {};
-    S = 10;
-    SR = 10;
-    SC = 10;
-    T = 6;
-    TY = 3;
-    SP = 4;
+    applyStandardParams();
     currentTutorialType = null;
     isTutorialMode = true;
     tutorialStep = parseInt(Store.get("tutorialStep")) || 0;

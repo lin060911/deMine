@@ -504,6 +504,9 @@
     function boot() {
         var missing = selfCheck();
         bindSaveUI();
+        try {
+            if (typeof ensureBarToggle === "function") ensureBarToggle();
+        } catch (e) {}
         if (missing.length) {
             RM.toast("部分模块未加载，请检查 js/ 目录是否完整", 6000);
         }

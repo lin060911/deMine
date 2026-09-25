@@ -252,13 +252,13 @@
         }
         #createBtn, #tutorialBtn {
             background: linear-gradient(180deg, #31cf98, #18ad7c);
-            border:3px solid #6ef0c0;
+            border:3px solid #59e9b4;
         }
         #createBtn:hover, #tutorialBtn:hover {
-            background: linear-gradient(180deg, #28b989, #14a06f);
+            background: linear-gradient(180deg, #28b989, #18af7a);
             transform: scale(1.06);
             box-shadow: 0 10px 28px rgba(26,184,131,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
-            border-color: #8bf5d0;
+            border-color: #91f5d2;
         }
         #createBtn:active, #tutorialBtn:active {
             transform: scale(1.02);
@@ -317,8 +317,6 @@
             position: relative;
             cursor: grab;
             z-index: 3;
-            /* 默认不播落雷动画：只有本次新落下的那颗（.just-dropped）才播，
-               避免每次布雷时已存在的雷全部重播一遍 */
             animation: none;
         }
 
@@ -773,7 +771,7 @@
             position: fixed;
             top: 48%;
             left: 0;
-            background: linear-gradient(180deg, #4adbff, #2aace0);
+            background: linear-gradient(180deg, #4a7aff, #2a88e0);
             color: #fff;
             border: none;
             padding: 22px 14px;
@@ -3043,7 +3041,7 @@
         .rm-acc .rm-acc-icon { font-size: 17px; }
         .rm-acc .rm-acc-title { flex: 1; text-align: left; }
         .rm-acc .rm-acc-arrow {
-            font-size: 13px; color: #718096;
+            font-size: 22px; color: #718096;
             transition: transform .3s cubic-bezier(.4,0,.2,1);
         }
         .rm-acc.rm-acc-open .rm-acc-arrow { transform: rotate(90deg); }

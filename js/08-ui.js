@@ -164,6 +164,24 @@ function closeAllModals() {
 }
 window.closeAllModals = closeAllModals;
 
+/* ---- 主按钮条（新游戏/清空放置/教学/难度）显隐 ----
+   原来只在 openTeachMode 里隐藏、teachExit 里恢复，两处硬编码。
+   一旦用其它路径离开教学（例如教学途中从炸弹信息进系列挑战），
+   主按钮就再也不会回来。现在改成由 teachActive 统一推导，
+   并在 fullReset 里兜底同步 —— 任何模式切换都会经过 fullReset。 */
+function syncMainPanel() {
+    var p = document.querySelector(".panel");
+    if (!p) return;
+    var hide = false;
+    try {
+        hide = !!teachActive;
+    } catch (e) {
+        hide = false;   // teachActive 尚未初始化时按"不隐藏"处理
+    }
+    p.style.display = hide ? "none" : "flex";
+}
+window.syncMainPanel = syncMainPanel;
+
 /* ---- 基础挑战是否已完成（系列挑战的前置门禁） ---- */
 function isBasicChallengeDone() {
     try {

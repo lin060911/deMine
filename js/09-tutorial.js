@@ -476,7 +476,6 @@ function closeTeachRuleModal() {
 
 function openTeachMode() {
     AudioFX.confirm();
-    document.querySelector(".panel").style.display = "none";
     teachLevelIdx = 0;
     teachStepIdx = 0;
     teachPlacedCount = 0;
@@ -485,6 +484,7 @@ function openTeachMode() {
     teachPlacedTypes = {};
     fullReset();
     teachActive = true;
+    syncMainPanel();
     S = 5;
     SR = 5;
     SC = 5;
@@ -506,6 +506,7 @@ function openPracticeMode() {
 function loadTeachLevel() {
     let lvl = TEACH_LEVELS[teachLevelIdx];
     teachActive = true;
+    syncMainPanel();
     SR = lvl.boardRows;
     SC = lvl.boardCols;
     S = 5;
@@ -869,7 +870,6 @@ function teachNextLevel() {
 
 function teachExit() {
     AudioFX.confirm();
-    document.querySelector(".panel").style.display = "flex";
     teachRulePending = false;
     document.getElementById("teachRuleModal").style.display = "none";
     document.getElementById("teachCompleteModal").classList.remove("visible");
@@ -877,6 +877,7 @@ function teachExit() {
     clearTeachSlotHost();
     document.querySelectorAll(".cell-teach-target").forEach(el => el.classList.remove("cell-teach-target"));
     teachActive = false;
+    syncMainPanel();
     document.getElementById("teachProgressBar").style.display = "none";
     applyStandardParams();
     fullReset();
@@ -888,7 +889,6 @@ function teachExit() {
 
 function teachExitToPractice() {
     AudioFX.confirm();
-    document.querySelector(".panel").style.display = "flex";
     teachRulePending = false;
     document.getElementById("teachRuleModal").style.display = "none";
     document.getElementById("teachCompleteModal").classList.remove("visible");
@@ -897,6 +897,7 @@ function teachExitToPractice() {
     document.querySelectorAll(".cell-teach-target").forEach(el => el.classList.remove("cell-teach-target"));
     document.getElementById("teachProgressBar").style.display = "none";
     teachActive = false;
+    syncMainPanel();
     teachPlacedCount = 0;
     teachExpectedCount = 0;
     teachPlaceList = [];

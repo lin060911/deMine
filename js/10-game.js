@@ -60,6 +60,10 @@ function fullReset() {
         nextBtn.textContent = "下一关 ➡️";
         nextBtn.onclick = teachNextLevel;
     }
+    // 兜底：任何模式切换都会经过这里，保证主按钮条状态正确
+    try {
+        syncMainPanel();
+    } catch (e) {}
 }
 
 function beginPresetGame() {

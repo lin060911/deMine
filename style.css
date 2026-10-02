@@ -723,7 +723,7 @@
             box-shadow: -4px 0 16px rgba(52, 232, 82, 0.603);
         }
         .setting-sidebar-toggle {
-            top: 48%;
+            top: 50%;
             background: linear-gradient(180deg, #414141, #131313);
         }
         .setting-sidebar-toggle:hover {
@@ -769,7 +769,7 @@
         }
         .info-sidebar-toggle {
             position: fixed;
-            top: 48%;
+            top: 50%;
             left: 0;
             background: linear-gradient(180deg, #4a7aff, #2a88e0);
             color: #fff;

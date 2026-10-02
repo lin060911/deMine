@@ -14,7 +14,7 @@
         el.textContent = mineEmojis[Math.floor(Math.random() * mineEmojis.length)];
         el.style.left = 8 + Math.random() * 90 + "%";
         el.style.top = 8 + Math.random() * 90 + "%";
-        el.style.fontSize = 18 + Math.random() * 40 + "px";
+        el.style.fontSize = 18 + Math.random() * 30 + "px";
         let duration = 4 + Math.random() * 2.5;
         el.style.animationDuration = duration + "s";
         container.appendChild(el);

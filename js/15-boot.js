@@ -3,62 +3,13 @@
  * 职责：存档导入提示框（覆盖 / 合并 / 取消 三选一 + 三列参数对比）
  *       模块自检、存档导出接线、启动收尾
  *
- * 说明：本文件的样式与弹窗 DOM 都是运行时注入的，不需要改 index.html。
- *       视觉沿用项目现有的 .auto-modal 风格。
+ * 说明：弹窗 DOM 仍是运行时建的（不需要改 index.html），
+ *       但样式已统一收进 style.css 的「通用确认框 / 存档导入框」一节，
+ *       外观与项目现有的 .auto-modal 完全一致。
  * ========================================================================== */
 
 (function() {
     "use strict";
-
-    /* ------------------------------------------------------------------ *
-     * 0. 样式注入（只注入一次）
-     * ------------------------------------------------------------------ */
-    var CSS = [
-        ".rm-overlay-top{z-index:1200!important;}",
-        ".rm-modal{z-index:1201!important;top:50%!important;width:600px!important;min-width:0!important;",
-        "max-width:94vw!important;max-height:90vh!important;overflow-y:auto!important;padding:26px 22px 20px!important;}",
-        ".rm-modal .icon{font-size:54px!important;margin-bottom:6px!important;animation:none!important;}",
-        ".rm-modal h2{font-size:24px!important;margin-bottom:8px!important;}",
-        ".rm-modal p.rm-file-info{font-size:12.5px!important;color:#718096!important;margin:0 0 12px!important;line-height:1.7!important;}",
-        ".rm-cmp{width:100%;border-collapse:collapse;font-size:13px;margin:0 0 12px;table-layout:fixed;}",
-        ".rm-cmp th{padding:7px 4px;color:#4a5568;font-size:12px;font-weight:700;",
-        "border-bottom:2px solid #e2e8f0;background:#f7fafc;}",
-        ".rm-cmp td{padding:6px 4px;border-bottom:1px solid #eef2f7;text-align:center;color:#2d3748;",
-        "word-break:break-all;line-height:1.5;}",
-        ".rm-cmp th.rm-k,.rm-cmp td.rm-k{text-align:left;padding-left:8px;width:88px;}",
-        ".rm-cmp td.rm-k{color:#4a5568;font-weight:600;}",
-        ".rm-cmp td.rm-cur{color:#4a5568;font-weight:700;}",
-        ".rm-cmp td.rm-loss{color:#e53e3e!important;font-weight:700;}",
-        ".rm-cmp td.rm-gain{color:#2f855a!important;font-weight:700;}",
-        ".rm-cmp tr.rm-hl td{background:#fffaf0;}",
-        ".rm-mode-box{text-align:left;background:#f7fafc;border-radius:10px;padding:10px 12px;",
-        "margin:0 0 12px;font-size:12.5px;line-height:1.8;color:#4a5568;",
-        "box-shadow:inset 0 0 0 1px rgba(0,0,0,.04);}",
-        ".rm-mode-box div+div{margin-top:4px;}",
-        ".rm-mode-box b{color:#2d3748;}",
-        ".rm-modal .rm-warn,.rm-modal span.rm-warn{color:#c53030!important;font-weight:700;}",
-        ".rm-btn-row{display:flex;gap:10px;margin-top:4px;}",
-        ".rm-modal button.rm-btn{flex:1;padding:11px 6px!important;border-radius:10px!important;border:3px solid transparent!important;background-image:none;",
-        "font-weight:700;font-size:15px;cursor:pointer;color:#fff;line-height:1.3;",
-        "transition:transform .2s cubic-bezier(.34,1.56,.64,1),box-shadow .2s;",
-        "box-shadow:0 2px 6px rgba(0,0,0,.12);display:block;margin:0;}",
-        ".rm-modal button.rm-btn:hover{transform:scale(1.05);box-shadow:0 8px 20px rgba(0,0,0,.2);}",
-        ".rm-modal button.rm-btn:active{transform:scale(1.01);}",
-        ".rm-modal button.rm-btn b{display:block;font-size:15px;}",
-        ".rm-modal button.rm-btn small{display:block;font-size:11px;font-weight:600;opacity:.9;margin-top:2px;}",
-        ".rm-btn-danger{background:linear-gradient(180deg,#ff5e5e,#e83838)!important;border-color:#ff7070!important;}",
-        ".rm-btn-merge{background:linear-gradient(180deg,#34dca0,#1ab883)!important;border-color:#6ef0c0!important;}",
-        ".rm-btn-cancel{background:linear-gradient(180deg,#a0aec0,#718096)!important;border-color:#cbd5e0!important;}",
-        ".rm-undo-btn{width:100%;margin-top:8px;}"
-    ].join("\n");
-
-    function injectCSS() {
-        if (document.getElementById("rmImportStyle")) return;
-        var st = document.createElement("style");
-        st.id = "rmImportStyle";
-        st.textContent = CSS;
-        document.head.appendChild(st);
-    }
 
     /* ------------------------------------------------------------------ *
      * 1. 模块自检
@@ -126,7 +77,6 @@
     var overlayEl = null, modalEl = null;
 
     function ensureModal() {
-        injectCSS();
         if (modalEl) return;
         overlayEl = document.createElement("div");
         overlayEl.id = "rmImportOverlay";
@@ -273,7 +223,7 @@
 
         var schemaWarn = "";
         if ((payload.schema || 1) > Store.schema) {
-            schemaWarn = '<div class="rm-file-info rm-warn">⚠️ 该文件来自更新的版本（v' +
+            schemaWarn = '<div class="rm-warn">⚠️ 该文件来自更新的版本（v' +
                 esc(payload.schema) + "），导入后可能出现未知项。</div>";
         }
 

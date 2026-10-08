@@ -59,35 +59,14 @@ function toggleAcc(id) {
 }
 window.toggleAcc = toggleAcc;
 
-/* ---- 通用确认弹窗（运行时注入，不改 index.html） ----
-   opt = { icon, title, body, buttons:[{label,cls,act}], onAction(act) } */
+/* ---- 通用确认弹窗（运行时建 DOM，不改 index.html） ----
+   opt = { icon, title, body, buttons:[{label,cls,act}], onAction(act) }
+   样式（含 .rm-btn-row / .rm-btn-* / 层级）统一放在 style.css，
+   外观与其它 .auto-modal 弹窗一致，这里不再注入 <style>。 */
 var _rmConfirm = { el: null, ov: null, cb: null };
 
 function ensureConfirmModal() {
     if (_rmConfirm.el) return;
-    // 自带一份样式：不依赖导入弹窗是否注入过（15-boot.js 是按需注入的）
-    if (!document.getElementById("rmConfirmStyle")) {
-        var st = document.createElement("style");
-        st.id = "rmConfirmStyle";
-        st.textContent = [
-            ".rm-btn-row{display:flex;gap:10px;margin-top:12px;}",
-            "button.rm-btn{flex:1;padding:11px 6px!important;border-radius:10px!important;",
-            "border:3px solid transparent!important;background-image:none;color:#fff!important;",
-            "font-weight:700;font-size:15px;cursor:pointer;line-height:1.3;display:block;margin:0;",
-            "transition:transform .2s cubic-bezier(.34,1.56,.64,1),box-shadow .2s;",
-            "box-shadow:0 2px 6px rgba(0,0,0,.12);}",
-            "button.rm-btn:hover{transform:scale(1.05);box-shadow:0 8px 20px rgba(0,0,0,.2);}",
-            "button.rm-btn b{display:block;font-size:15px;}",
-            "button.rm-btn small{display:block;font-size:11px;font-weight:600;opacity:.9;margin-top:2px;}",
-            ".rm-btn-primary{background:linear-gradient(180deg,#4299e1,#2b7ac4)!important;border-color:#63b3ed!important;}",
-            ".rm-btn-merge{background:linear-gradient(180deg,#34dca0,#1ab883)!important;border-color:#6ef0c0!important;}",
-            ".rm-btn-cancel{background:linear-gradient(180deg,#a0aec0,#718096)!important;border-color:#cbd5e0!important;}",
-            /* 置顶：难度弹窗是 1200，这里必须更高，否则会被挡住 */
-            ".rm-confirm-overlay{z-index:1300!important;}",
-            ".rm-confirm-modal{z-index:1301!important;}"
-        ].join("\n");
-        document.head.appendChild(st);
-    }
     var ov = document.createElement("div");
     ov.className = "auto-modal-overlay rm-confirm-overlay";
     ov.style.display = "none";

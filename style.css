@@ -3205,3 +3205,113 @@
                 pointer-events: none;
             }
         }
+
+        /* ==========================================================================
+           v1.2.1 通用确认框 / 存档导入框
+           原先由 08-ui.js(#rmConfirmStyle) 与 15-boot.js(#rmImportStyle) 在运行时
+           各自注入一段 <style>，两套外观还不一致；现在统一搬到这里。
+           外框直接沿用上面的 .auto-modal（520px / top 40% / 大图标浮动 / 32px 标题），
+           只补 .auto-modal 没有的部分：层级、按钮行、对比表、说明块。
+           ========================================================================== */
+
+        /* 层级：通用确认框要压过难度弹窗(z-index:1200)，导入框也保持在上层 */
+        .rm-confirm-overlay { z-index: 1300 !important; }
+        .rm-confirm-modal { z-index: 1301 !important; }
+        .rm-overlay-top { z-index: 1200 !important; }
+        .rm-modal { z-index: 1201 !important; }
+
+        /* 导入框内容较高（对比表 + 说明 + 按钮），给个上限避免顶出屏幕：
+           外框是 top:40% 居中，高度 ≤ 80vh 才不会碰到视口上下沿 */
+        .rm-modal { max-height: 80vh; overflow-y: auto; }
+
+        /* ---- 按钮行：形状 / 圆角 / 内边距 / 悬停动效全部沿用 .auto-modal button ---- */
+        .auto-modal .rm-btn-row { display: flex; gap: 10px; margin-top: 12px; }
+        .auto-modal button.rm-btn { flex: 1 1 0; min-width: 0; }
+        .auto-modal button.rm-btn b { display: block; font-size: 15px; }
+        .auto-modal button.rm-btn small {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            opacity: .92;
+            margin-top: 2px;
+        }
+
+        /* 颜色仍按动作区分：主操作=蓝 / 覆盖=红 / 合并=绿 / 取消=灰 */
+        .auto-modal button.rm-btn-primary {
+            background: linear-gradient(180deg, #4299e1, #2b7ac4);
+            box-shadow: 0 4px 14px rgba(43,122,196,.35), inset 0 1px 0 rgba(255,255,255,.2);
+        }
+        .auto-modal button.rm-btn-primary:hover { background: linear-gradient(180deg, #5aaef0, #4299e1); }
+        .auto-modal button.rm-btn-danger {
+            background: linear-gradient(180deg, #ff5e5e, #e83838);
+            box-shadow: 0 4px 14px rgba(232,56,56,.35), inset 0 1px 0 rgba(255,255,255,.2);
+        }
+        .auto-modal button.rm-btn-danger:hover { background: linear-gradient(180deg, #ff7a7a, #ff5e5e); }
+        .auto-modal button.rm-btn-merge {
+            background: linear-gradient(180deg, #34dca0, #1ab883);
+            box-shadow: 0 4px 14px rgba(26,184,131,.35), inset 0 1px 0 rgba(255,255,255,.2);
+        }
+        .auto-modal button.rm-btn-merge:hover { background: linear-gradient(180deg, #4ae6b2, #34dca0); }
+        .auto-modal button.rm-btn-cancel {
+            background: linear-gradient(180deg, #a0aec0, #718096);
+            box-shadow: 0 4px 14px rgba(113,128,150,.35), inset 0 1px 0 rgba(255,255,255,.2);
+        }
+        .auto-modal button.rm-btn-cancel:hover { background: linear-gradient(180deg, #b3bfcd, #a0aec0); }
+
+        /* ---- 导入框的存档对比表 ---- */
+        .rm-cmp {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin: 0 0 12px;
+            table-layout: fixed;
+        }
+        .rm-cmp th {
+            padding: 7px 4px;
+            color: #4a5568;
+            font-size: 12px;
+            font-weight: 700;
+            border-bottom: 2px solid #e2e8f0;
+            background: #f7fafc;
+        }
+        .rm-cmp td {
+            padding: 6px 4px;
+            border-bottom: 1px solid #eef2f7;
+            text-align: center;
+            color: #2d3748;
+            word-break: break-all;
+            line-height: 1.5;
+        }
+        .rm-cmp th.rm-k,
+        .rm-cmp td.rm-k { text-align: left; padding-left: 8px; width: 88px; }
+        .rm-cmp td.rm-k { color: #4a5568; font-weight: 600; }
+        .rm-cmp td.rm-cur { color: #4a5568; font-weight: 700; }
+        .rm-cmp td.rm-loss { color: #e53e3e !important; font-weight: 700; }
+        .rm-cmp td.rm-gain { color: #2f855a !important; font-weight: 700; }
+        .rm-cmp tr.rm-hl td { background: #fffaf0; }
+
+        /* ---- 导入框的模式说明块 ---- */
+        .rm-mode-box {
+            text-align: left;
+            background: #f7fafc;
+            border-radius: 10px;
+            padding: 10px 12px;
+            margin: 0 0 12px;
+            font-size: 12.5px;
+            line-height: 1.8;
+            color: #4a5568;
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,.04);
+        }
+        .rm-mode-box div + div { margin-top: 4px; }
+        .rm-mode-box b { color: #2d3748; }
+
+        /* 警示文字：版本过新的提醒行 + 说明块里标红的“将丢失”字样 */
+        .rm-modal .rm-warn { color: #c53030 !important; font-weight: 700; }
+
+        /* 设置栏里的「撤销上次导入」按钮（不在弹窗内，保持全宽） */
+        .rm-undo-btn { width: 100%; margin-top: 8px; }
+
+        @media (max-width: 700px) {
+            /* 小屏上弹窗只有 340px 宽，按钮沿用 auto-modal 的内边距会挤坏文字，改成竖排 */
+            .auto-modal .rm-btn-row { flex-direction: column; }
+        }

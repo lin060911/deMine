@@ -376,7 +376,7 @@
         cat: "隐藏",
         emoji: "🤺",
         name: "退！退！退！",
-        desc: "三次重开游戏",
+        desc: "点击3次「新游戏」按钮",
         tip: "不是我喜欢的棋盘，直接重开",
         type: "count",
         target: 3,
@@ -814,35 +814,30 @@
                 }
             });
         }
-        let _oNG = typeof window.newGame === "function" ? window.newGame : NS.newGame;
-        window.newGame = function() {
-            let result;
-            if (_oNG) result = _oNG.apply(this, arguments);
-            _achState.newGameClicks = (_achState.newGameClicks || 0) + 1;
-            if (_achState.newGameClicks >= 3) unlock("new_game_spam");
+        /* ---- 成就「退！退！退！」：只统计「新游戏」按钮的点击次数 ----
+           旧实现是包装 window.newGame（任何路径调用它都计数，连启动时的
+           init() / window.onload 都算），另外还用 drop / del / clearAll 三个
+           钩子在落雷、删雷、清空放置时把计数清零。
+           现在要求改成「点满 3 次新游戏按钮就解锁」，所以先把旧钩子全部摘掉：
+             · 不再包装 window.newGame（内部调用一律不计数）
+             · 不再在落雷 / 删雷 / 清空时清零（三次点击之间可以随便操作）
+           只保留 / 接管 #reset 这一个入口。 */
+        if (!_achState.newGameSpamV2) {
+            // 旧存档里遗留的 newGameClicks 一次性丢弃，从 0 开始重新数 3 次
+            delete _achState.newGameClicks;
+            if (!_achState.counters) _achState.counters = {};
+            _achState.counters["new_game_spam"] = 0;
+            _achState.newGameSpamV2 = true;
             saveState();
-            return result;
-        };
-        if (typeof newGame !== "undefined") newGame = window.newGame;
-        document.getElementById("reset").onclick = window.newGame;
-        let _oDrop2 = window.drop;
-        window.drop = function(e) {
-            _achState.newGameClicks = 0;
-            saveState();
-            if (_oDrop2) return _oDrop2.apply(this, arguments);
-        };
-        let _oDel2 = window.del;
-        window.del = function(r, c) {
-            _achState.newGameClicks = 0;
-            saveState();
-            if (_oDel2) return _oDel2(r, c);
-        };
-        let _oCA2 = window.clearAll;
-        window.clearAll = function() {
-            _achState.newGameClicks = 0;
-            saveState();
-            if (_oCA2) return _oCA2.apply(this, arguments);
-        };
+        }
+        let _resetBtn = document.getElementById("reset");
+        if (_resetBtn) {
+            let _origResetClick = _resetBtn.onclick;   // 10-game.js 挂上的 newGame
+            _resetBtn.onclick = function(e) {
+                incrementCounter("new_game_spam");
+                if (typeof _origResetClick === "function") return _origResetClick.call(this, e);
+            };
+        }
     }
     function initToggle() {
         let btn = document.getElementById("toggleAchSidebar");

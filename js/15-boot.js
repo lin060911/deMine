@@ -457,6 +457,10 @@
         try {
             if (typeof ensureBarToggle === "function") ensureBarToggle();
         } catch (e) {}
+        try {
+            // 信息栏折叠部件：<details> 状态 ↔ 类名镜像 + 同栏手风琴
+            if (typeof bindAccordions === "function") bindAccordions();
+        } catch (e) {}
         if (missing.length) {
             RM.toast("部分模块未加载，请检查 js/ 目录是否完整", 6000);
         }

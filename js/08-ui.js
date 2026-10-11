@@ -32,32 +32,83 @@ document.getElementById("toggleCreateSidebar").onclick = () => {
 /* 常驻展开的部件（炸弹信息是解锁系列的唯一入口，永远保持展开） */
 const ACC_ALWAYS_OPEN = ["accMine"];
 
+/* 折叠部件的"是否展开"始终以 DOM 为准：
+   - accRule 是原生 <details>，状态就是 open 属性（原生点击 / 键盘回车空格都能切换）
+   - accMine 是常驻展开的普通块
+   类名 rm-acc-open / rm-acc-closed 只作为状态镜像，方便样式与外部脚本读取。 */
+function accIsOpen(el) {
+    if (!el) return false;
+    if (accIsDetail(el)) return !!el.open;
+    return el.classList.contains("rm-acc-open");
+}
+
+function accIsDetail(el) {
+    return !!(el && el.tagName === "DETAILS");
+}
+
+function syncAccState(el) {
+    if (!el) return;
+    var open = isAccAlwaysOpen(el) ? true : accIsOpen(el);
+    if (accIsDetail(el)) el.open = open;
+    el.classList.toggle("rm-acc-open", open);
+    el.classList.toggle("rm-acc-closed", !open);
+}
+
+function isAccAlwaysOpen(el) {
+    return !!el && ACC_ALWAYS_OPEN.indexOf(el.id) >= 0;
+}
+
+/* 收起同栏内其它可折叠部件（手风琴 / 常驻项除外） */
+function closeSiblingAcc(el) {
+    var box = el ? el.parentNode : null;
+    if (!box || !box.querySelectorAll) return;
+    Array.prototype.forEach.call(box.querySelectorAll(".rm-acc"), function(x) {
+        if (x === el) return;
+        if (isAccAlwaysOpen(x)) return;
+        if (accIsDetail(x)) x.open = false;
+        x.classList.remove("rm-acc-open");
+        x.classList.add("rm-acc-closed");
+    });
+}
+
 function toggleAcc(id) {
-    const el = document.getElementById(id);
+    var el = document.getElementById(id);
     if (!el) return;
     // 常驻展开的部件：点了也不收起，只给个音效反馈
-    if (ACC_ALWAYS_OPEN.indexOf(id) >= 0) {
-        el.classList.add("rm-acc-open", "rm-acc-fixed");
-        el.classList.remove("rm-acc-closed");
+    if (isAccAlwaysOpen(el)) {
+        syncAccState(el);
         AudioFX.pop();
         return;
     }
-    const willOpen = !el.classList.contains("rm-acc-open");
+    var willOpen = !accIsOpen(el);
+    if (accIsDetail(el)) el.open = willOpen;
     // 同一栏内手风琴：展开一个就收起另一个（常驻项除外）
-    const box = el.parentNode;
-    if (box && willOpen) {
-        Array.prototype.forEach.call(box.querySelectorAll(".rm-acc"), function(x) {
-            if (x === el) return;
-            if (ACC_ALWAYS_OPEN.indexOf(x.id) >= 0) return;
-            x.classList.remove("rm-acc-open");
-            x.classList.add("rm-acc-closed");
-        });
-    }
-    el.classList.toggle("rm-acc-open", willOpen);
-    el.classList.toggle("rm-acc-closed", !willOpen);
+    if (willOpen) closeSiblingAcc(el);
+    syncAccState(el);
     AudioFX.pop();
 }
 window.toggleAcc = toggleAcc;
+
+/* 接线：details 的展开状态由原生 toggle 事件同步回类名
+   （玩家直接点 summary 时不会经过 toggleAcc），
+   并在展开时顺手收起同栏的其它部件。 */
+function bindAccordions() {
+    var box = document.getElementById("accRule");
+    if (!box) return;
+    if (accIsDetail(box)) {
+        if (box._rmAccBound) return;
+        box._rmAccBound = true;
+        box.addEventListener("toggle", function() {
+            if (box.open) closeSiblingAcc(box);
+            syncAccState(box);
+            AudioFX.pop();
+        });
+    }
+    syncAccState(box);
+    var mine = document.getElementById("accMine");
+    if (mine) syncAccState(mine);
+}
+window.bindAccordions = bindAccordions;
 
 /* ---- 通用确认弹窗（运行时建 DOM，不改 index.html） ----
    opt = { icon, title, body, buttons:[{label,cls,act}], onAction(act) }

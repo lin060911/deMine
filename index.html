@@ -264,15 +264,13 @@
     </div>
 
     <div class="info-sidebar" id="infoSidebar">
-        <div class="sidebar-section rm-acc rm-acc-closed" id="accRule">
-            <button class="rm-acc-head" type="button" onclick="toggleAcc('accRule')">
+        <details class="sidebar-section rm-acc rm-acc-details rm-acc-closed" id="accRule">
+            <summary class="rm-acc-head">
                 <span class="rm-acc-icon">📖</span>
                 <span class="rm-acc-title">规则信息</span>
-                <span class="rm-acc-arrow">▸</span>
-            </button>
+            </summary>
             <div class="rm-acc-body">
                 <div class="rule-content">            
-                <div class="sidebar-title rule-title">📖 规则信息</div>
                 <h3>💡 玩法：反向扫雷（布雷）</h3>
                 <ul>
                     <li><strong>目标：</strong><br>在棋盘上放置规定数量的地雷（普通雷 + 特殊雷），使得棋盘上每个格子显示的数字，恰好等于它周围（或特定规则下）所有地雷对它的总影响值。</li>
@@ -297,7 +295,7 @@
                 </ul>
                 </div>
             </div>
-        </div>
+        </details>
 
         <div class="sidebar-section rm-acc rm-acc-open" id="accMine">
             <div class="sidebar-title boom-title">💣 炸弹信息</div>

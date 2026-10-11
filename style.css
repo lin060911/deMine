@@ -3018,39 +3018,60 @@
         .save-manage-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
         .save-hint { font-size: 12px; color: #718096; margin-top: 8px; line-height: 1.7; }
 
-        /* ===== v1.2 信息栏折叠部件 ===== */
+        /* ===== v1.2 信息栏折叠部件 =====
+           规则信息（#accRule）是原生 <details>/<summary> 折叠卡，默认收起，
+           展开状态由 [open] 表达；外观参考「反应测试」项目的 .rule-card：
+           圆角卡片自带背景与描边，箭头用 ▸/▾ 换字符表达展开态。
+           炸弹信息（#accMine）是常驻展开的普通块，**不套卡片**：它下面挂着
+           整个系列图鉴，包进卡片会把信息栏变得过于臃肿。 */
         .rm-acc { margin-bottom: 14px; }
+        .rm-acc-details {
+            background: linear-gradient(180deg, #ffffff, #f7fafc);
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            overflow: hidden;
+        }
         .rm-acc .rm-acc-head {
             width: 100%;
             display: flex;
             align-items: center;
             gap: 8px;
-            padding: 11px 14px;
-            background: linear-gradient(180deg, #ffffff, #f7fafc);
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
+            padding: 12px 18px;
             cursor: pointer;
             font-size: 15px;
             font-weight: 700;
             color: #2d3748;
-            box-shadow: 0 2px 6px rgba(0,0,0,.05);
-            transition: background .25s ease, border-color .25s ease, transform .2s cubic-bezier(.34,1.56,.64,1);
+            transition: background-color .25s ease, color .25s ease;
         }
-        .rm-acc .rm-acc-head:hover { background: #eef6ff; border-color: #bee3f8; }
-        .rm-acc .rm-acc-head:active { transform: scale(1.01); }
+        .rm-acc .rm-acc-head:hover { background: #eef6ff; }
+        .rm-acc .rm-acc-head:active { background: #e2eefc; }
         .rm-acc .rm-acc-icon { font-size: 17px; }
         .rm-acc .rm-acc-title { flex: 1; text-align: left; }
-        .rm-acc .rm-acc-arrow {
-            font-size: 22px; color: #718096;
-            transition: transform .3s cubic-bezier(.4,0,.2,1);
+        /* 自绘箭头：去掉 summary 默认三角（含 Safari/Chrome 的 marker），
+           展开状态由 [open] 表达，箭头本身换字符而不是旋转 */
+        .rm-acc > summary { list-style: none; outline: none; }
+        .rm-acc > summary::-webkit-details-marker { display: none; }
+        .rm-acc > summary::marker { content: ''; }
+        .rm-acc > summary.rm-acc-head::before {
+            content: '▸';
+            display: inline-block;
+            flex: none;
+            width: 22px;
+            font-size: 20px;
+            line-height: 1;
+            text-align: center;
+            color: #718096;
         }
-        .rm-acc.rm-acc-open .rm-acc-arrow { transform: rotate(90deg); }
+        .rm-acc[open] > summary.rm-acc-head::before { content: '▾'; }
+        .rm-acc[open] > summary.rm-acc-head { background: rgba(238, 246, 255, .7); }
         .rm-acc .rm-acc-body {
             display: none;
             padding: 12px 6px 4px;
             animation: sidebarSectionIn .35s cubic-bezier(.34,1.56,.64,1) both;
         }
         .rm-acc.rm-acc-open .rm-acc-body { display: block; }
+        /* 只有折叠卡（规则信息）的正文需要和卡片内边距对齐 */
+        .rm-acc-details .rm-acc-body { padding: 12px 18px 16px; }
 
         /* ===== v1.2 挑战弹窗（居中卡片） ===== */
         .challenge-modal {

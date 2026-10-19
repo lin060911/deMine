@@ -489,7 +489,7 @@ function openTeachMode() {
     SR = 5;
     SC = 5;
     document.getElementById("overlay").style.display = "none";
-    document.getElementById("teachProgressBar").style.display = "block";
+    document.getElementById("teachProgressBar").style.display = "flex";
     updateTeachProgressBar();
     ensureTeachSlotHost(true);
     document.getElementById("board").innerHTML = "";

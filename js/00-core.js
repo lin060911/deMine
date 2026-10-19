@@ -12,7 +12,7 @@ var RM = window.RM || {};
 
 window.RM = RM;
 
-RM.VERSION = "1.2.1";
+RM.VERSION = "1.2.21";
 
 RM.SAVE_SCHEMA = 1;
 

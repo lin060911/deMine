@@ -155,8 +155,10 @@
         <button onclick="closeBrainWinModal()">收下墨镜 😎</button>
     </div>
 
-    <h1 class="game-title">反向💣扫雷</h1>
-    <div class="rule">ℹ️操作tips:拖拽/点选✅放置地雷 | 🚫右键(手机长按)删除<br> 当前操作方式:<b id="modeBadge">拖拽</b> <span class="rule-mode-link" onclick="openSettingSidebar()">⚙️切换</span></div>
+    <header class="hero">
+        <h1 class="game-title">反向💣扫雷</h1>
+        <div class="rule">ℹ️操作tips:拖拽/点选✅放置地雷 | 🚫右键(手机长按)删除<br> 当前操作方式:<b id="modeBadge">拖拽</b> <span class="rule-mode-link" onclick="openSettingSidebar()">⚙️切换</span></div>
+    </header>
 
     <div id="tutorialProgressBar">
         <div class="progress-header">
@@ -168,24 +170,31 @@
         </div>
     </div>
 
-    <div class="panel">
-        <button id="reset">新游戏</button>
-        <button id="clear">清空放置</button>        
-        <button id="tutorialBtn" onclick="openTeachMode()">教学🧐</button>
-        <button id="challengeBtn" onclick="openChallengeModal()">难度🕹️</button>
-    </div>
-
-    <div class="timer-box" id="timer">00:00.00</div>
-
-    <div class="teach-progress-bar-inline" id="teachProgressBar" style="display:none;">
-        <span class="teach-progress-title" id="teachProgressTitle">教学进度</span>
-        <div class="teach-progress-track">
-            <div class="teach-progress-fill" id="teachProgressFill"></div>
+    <section class="hud" aria-label="游戏操作">
+        <div class="panel">
+            <button id="reset">新游戏</button>
+            <button id="clear">清空放置</button>        
+            <button id="tutorialBtn" onclick="openTeachMode()">教学🧐</button>
+            <button id="challengeBtn" onclick="openChallengeModal()">难度🕹️</button>
         </div>
-        <span class="teach-progress-text" id="teachProgressText">0/10</span>
+
+        <div class="teach-progress-bar-inline" id="teachProgressBar" style="display:none;">
+            <span class="teach-progress-title" id="teachProgressTitle">教学进度</span>
+            <div class="teach-progress-track">
+                <div class="teach-progress-fill" id="teachProgressFill"></div>
+            </div>
+            <span class="teach-progress-text" id="teachProgressText">0/10</span>
+        </div>
+
+        <div class="hud-meta">
+            <div class="timer-box" id="timer">00:00.00</div>
+            <div class="info">已放置：<span id="placed">0</span> / 总雷数：<span id="max">0</span></div>
+        </div>
+    </section>
+
+    <div class="board-tray">
+        <div id="board" class="board"></div>
     </div>
-    <div class="info">已放置：<span id="placed">0</span> / 总雷数：<span id="max">0</span></div>
-    <div id="board" class="board"></div>
 
     <div class="teach-complete-modal" id="teachCompleteModal">
         <div class="icon" id="teachCompleteIcon">🎉</div>
@@ -264,13 +273,15 @@
     </div>
 
     <div class="info-sidebar" id="infoSidebar">
-        <details class="sidebar-section rm-acc rm-acc-details rm-acc-closed" id="accRule">
-            <summary class="rm-acc-head">
+        <div class="sidebar-section rm-acc rm-acc-closed" id="accRule">
+            <button class="rm-acc-head" type="button" onclick="toggleAcc('accRule')">
                 <span class="rm-acc-icon">📖</span>
                 <span class="rm-acc-title">规则信息</span>
-            </summary>
+                <span class="rm-acc-arrow">▸</span>
+            </button>
             <div class="rm-acc-body">
                 <div class="rule-content">            
+                <div class="sidebar-title rule-title">📖 规则信息</div>
                 <h3>💡 玩法：反向扫雷（布雷）</h3>
                 <ul>
                     <li><strong>目标：</strong><br>在棋盘上放置规定数量的地雷（普通雷 + 特殊雷），使得棋盘上每个格子显示的数字，恰好等于它周围（或特定规则下）所有地雷对它的总影响值。</li>
@@ -295,7 +306,7 @@
                 </ul>
                 </div>
             </div>
-        </details>
+        </div>
 
         <div class="sidebar-section rm-acc rm-acc-open" id="accMine">
             <div class="sidebar-title boom-title">💣 炸弹信息</div>
@@ -432,7 +443,7 @@
         </div>
     </div>
 
-    <footer class="sidebar-version">v1.2.1<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
+    <footer class="sidebar-version">v1.2.21<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
 
     <script src="js/00-core.js"></script>
     <script src="js/01-storage.js"></script>

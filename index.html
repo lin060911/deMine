@@ -11,7 +11,38 @@
 </head>
 <body>
 
+    <!-- ==================================================================
+         反向扫雷 · 页面骨架（index.html）
+
+         职责：定义游戏的全部静态 DOM 结构、样式表与脚本入口。
+         页面结构总览（body 内自上而下的区块顺序）：
+           1) 全局遮罩层与游戏选择弹窗
+           2) 背景特效层：#fallingContainer 下落表情、#bgEffects 漂浮幽灵
+           3) 欢迎 / 新手引导 / 教学 / 难度解锁等各类弹窗
+           4) 标题区 header.hero：游戏名、操作提示、操作方式徽章
+           5) 教学总进度条 #tutorialProgressBar
+           6) 主按钮条 section.hud：新游戏 / 清空放置 / 教学 / 难度
+           7) 计时与放置数 .hud-meta
+           8) 棋盘托盘 .board-tray > #board（06-render.js 渲染格子）
+           9) 教学完成弹窗、教学规则弹窗
+          10) 创造模式面板与地雷 dock（#slot / #teachBubble）
+          11) 预设开局卡片、胜利提示层
+          12) 左侧栏开关与信息侧栏（规则 / 炸弹信息）
+          13) 右侧栏开关、记录侧栏（成绩 / 成就）与成就解锁弹层
+          14) 创造侧栏、设置侧栏（含存档管理入口）
+          15) 页脚：署名与联系方式
+          16) 脚本加载区：00 ~ 15 共 16 个脚本，顺序即依赖
+
+         阅读提示：本文件只负责结构与文案，交互全部由底部 00 ~ 15 号脚本
+         接管；每个区块前的「区块：xxx」注释会说明该区块由谁操作。
+         ================================================================== -->
+    <!-- 区块：全局遮罩层
+         所有弹窗打开时铺在页面之上，点击遮罩即关闭当前弹窗；
+         显示与隐藏由 08-ui.js、09-tutorial.js 与 10-game.js 共同控制 -->
     <div class="auto-modal-overlay" id="overlay"></div>
+    <!-- 区块：游戏选择弹窗
+         由主按钮条「难度」按钮打开，集中放置预设难度、自由模式参数与系列开关；
+         弹窗开合与参数改动由 08-ui.js 处理，系列解锁数据来自 01-storage.js -->
     <div class="challenge-modal" id="challengeModal" style="display:none;">
         <div class="challenge-card">
             <div class="challenge-head">
@@ -20,6 +51,8 @@
                 <button class="challenge-close" type="button" onclick="closeChallengeModal()">✕</button>
             </div>
             <div class="challenge-body">
+        <!-- 难度挑战：三个基础预设 + 地狱 / 脑王 / 自由模式按钮；
+             自由模式会展开自定义面板（棋盘大小、总地雷数、特殊雷种类与总数） -->
         <div class="sidebar-section">
             <div class="sidebar-title preset-title">🎯 难度挑战</div>
             <div class="preset-row">
@@ -71,6 +104,9 @@
         </div>
 
 
+        <!-- 系列开关：每个系列一组开关；未解锁的系列显示锁定提示，
+             解锁由 08-ui.js 的 unlockSeries() 写入，01-storage.js 的
+             seriesUnlocked 负责持久化，09-tutorial.js 在通关后触发解锁 -->
         <div class="sidebar-section">
             <div class="sidebar-title lock-title">🔓 系列开关</div>
             <div class="series-locked-notice" id="seriesLockedNotice">⚠️ 系列开关已锁定🔒，切换到<strong>[🔧自由]</strong>模式可重新调整</div>
@@ -78,6 +114,7 @@
             <div class="switch-hint" id="seriesSwitchHint">完成对应关卡可解锁系列</div>
         </div>
 
+        <!-- 成绩入口说明：这里只提示去哪看成绩，实际成绩表在右侧「记录」侧栏 -->
         <div class="sidebar-section">
             <div class="record-tip">🥇 各难度成绩请到 <strong>📝记录</strong> 栏查看 o((>ω< ))o</div>
         </div>
@@ -85,12 +122,21 @@
         </div>
     </div>
 
+    <!-- 区块：背景特效层
+         #fallingContainer 由 08-ui.js 在通关庆祝时生成下落表情，节点数上限 120，
+         动画结束即移除；#bgEffects 由 14-bgeffects.js 持续生成漂浮的地雷幽灵。
+         两者都是纯装饰元素，不拦截指针事件，也不参与棋盘布局 -->
     <div class="falling-container" id="fallingContainer"></div>
     <div class="bg-effects" id="bgEffects">
+        <!-- 两条扫描光带：纯 CSS 动画，为背景补上一层缓慢移动的光 -->
         <div class="bg-scan-trail"></div>
         <div class="bg-scan-line"></div>
     </div>
 
+    <!-- 区块：每日欢迎弹窗
+         同一自然日只弹一次，文案为静态内容；由 10-game.js 在页面 load 后
+         依据 hasVisitedBefore / welcomeLastShown 两个存档键决定是否显示，
+         关闭时调用 08-ui.js 的 closeWelcomeModal() -->
     <div class="auto-modal" id="welcomeModal">
         <div class="icon">👋</div>
         <h2>欢迎回来!</h2>
@@ -98,6 +144,9 @@
         <button onclick="closeWelcomeModal()">(≧∇≦)ﾉ了解</button>
     </div>
 
+    <!-- 区块：新手引导弹窗
+         首次进入时建议先玩教学；确认按钮带 3 秒倒计时，倒计时结束前保持 disabled，
+         由 10-game.js 控制显示与倒计时，点击后进入 09-tutorial.js 的 openTeachMode() -->
     <div class="auto-modal" id="tutorialPrompt" style="display:none;">
         <div class="icon">🤗</div>
         <h2>你好!</h2>
@@ -106,6 +155,9 @@
         <p style="font-size: 12px; color: #888; margin-top: 8px;" id="tutorialCountdown">按钮将在3秒后可用...</p>
     </div>
 
+    <!-- 区块：教学收尾弹窗
+         单关教学通过后由 09-tutorial.js 弹出；关闭函数 closeTutorialComplete()
+         定义在 08-ui.js，负责同时收起遮罩与弹窗 -->
     <div class="auto-modal" id="tutorialCompleteModal" style="display:none;">
         <div class="icon">🥳</div>
         <h2>恭喜完成!</h2>
@@ -113,6 +165,9 @@
         <button onclick="closeTutorialComplete()">我真厉害<br>( *︾▽︾)</button>
     </div>
 
+    <!-- 区块：更多关卡引导弹窗
+         教学通关后提示玩家可以在「炸弹信息」里开启更多系列关卡；
+         显示与关闭逻辑在 08-ui.js（关闭函数为 closeMoreTutorialGuide） -->
     <div class="auto-modal" id="moreTutorialGuide" style="display:none;">
         <div class="icon">🧐</div>
         <h2>更多关卡</h2>
@@ -120,6 +175,13 @@
         <button onclick="closeMoreTutorialGuide()">知道了</button>
     </div>
 
+    <!-- 区块：难度锁定与解锁提示弹窗群
+         这一组弹窗在难度条件不满足或刚好满足时出现，用来解释原因或庆祝解锁：
+           · #presetLockedModal   系列开关不足 3 个时尝试预设难度
+           · #hellLockedModal     地狱难度要求 5 个系列全部开启
+           · #brainUnlockedModal  地狱通关满 10 次后的脑王解锁庆祝
+           · #brainLockedModal    脑王双条件未满足时说明当前进度
+         显示与关闭都由 08-ui.js 的难度判定函数与 close* 函数负责 -->
     <div class="auto-modal" id="presetLockedModal" style="display:none;">
         <div class="icon">😣</div>
         <h2>无法使用!</h2>
@@ -148,6 +210,9 @@
         <button onclick="closeBrainLockedModal()">知道了</button>
     </div>
 
+    <!-- 区块：脑王通关庆祝弹窗
+         通关脑王难度时由 08-ui.js 的检查流程显示，同时切换全屏金色背景并
+         启动下落表情特效；关闭函数为 closeBrainWinModal() -->
     <div class="brain-win-modal" id="brainWinModal" style="display:none;">
         <div class="icon">🕶️</div>
         <h2>哇，大佬!</h2>
@@ -155,11 +220,18 @@
         <button onclick="closeBrainWinModal()">收下墨镜 😎</button>
     </div>
 
+    <!-- 区块：标题区
+         游戏名、操作提示与当前操作方式徽章；徽章文本由 07-board.js 的
+         setPlaceMode() 随操作方式切换更新，「切换」链接调用同文件的
+         openSettingSidebar() 展开右侧设置栏 -->
     <header class="hero">
         <h1 class="game-title">反向💣扫雷</h1>
         <div class="rule">ℹ️操作tips:拖拽/点选✅放置地雷 | 🚫右键(手机长按)删除<br> 当前操作方式:<b id="modeBadge">拖拽</b> <span class="rule-mode-link" onclick="openSettingSidebar()">⚙️切换</span></div>
     </header>
 
+    <!-- 区块：教学总进度条
+         标题、进度文本与填充宽度全部由 09-tutorial.js 在教学中更新；
+         不在教学流程中时由 09-tutorial.js / 10-game.js 将其隐藏 -->
     <div id="tutorialProgressBar">
         <div class="progress-header">
             <span class="progress-title" id="tutorialTitle">基础挑战</span>
@@ -170,6 +242,9 @@
         </div>
     </div>
 
+    <!-- 区块：主按钮条（游戏操作区）
+         新游戏 / 清空放置 / 教学 / 难度四个主操作：前两者由 10-game.js 绑定事件，
+         后两者用内联 onclick 分别进入 09-tutorial.js 与 08-ui.js -->
     <section class="hud" aria-label="游戏操作">
         <div class="panel">
             <button id="reset">新游戏</button>
@@ -178,6 +253,8 @@
             <button id="challengeBtn" onclick="openChallengeModal()">难度🕹️</button>
         </div>
 
+        <!-- 教学专用进度条：进入教学关卡后显示，当前关卡的操作进度由
+             09-tutorial.js 写入 #teachProgressFill -->
         <div class="teach-progress-bar-inline" id="teachProgressBar" style="display:none;">
             <span class="teach-progress-title" id="teachProgressTitle">教学进度</span>
             <div class="teach-progress-track">
@@ -186,16 +263,25 @@
             <span class="teach-progress-text" id="teachProgressText">0/10</span>
         </div>
 
+        <!-- 区块：计时与放置数
+             计时器由 03-timer.js 约每 33ms 刷新一次；放置数与总雷数由
+             06-render.js 的 render() 同步（不变量：DOM 数字要等于状态雷数） -->
         <div class="hud-meta">
             <div class="timer-box" id="timer">00:00.00</div>
             <div class="info">已放置：<span id="placed">0</span> / 总雷数：<span id="max">0</span></div>
         </div>
     </section>
 
+    <!-- 区块：棋盘托盘
+         #board 是唯一由脚本填充的棋盘容器，初始为空：06-render.js 以差量渲染
+         写入格子，07-board.js 在其上绑定拖拽 / 点选 / 右键删除 -->
     <div class="board-tray">
         <div id="board" class="board"></div>
     </div>
 
+    <!-- 区块：教学完成弹窗
+         单关教学通过后由 09-tutorial.js 弹出，三个按钮分别进入下一关、
+         退出教学或转入基础挑战；按钮文案与显隐由教学流程决定 -->
     <div class="teach-complete-modal" id="teachCompleteModal">
         <div class="icon" id="teachCompleteIcon">🎉</div>
         <h2 id="teachCompleteTitle">做得好！</h2>
@@ -207,6 +293,9 @@
         </div>
     </div>
 
+    <!-- 区块：教学规则弹窗
+         正文由 09-tutorial.js 在打开时按当前教学关卡写入 #teachRuleBody；
+         与左侧信息栏的规则说明是两份独立文案 -->
     <div class="auto-modal teach-rule-modal" id="teachRuleModal" style="display:none;">
         <div class="icon">📖</div>
         <h2>游戏规则</h2>
@@ -214,6 +303,10 @@
         <button id="teachRuleOkBtn" onclick="closeTeachRuleModal()">我明白了，开始教学 ▶</button>
     </div>
 
+    <!-- 区块：创造模式面板
+         创造模式下取代常规棋盘区：顶部显示尺寸 / 已放地雷 / 可用类型，
+         中间是创造棋盘与地雷槽，底部生成并分享题库码；
+         全部显隐与内容由 11-create.js 控制 -->
     <div class="create-mode-panel" id="createModePanel">
         <div class="create-info-bar" id="createInfoBar" style="display:none;">
             <span class="info-chip">棋盘 <strong id="infoRows">-</strong> 行 × <strong id="infoCols">-</strong> 列</span>
@@ -225,6 +318,8 @@
 
         <div id="createMineSlot" class="mine-slot-box" style="display:none;"></div>
 
+        <!-- 题库码卡片：把当前创造题目编码成可分享文本，配合 11-create.js 的
+             生成 / 复制逻辑使用 -->
         <div class="create-card" id="createCodeCard" style="display:none;">
             <div class="create-card-title">
                 <span class="title-icon">🔗</span>题库码
@@ -238,6 +333,9 @@
         <button class="back-btn" onclick="exitCreateMode()">🔙退出创造模式</button>
     </div>
 
+    <!-- 区块：地雷 dock（含教学气泡）
+         #slot 是玩家放置地雷的来源，由 06-render.js 的 renderSlot() 渲染；
+         内嵌 #teachBubble 是教学提示气泡，文案与进度由 09-tutorial.js 按关卡填写 -->
     <div class="mine-slot-box" id="slot">
         <div class="teach-bubble" id="teachBubble">
             <div class="teach-progress" id="teachProgress"></div>
@@ -254,6 +352,9 @@
         </div>
     </div>
 
+    <!-- 区块：预设开局卡片
+         预设难度在题目揭晓前显示，点击「开始」后才展开棋盘并启动计时；
+         由 08-ui.js 显示，10-game.js 的 beginPresetGame() 接手开局 -->
     <div class="preset-start-card" id="presetStartCard" style="display:none;">
         <div class="preset-start-icon" id="presetStartIcon">😎</div>
         <div class="preset-start-title" id="presetStartTitle">准备好了吗？</div>
@@ -262,16 +363,25 @@
         <div class="preset-start-tag" id="presetStartTag"><span id="presetStartTagText">简单</span></div>
     </div>
 
+    <!-- 区块：胜利提示层
+         通关后覆盖在棋盘上方，由 08-ui.js 在胜利判定通过后显示；
+         「再来一局」直接调用 10-game.js 的 newGame() -->
     <div class="win" id="win">
         <div>🎉 恭喜通关！</div>
         <button onclick="newGame()">再来一局</button>
     </div>
 
+    <!-- 区块：左侧栏开关容器
+         两个悬浮按钮分别展开信息栏与记录栏；点击绑定在 08-ui.js，展开时通过
+         closeSidebarsExcept 保证同一时间只开一侧 -->
     <div class="left-sidebar-container">
         <button class="info-sidebar-toggle" id="toggleInfoSidebar">🧭信息</button>
         <button class="achievement-sidebar-toggle" id="toggleAchSidebar">📝记录</button>
     </div>
 
+    <!-- 区块：信息侧边栏
+         上半部分是规则信息手风琴（08-ui.js 的 toggleAcc 控制展开 / 收起），
+         下半部分是炸弹信息列表，由 05-generator.js 按已解锁系列生成 -->
     <div class="info-sidebar" id="infoSidebar">
         <div class="sidebar-section rm-acc rm-acc-closed" id="accRule">
             <button class="rm-acc-head" type="button" onclick="toggleAcc('accRule')">
@@ -308,6 +418,7 @@
             </div>
         </div>
 
+        <!-- 炸弹信息：按已解锁系列列出雷种、影响规则与示意图 -->
         <div class="sidebar-section rm-acc rm-acc-open" id="accMine">
             <div class="sidebar-title boom-title">💣 炸弹信息</div>
             <div class="rm-acc-body">
@@ -316,20 +427,27 @@
         </div>
     </div>
 
+    <!-- 区块：右侧栏开关容器
+         创造 / 设置两个入口，展开与互斥逻辑同样在 08-ui.js -->
     <div class="right-sidebar-container">
         <button class="create-sidebar-toggle" id="toggleCreateSidebar">✍️创造</button>
         <button class="setting-sidebar-toggle" id="toggleSettingSidebar">⚙️设置</button>
     </div>
 
+    <!-- 区块：成绩与成就侧边栏
+         顶部统计、成绩表与成就列表全部由 13-achievements.js 渲染；
+         成绩数据来自 01-storage.js 的受保护存档 -->
     <div class="achievement-sidebar" id="achSidebar">
         <div class="achievement-stats" id="achStats">
             <span class="stats-num" id="achUnlockedCount">0</span>
             <span class="stats-label">/ <span id="achTotalCount">0</span>🏆 成就已解锁</span>
         </div>
+        <!-- 成绩区：按难度列出最快纪录与通关次数 -->
         <div class="achievement-section" id="recSection">
             <div class="achievement-section-title records-title">🥇 成绩</div>
             <div id="achRecordList"></div>
         </div>
+        <!-- 成就区：成就解锁总览，隐藏成就在解锁前不进入列表 -->
         <div class="achievement-section" id="achSection">
             <div class="achievement-section-title">🏆 成就</div>
             <div id="achList"></div>
@@ -337,6 +455,9 @@
         <div class="sidebar-version">谢谢你玩[反向💣扫雷]<br>o(*^▽^*)┛</div>
     </div>
 
+    <!-- 区块：成就解锁弹层
+         成就达成瞬间由 13-achievements.js 填入图标、名称与描述并显示，
+         3 秒后自动收起；多个成就同时达成时排队逐个展示 -->
     <div class="achievement-popup-overlay" id="achPopupOverlay">
         <div class="achievement-popup" id="achPopup">
             <div class="popup-emoji" id="popupEmoji">🏆</div>
@@ -348,7 +469,11 @@
         </div>
     </div>
 
+    <!-- 区块：创造侧边栏
+         棋盘尺寸、题库码输入与该模式的操作说明；按钮全部调用 11-create.js
+         暴露的全局函数 -->
     <div class="create-sidebar" id="createSidebar">
+        <!-- 棋盘尺寸：行 / 列各 4 ~ 20，可通过按钮步进或直接输入设定 -->
         <div class="sidebar-section">
             <div class="sidebar-title create-title">📐 棋盘尺寸</div>
             <div class="create-size-row">
@@ -376,6 +501,7 @@
                 <button class="create-btn" onclick="initCreateBoard()">🛠️ 生成空棋盘</button>
             </div>
         </div>
+        <!-- 题库码：粘贴他人分享的编码即可载入对应题目 -->
         <div class="sidebar-section">
             <div class="sidebar-title create-title">✍️ 题库码</div>
             <div class="puzzle-input-group">
@@ -390,6 +516,10 @@
         </div>
     </div>
 
+    <!-- 区块：设置侧边栏
+         操作方式、音量、地块提示与存档管理四块：前两者由 07-board.js /
+         12-settings.js 持久化，地块提示由 06-render.js 控制，存档管理调用
+         15-boot.js 暴露的 RMSave -->
     <div class="setting-sidebar" id="settingSidebar">
         <div class="sidebar-section">
             <div class="sidebar-title mode-title">🖱️ 操作方式</div>
@@ -431,6 +561,8 @@
             </div>
             <div class="switch-hint">开启后，当前影响值 <strong>不为 0</strong> 且 <strong>不等于题目数字</strong> 的地块，会在右下角显示该地块当前的实时影响值<br><br></div>
         </div>
+        <!-- 存档管理：导出 / 导入 / 清空三个入口，接线在 15-boot.js；
+             导入会先弹三选一确认框，并在写入前留快照，可撤销 -->
         <div class="sidebar-section">
             <div class="sidebar-title">💾 存档管理</div>
             <div class="save-manage-row">
@@ -443,8 +575,32 @@
         </div>
     </div>
 
+    <!-- 区块：页脚
+         署名与联系方式，纯静态文本，脚本不依赖 -->
     <footer class="sidebar-version">v1.2.21<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
 
+    <!-- 区块：脚本加载区（顺序即依赖）
+         16 个外部脚本按 00 → 15 的书写顺序同步执行，共享同一个全局作用域：
+         前一个模块用 function 声明或全局变量暴露的能力，后一个模块直接使用，
+         因此顺序即依赖，不能调换。各模块职责如下：
+           00-core          RM 命名空间、常量、全局状态与错误兜底
+           01-storage       Store 存档层、系列解锁、成绩与胜场
+           02-audio         AudioFX 音效与 RetroBGM 背景音乐
+           03-timer         计时器（单调时钟）
+           04-mines         雷种图鉴与各雷种影响函数
+           05-generator     题目生成、影响值重算、炸弹信息栏
+           06-render        棋盘差量渲染与地雷槽渲染
+           07-board         棋盘尺寸、放置模式、拖拽与放置删除
+           08-ui            侧边栏、系列开关、难度预设、成绩记录、弹窗与庆祝特效
+           09-tutorial      系列挑战 / 基础挑战 / 引导教学全流程
+           10-game          新游戏、全局重置、预设开局与页面级事件
+           11-create        创造模式与题库码
+           12-settings      音量持久化与 _gameNS
+           13-achievements  成就系统与 installHooks 钩子装配
+           14-bgeffects     背景漂浮幽灵，只依赖 DOM，位置相对自由
+           15-boot          启动自检与存档管理，必须最后执行
+         举例：06-render.js 在顶层就调用 Store.get 读取提示开关，如果它排在
+         01-storage.js 前面，加载阶段就会因 Store 未定义而报错。 -->
     <script src="js/00-core.js"></script>
     <script src="js/01-storage.js"></script>
     <script src="js/02-audio.js"></script>

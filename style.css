@@ -1,18 +1,94 @@
+/* ==========================================================================
+ * 反向扫雷 · style.css 样式表结构总览
+ *
+ * 职责：全站唯一样式表，服务纯静态单页游戏《反向扫雷》；
+ *      按「设计令牌 → 基础重置 → 主界面组件 → 侧栏与弹窗 → 响应式适配
+ *      → 主界面视觉规格 → 记录栏成就」的顺序组织。
+ * 约束：不使用 CSS 预处理器，不引外部字体与图标库，避免任何第三方资源请求。
+ * 约定：色板、圆角、投影、缓动集中在 1 区定义，正文组件优先复用这些变量；
+ *      分区 banner 的编号与本目录一一对应，可据此快速定位任意组件。
+ *
+ * 设计要点：
+ *   1) 色系：薄荷绿到天空蓝的柔和渐变配大面积留白，避免高饱和色块。
+ *   2) 层次：系统字体 + 大标题 + 分组卡片 + 毛玻璃，用投影与细描边分层，
+ *      不使用立体描边按钮。
+ *   3) 语义色：绿 = 安全 / 可落子，黄 = 待定 / 提示，红 = 危险 / 违规；
+ *      颜色只承载状态语义，不承担装饰。
+ *   4) 适配：桌面单列居中；700px 以下改为底部抽屉与触屏尺寸。
+ *
+ * 目录：
+ *   1. 设计令牌
+ *   2. 基础重置
+ *   3. 背景特效
+ *   4. 标题区
+ *   5. 操作面板
+ *   6. 进度条
+ *   7. 棋盘
+ *   8. 地雷 dock
+ *   9. 通关遮罩
+ *  10. 脑王彩蛋
+ *  11. 庆祝落物
+ *  12. 弹窗体系
+ *  13. 预设开始卡
+ *  14. 教学完成框
+ *  15. 侧栏浮动按钮
+ *  16. 抽屉容器
+ *  17. 分组卡片
+ *  18. 规则正文
+ *  19. 难度预设
+ *  20. 自定义参数面板
+ *  21. 成绩记录
+ *  22. 炸弹图鉴
+ *  23. 开关行
+ *  24. 输入与按钮
+ *  25. 操作方式与滑杆
+ *  26. 信息栏折叠
+ *  27. 成就与记录
+ *  28. 成就横幅
+ *  29. 难度弹窗
+ *  30. 创造模式
+ *  31. 教学气泡
+ *  32. 拖拽与提示
+ *  33. 全局提示条
+ *  34. 确认框与导入框
+ *  35. 图鉴分类与系列入口
+ *  36. 窄屏适配
+ *  37. 触屏与动效偏好
+ *  38. 系列挑战高亮
+ *  39. 主界面布局骨架
+ *  40. 主界面背景
+ *  41. 主界面标题与操作提示
+ *  42. 主按钮条
+ *  43. 计时与信息
+ *  44. 主进度条
+ *  45. 主棋盘
+ *  46. 地雷 dock 外观
+ *  47. 预设开始卡片
+ *  48. 创造模式主区
+ *  49. 教学气泡定位
+ *  50. 主界面拖拽与提示
+ *  51. 移动端主界面
+ *  52. 顶部统计
+ *  53. 成就区
+ *  54. 成就条目
+ *  55. 成就悬浮说明
+ *  56. 成就横幅
+ * ========================================================================== */
 
-/* ============================== 1. 设计变量 ============================== */
+/* ===== 1. 设计令牌 ===== */
 :root {
-    /* 字体：优先系统 SF，其次苹方 / 微软雅黑 */
+    /* 字体栈：系统 UI 字体优先，不引入网络字体，保证首屏零阻塞 */
     --rm-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
         "Segoe UI", "PingFang SC", "Hiragino Sans GB",  sans-serif;
     --rm-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
 
-    /* 文字：iOS 的 label / secondaryLabel / tertiaryLabel */
+    /* 文字灰度：四级明度分别承担标题 / 正文 / 次要说明 / 占位与禁用 */
     --rm-ink: #14212b;
     --rm-ink-2: #36454f;
     --rm-ink-3: #61707d;
     --rm-ink-4: #8e9aa6;
 
-    /* 主色：沿用原来的蓝 / 绿 / 橙 / 红 / 紫 */
+    /* 语义色板：每个主色配 -deep（描边/文字）与 -tint（浅底）两档衍生色 */
     --rm-blue: #2f7feb;
     --rm-blue-deep: #1d63c4;
     --rm-blue-tint: rgba(47, 127, 235, .10);
@@ -29,7 +105,7 @@
     --rm-purple-tint: rgba(124, 92, 214, .12);
     --rm-teal: #0fa3b1;
 
-    /* 表面与描边 */
+    /* 表面与描边：毛玻璃 = 半透明白底 + 发丝线，层次靠背景透出而非加深色 */
     --rm-card: #ffffff;
     --rm-card-soft: #f7f9fc;
     --rm-card-tint: #f2f6fa;
@@ -38,13 +114,13 @@
     --rm-glass: rgba(255, 255, 255, .70);
     --rm-glass-strong: rgba(255, 255, 255, .87);
 
-    /* 投影：轻、薄、多层，模拟 iOS 的自然光 */
+    /* 投影：由浅到深四级，模拟自上而下的自然光，不使用硬边阴影 */
     --rm-shadow-xs: 0 1px 2px rgba(18, 38, 58, .06);
     --rm-shadow-sm: 0 1px 2px rgba(18, 38, 58, .06), 0 7px 20px rgba(18, 38, 58, .07);
     --rm-shadow-md: 0 2px 6px rgba(18, 38, 58, .07), 0 18px 42px rgba(18, 38, 58, .12);
     --rm-shadow-lg: 0 26px 76px rgba(12, 28, 52, .28);
 
-    /* 圆角与缓动 */
+    /* 圆角与缓动：--rm-spring 带轻微回弹，只用于可点击的小元素 */
     --rm-r-xl: 28px;
     --rm-r-lg: 22px;
     --rm-r-md: 16px;
@@ -52,11 +128,12 @@
     --rm-ease: cubic-bezier(.22, .8, .28, 1);
     --rm-spring: cubic-bezier(.34, 1.4, .64, 1);
 
-    /* 内容列宽 */
+    /* 内容列宽：主列 560px，一行约 20 个汉字，兼顾手机与桌面阅读 */
     --rm-col: 560px;
 }
 
-/* ============================== 2. 基础重置 ============================== */
+/* ===== 2. 基础重置 ===== */
+/* 统一盒模型：border-box 让 gap 与内边距不撑破尺寸；同时关掉触屏双击高亮 */
 *,
 *::before,
 *::after {
@@ -73,6 +150,7 @@ html {
     text-size-adjust: 100%;
 }
 
+/* 全局容器：单列纵向居中；100dvh 应对移动端地址栏收放导致的高度变化 */
 body {
     display: flex;
     flex-direction: column;
@@ -100,7 +178,7 @@ body {
     background-repeat: repeat, no-repeat, no-repeat, no-repeat, no-repeat;
 }
 
-/* 极淡颗粒，给大面积渐变一点质感（不参与交互） */
+/* 全局颗粒噪点：固定层 SVG 噪声，给大面积渐变加质感，且不拦截任何交互 */
 body::before {
     content: '';
     position: fixed;
@@ -111,7 +189,7 @@ body::before {
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
 }
 
-/* 脑王模式：保留金色庆祝氛围，但改成更柔和的暖金渐变 */
+/* 脑王模式：整页切换为暖金渐变，作为隐藏成就达成后的环境反馈 */
 body.brain-golden {
     background-color: #fff4c9;
     background-image:
@@ -122,7 +200,7 @@ body.brain-golden {
     background-size: 26px 26px, auto, auto, auto !important;
 }
 
-/* 让正文内容稳定压在背景特效之上 */
+/* 层级约定：正文组件统一 z-index: 1，稳定压在 z-index: 0 的背景特效之上 */
 .hero,
 .hud,
 .board-tray,
@@ -164,6 +242,7 @@ textarea {
     -webkit-user-select: text;
 }
 
+/* 键盘可达性：仅键盘聚焦时出现主色描边，鼠标点击不出现焦点环 */
 :focus-visible {
     outline: 3px solid rgba(47, 127, 235, .45);
     outline-offset: 2px;
@@ -173,6 +252,7 @@ textarea {
     background: rgba(47, 127, 235, .22);
 }
 
+/* 滚动条：窄条 + 全圆角滑块，与全局细描边风格保持一致（WebKit） */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -191,7 +271,8 @@ textarea {
     background: rgba(22, 33, 43, .26);
 }
 
-/* ============================== 3. 背景特效 ============================== */
+/* ===== 3. 背景特效 ===== */
+/* 背景特效层：固定铺满且 pointer-events: none，纯氛围，不参与任何命中测试 */
 .bg-effects {
     position: fixed;
     inset: 0;
@@ -200,6 +281,7 @@ textarea {
     overflow: hidden;
 }
 
+/* 扫描线：1px 主色光带自上而下循环，给静态棋盘一个"探测中"的空间感 */
 .bg-scan-line {
     position: absolute;
     top: -4%;
@@ -240,6 +322,7 @@ textarea {
     100% { top: 108%; }
 }
 
+/* 地雷残影：落子瞬间放大后淡出，把"探到雷"的即时反馈延伸到背景层 */
 .bg-mine-ghost {
     position: absolute;
     opacity: 0;
@@ -257,6 +340,7 @@ textarea {
     100% { opacity: 0; transform: scale(.72) translateY(-10px); }
 }
 
+/* 脑王模式：扫描线与残影同步换成金色，保证整页色温一致 */
 body.brain-golden .bg-scan-line {
     background: linear-gradient(90deg,
         transparent 0%,
@@ -280,7 +364,8 @@ body.brain-golden .bg-mine-ghost {
     filter: drop-shadow(0 6px 10px rgba(150, 105, 0, .2));
 }
 
-/* ============================== 4. 标题区 ============================== */
+/* ===== 4. 标题区 ===== */
+/* 主标题：clamp() 让字号在 34px~52px 间随视口连续变化，不靠媒体查询跳变 */
 .hero {
     display: flex;
     flex-direction: column;
@@ -305,6 +390,7 @@ body.brain-golden .bg-mine-ghost {
     100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+/* 规则条：毛玻璃表面（半透明白 + blur + 提饱和），在渐变背景上保持文字可读 */
 .rule {
     max-width: min(100%, 560px);
     margin: 12px auto 0;
@@ -340,7 +426,8 @@ body.brain-golden .bg-mine-ghost {
     border-bottom-color: var(--rm-blue-deep);
 }
 
-/* ============================== 5. 操作面板 ============================== */
+/* ===== 5. 操作面板 ===== */
+/* 操作面板：560px 主列宽 + 26px 大圆角，作为棋盘上方的"控制台"容器 */
 .hud {
     width: min(100%, var(--rm-col));
     padding: 8px;
@@ -364,6 +451,7 @@ body.brain-golden .bg-mine-ghost {
     width: 100%;
 }
 
+/* 操作按钮：一行均分，44px 高度是触屏最小可靠点击区 */
 .panel button {
     flex: 1 1 0;
     min-width: 0;
@@ -390,7 +478,7 @@ body.brain-golden .bg-mine-ghost {
     transition-duration: .09s;
 }
 
-/* 主操作：恢复原版红色 */
+/* 主操作「新游戏」：高强调红色，引导玩家先走通这一条主路径 */
 #reset {
     background: linear-gradient(180deg, #ff6b63 0%, #ef4a44 55%, #dd2f2c 100%);
     box-shadow: 0 6px 16px rgba(232, 56, 56, .30), inset 0 1px 0 rgba(255, 255, 255, .28);
@@ -405,7 +493,7 @@ body.brain-golden .bg-mine-ghost {
     filter: brightness(.97);
 }
 
-/* 次要操作：恢复原版四色实心按钮 */
+/* 次要操作：橙 = 清空，绿 = 教学 / 创造，紫 = 挑战，四色实心按钮按功能区分 */
 #clear {
     background: linear-gradient(180deg, #ffb057 0%, #f79332 55%, #e67a16 100%);
     box-shadow: 0 6px 16px rgba(239, 138, 44, .30), inset 0 1px 0 rgba(255, 255, 255, .28);
@@ -438,7 +526,7 @@ body.brain-golden .bg-mine-ghost {
     box-shadow: 0 9px 22px rgba(90, 108, 213, .4), inset 0 1px 0 rgba(255, 255, 255, .3);
 }
 
-/* 面板下方的状态行：计时 + 放置数 */
+/* 状态行：左计时、右放置数，两端对齐；固定高度以免出现时挤动棋盘 */
 .hud-meta {
     display: flex;
     align-items: center;
@@ -465,6 +553,7 @@ body.brain-golden .bg-mine-ghost {
     font-variant-numeric: tabular-nums;
 }
 
+/* 计时红点：1.8s 呼吸循环，用最小的动效表达"计时中" */
 .timer-box::before {
     content: '';
     display: inline-block;
@@ -500,7 +589,8 @@ body.brain-golden .bg-mine-ghost {
     font-weight: 700;
 }
 
-/* ============================== 6. 进度条 ============================== */
+/* ===== 6. 进度条 ===== */
+/* 教学进度条：毛玻璃胶囊 + 主色渐变填充，宽度由 JS 写入内联样式 */
 #tutorialProgressBar {
     display: none;
     width: min(100%, var(--rm-col));
@@ -607,7 +697,8 @@ body.brain-golden .bg-mine-ghost {
     transition: width .8s var(--rm-ease);
 }
 
-/* ============================== 7. 棋盘 ============================== */
+/* ===== 7. 棋盘 ===== */
+/* 棋盘托盘：毛玻璃外框（22px blur）把棋盘从渐变背景上"托"起来，形成两级收边 */
 .board-tray {
     width: max-content;
     min-width: 560px;
@@ -626,6 +717,7 @@ body.brain-golden .bg-mine-ghost {
     animation: boardAppear .7s var(--rm-spring) .16s both;
 }
 
+/* 棋盘网格：8×8 由 JS 生成列；gap 取 2px，既能分格又不会让相邻棋子显得松散 */
 .board {
     display: grid;
     gap: 2px;
@@ -643,6 +735,7 @@ body.brain-golden .bg-mine-ghost {
     100% { opacity: 1; transform: scale(1) translateY(0); }
 }
 
+/* 格子：边长由 JS 写入 --cell-size（随难度与视口自适应），圆角与字号按比例推导 */
 .cell {
     position: relative;
     z-index: 1;
@@ -674,7 +767,7 @@ body.brain-golden .bg-mine-ghost {
         0 3px 10px rgba(47, 127, 235, .16);
 }
 
-/* 三态：恢复原版的黄 / 绿 / 红，保持 iOS 的圆角与细描边 */
+/* 三态配色：绿 = 安全可落、黄 = 接近上限、红 = 超出上限，只表达状态语义 */
 .cell-valid {
     background: #9fdf9f;
     box-shadow: inset 0 0 0 1px rgba(47, 132, 79, .26);
@@ -701,7 +794,7 @@ body.brain-golden .bg-mine-ghost {
     cursor: grabbing;
 }
 
-/* 已放置地雷的描边：从深灰蓝改成主色细环 */
+/* 已落子：主色细环 + 极淡填充，与"可放置"的绿色空格形成明确区分 */
 .mine-here::after {
     content: '';
     position: absolute;
@@ -724,7 +817,7 @@ body.brain-golden .bg-mine-ghost {
     100% { transform: scale(1) translateY(0); opacity: 1; }
 }
 
-/* 只有最新落下的那颗雷播放动画 */
+/* 落子动画只加在最新放下的一颗，避免整盘棋子反复重放 */
 .cell.mine-here.just-dropped,
 #createBoardArea .cell.mine-here.just-dropped {
     animation: cellMineDrop .42s var(--rm-spring) both;
@@ -738,7 +831,7 @@ body.brain-golden .bg-mine-ghost {
     animation: none;
 }
 
-/* 数字配色：沿用原来的冷暖语义，略微加深 */
+/* 影响值数字：1~8 由冷到暖，数值越大越偏红，与棋盘三态保持同一套语义 */
 .n1 { color: #2f7feb; }
 .n2 { color: #2fa96b; }
 .n3 { color: #e9514e; }
@@ -755,7 +848,7 @@ body.brain-golden .bg-mine-ghost {
 .n-5 { color: #982626; }
 .n-6 { color: #912323; }
 
-/* 实时影响值：右下角的小胶囊 */
+/* 影响值角标：右下角小胶囊，黄底随压力增大转红，尺寸随格子等比缩放 */
 .cell-influence {
     position: absolute;
     right: 1px;
@@ -810,7 +903,8 @@ body.brain-golden .bg-mine-ghost {
     100% { opacity: 1; transform: scale(1); }
 }
 
-/* ============================== 8. 地雷 dock ============================== */
+/* ===== 8. 地雷 dock ===== */
+/* 地雷坞：毛玻璃托盘横向排列可拖拽的地雷棋子，宽度随棋子数量自适应 */
 .mine-slot-box {
     display: flex;
     flex-wrap: wrap;
@@ -831,6 +925,7 @@ body.brain-golden .bg-mine-ghost {
     animation: titleFadeIn .45s var(--rm-spring) .2s both;
 }
 
+/* 地雷卡片：78×86 固定尺寸，保证坞内横向排布整齐、拖拽起点稳定 */
 .mine-item {
     position: relative;
     display: flex;
@@ -890,6 +985,7 @@ body.brain-golden .bg-mine-ghost {
         0 12px 26px rgba(47, 127, 235, .14);
 }
 
+/* 不可用态：降透明 + 去饱和，直接表达"该地雷已用完" */
 .mine-item.disabled {
     opacity: .42;
     cursor: not-allowed;
@@ -898,6 +994,7 @@ body.brain-golden .bg-mine-ghost {
     box-shadow: none;
 }
 
+/* 选中态：绿色描边 + 浅绿底，与"已落子"的蓝色细环区分开 */
 .mine-item.selected {
     transform: translateY(-3px);
     border-color: rgba(47, 169, 107, .55);
@@ -935,7 +1032,7 @@ body.brain-golden .bg-mine-ghost {
     cursor: grabbing;
 }
 
-/* 地雷图鉴的 emoji 尺寸（沿用旧类名，只做轻微收敛） */
+/* 地雷图形尺寸：按视觉重量分档（22px 普通 / 24~27px 强化），卡内留白更均匀 */
 .normal-bomb { font-size: 22px; }
 .big-bomb { font-size: 27px; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .14)); }
 .high-bomb {
@@ -963,7 +1060,7 @@ body.brain-golden .bg-mine-ghost {
 .big-blackhole-bomb { font-size: 27px; }
 .tri-sym-bomb { font-size: 22px; }
 
-/* 悬浮提示：iOS 深色气泡 */
+/* 悬浮提示：深色半透明气泡，向上弹出，避免遮挡棋盘与坞内其它卡片 */
 .mine-item::after {
     content: attr(data-tip);
     position: absolute;
@@ -999,7 +1096,8 @@ body.brain-golden .bg-mine-ghost {
     transition-duration: .15s;
 }
 
-/* ============================== 9. 通关遮罩 ============================== */
+/* ===== 9. 通关遮罩 ===== */
+/* 通关遮罩：全屏毛玻璃压暗背景，居中结果卡把注意力收拢到「再来一局」 */
 .win {
     position: fixed;
     inset: 0;
@@ -1064,7 +1162,8 @@ body.brain-golden .bg-mine-ghost {
     transition-duration: .1s;
 }
 
-/* ============================== 10. 脑王彩蛋 ============================== */
+/* ===== 10. 脑王彩蛋 ===== */
+/* 脑王弹窗：环形渐变描边 + 长周期光晕，作为隐藏彩蛋的最高规格反馈 */
 .brain-win-modal {
     position: fixed;
     top: 50%;
@@ -1155,7 +1254,8 @@ body.brain-golden .bg-mine-ghost {
     transition-duration: .1s;
 }
 
-/* ============================== 11. 庆祝落物 ============================== */
+/* ===== 11. 庆祝落物 ===== */
+/* 庆祝落物：固定满层 + pointer-events: none，只在通关瞬间撒落，不影响页面点击 */
 .falling-container {
     position: fixed;
     inset: 0;
@@ -1179,7 +1279,8 @@ body.brain-golden .bg-mine-ghost {
     100% { transform: translateY(112vh) rotate(320deg) scale(.85); opacity: 0; }
 }
 
-/* ============================== 12. 弹窗体系 ============================== */
+/* ===== 12. 弹窗体系 ===== */
+/* 弹窗体系：蒙层 blur(12px) + 面板 blur(30px) 两层毛玻璃，统一承载系统提示 */
 .auto-modal-overlay {
     display: none;
     position: fixed;
@@ -1196,6 +1297,7 @@ body.brain-golden .bg-mine-ghost {
     100% { opacity: 1; -webkit-backdrop-filter: blur(12px) saturate(130%); backdrop-filter: blur(12px) saturate(130%); }
 }
 
+/* 弹窗面板：440px 定宽 + 30px blur，与 12px 的蒙层构成两级毛玻璃 */
 .auto-modal {
     display: none;
     position: fixed;
@@ -1321,7 +1423,8 @@ body.brain-golden .bg-mine-ghost {
     transform: scale(1.05);
 }
 
-/* ============================== 13. 预设开始卡 ============================== */
+/* ===== 13. 预设开始卡 ===== */
+/* 预设开始卡：未开局时的引导卡，520px 宽 + 58px 主按钮，把「开始」做成唯一焦点 */
 .preset-start-card {
     display: flex;
     flex-direction: column;
@@ -1430,7 +1533,8 @@ body.brain-golden .bg-mine-ghost {
     color: #6b4a9e;
 }
 
-/* ============================== 14. 教学完成框 ============================== */
+/* ===== 14. 教学完成框 ===== */
+/* 教学完成框：复用弹窗毛玻璃外观，只在出现 .visible 时播放进场动画 */
 .teach-complete-modal {
     display: none;
     position: fixed;
@@ -1506,7 +1610,8 @@ body.brain-golden .bg-mine-ghost {
     transition-duration: .1s;
 }
 
-/* ============================== 15. 侧栏浮动按钮 ============================== */
+/* ===== 15. 侧栏浮动按钮 ===== */
+/* 侧栏入口：46px 竖排文字胶囊，固定在视口两侧，不占用文档流宽度 */
 .left-sidebar-container,
 .right-sidebar-container {
     position: fixed;
@@ -1558,7 +1663,7 @@ body.brain-golden .bg-mine-ghost {
         box-shadow .25s ease;
 }
 
-/* 恢复原版四色导航：蓝 = 信息，金 = 记录，绿 = 创造，黑 = 设置 */
+/* 五个入口按功能区分配色：绿 = 规则，蓝 = 信息，金 = 记录，青绿 = 创造，黑 = 设置 */
 .rule-sidebar-toggle {
     background: linear-gradient(180deg, #5ad878, #2da84a);
     box-shadow: 0 6px 18px rgba(45, 168, 74, .32), 0 1px 0 rgba(255, 255, 255, .35) inset;
@@ -1599,7 +1704,7 @@ body.brain-golden .bg-mine-ghost {
     transition-duration: .1s;
 }
 
-/* 桌面端：抽屉打开时把导航条推到抽屉旁边，保持可切换 */
+/* 桌面端：抽屉展开时把对应侧的导航条外推，保证抽屉打开后入口仍可点击 */
 @media (min-width: 1001px) {
     body:has(.info-sidebar.open) .left-sidebar-container,
     body:has(.achievement-sidebar.open) .left-sidebar-container {
@@ -1612,7 +1717,7 @@ body.brain-golden .bg-mine-ghost {
     }
 }
 
-/* ============================== 16. 抽屉容器 ============================== */
+/* ===== 16. 抽屉容器 ===== */
 .info-sidebar,
 .rule-sidebar,
 .achievement-sidebar,
@@ -1672,7 +1777,7 @@ body.brain-golden .bg-mine-ghost {
     transform: translateX(0);
 }
 
-/* 抽屉蒙层：只为聚焦与点击关闭服务，不抢按钮 */
+/* 抽屉蒙层：只为聚焦与点击关闭服务，半透明且不遮挡抽屉内的按钮 */
 body:has(.info-sidebar.open, .achievement-sidebar.open, .rule-sidebar.open,
         .create-sidebar.open, .setting-sidebar.open)::after {
     content: '';
@@ -1690,7 +1795,8 @@ body:has(.info-sidebar.open, .achievement-sidebar.open, .rule-sidebar.open,
     to   { opacity: 1; }
 }
 
-/* ============================== 17. 分组卡片 ============================== */
+/* ===== 17. 分组卡片 ===== */
+/* 分组卡片：抽屉内的白底圆角块，以 0.04s 递进的延迟依次浮入，形成阅读节奏 */
 .sidebar-section {
     margin-bottom: 14px;
     padding: 16px;
@@ -1723,7 +1829,7 @@ body:has(.info-sidebar.open, .achievement-sidebar.open, .rule-sidebar.open,
     line-height: 1.4;
 }
 
-/* 旧版每个标题一条彩色竖线，改为统一标题层级 */
+/* 标题层级：抽屉内统一为无竖线的纯文字标题，由字号与字重体现层级 */
 .info-sidebar .sidebar-title,
 .rule-sidebar .sidebar-title,
 .sidebar-title.lock-title,
@@ -1740,7 +1846,8 @@ body:has(.info-sidebar.open, .achievement-sidebar.open, .rule-sidebar.open,
     color: var(--rm-ink);
 }
 
-/* ============================== 18. 规则正文 ============================== */
+/* ===== 18. 规则正文 ===== */
+/* 规则正文：13.5px / 1.75 行高，长文阅读优先，列表符号取最浅一级灰度 */
 .rule-content {
     color: var(--rm-ink-2);
     font-size: 13.5px;
@@ -1784,7 +1891,8 @@ body:has(.info-sidebar.open, .achievement-sidebar.open, .rule-sidebar.open,
     margin: 6px 0;
 }
 
-/* ============================== 19. 难度预设 ============================== */
+/* ===== 19. 难度预设 ===== */
+/* 难度色阶：绿 = 简单、橙 = 中等、红 = 困难、紫 = 地狱、虹彩 = 脑王，颜色即难度 */
 .preset-row {
     display: flex;
     flex-wrap: nowrap;
@@ -1887,7 +1995,8 @@ body:has(.info-sidebar.open, .achievement-sidebar.open, .rule-sidebar.open,
     box-shadow: none !important;
 }
 
-/* ============================== 20. 自定义参数面板 ============================== */
+/* ===== 20. 自定义参数面板 ===== */
+/* 自定义面板：默认折叠，仅在「自由」难度下展开，避免无关参数干扰主流程 */
 .custom-panel {
     display: none;
     margin: 10px 0 4px;
@@ -2011,7 +2120,8 @@ body:has(.info-sidebar.open, .achievement-sidebar.open, .rule-sidebar.open,
     transition-duration: .1s;
 }
 
-/* ============================== 21. 成绩记录 ============================== */
+/* ===== 21. 成绩记录 ===== */
+/* 成绩条目：左侧 3px 色条标识难度，脑王成绩额外叠加淡彩渐变底以突出稀有度 */
 .record-item {
     padding: 12px;
     margin-bottom: 8px;
@@ -2076,7 +2186,8 @@ body:has(.info-sidebar.open, .achievement-sidebar.open, .rule-sidebar.open,
     text-align: center;
 }
 
-/* ============================== 22. 炸弹图鉴 ============================== */
+/* ===== 22. 炸弹图鉴 ===== */
+/* 炸弹图鉴：每条含名称与说明，悬停「预览」时展开迷你棋盘示意该雷的作用范围 */
 .mine-info-item {
     position: relative;
     padding: 12px;
@@ -2151,6 +2262,7 @@ body:has(.info-sidebar.open, .achievement-sidebar.open, .rule-sidebar.open,
     transform: translateY(0) scale(1);
 }
 
+/* 预览层：绝对定位浮在条目下方，z-index 高于相邻条目以免被裁切 */
 .mine-preview {
     position: absolute;
     top: 100%;
@@ -2218,7 +2330,8 @@ body:has(.info-sidebar.open, .achievement-sidebar.open, .rule-sidebar.open,
     pointer-events: none;
 }
 
-/* ============================== 23. 开关行 ============================== */
+/* ===== 23. 开关行 ===== */
+/* 开关行：iOS 风格拨钮（49×29 轨道 + 25px 滑块），锁定项整体降透明并禁用指针 */
 .switch-row {
     display: flex;
     align-items: center;
@@ -2315,7 +2428,8 @@ body:has(.info-sidebar.open, .achievement-sidebar.open, .rule-sidebar.open,
     color: var(--rm-green-deep);
 }
 
-/* ============================== 24. 输入与按钮 ============================== */
+/* ===== 24. 输入与按钮 ===== */
+/* 口令输入区：输入框 + 蓝色确认 / 红色清除，聚焦时用 3px 主色光环代替默认 outline */
 .puzzle-input-group {
     display: flex;
     gap: 8px;
@@ -2409,7 +2523,9 @@ body:has(.info-sidebar.open, .achievement-sidebar.open, .rule-sidebar.open,
     line-height: 1.65;
 }
 
-/* ============================== 25. 操作方式 / 滑杆 ============================== */
+/* ===== 25. 操作方式与滑杆 ===== */
+/* 操作方式与音量：分段控件 + 原生 range，滑块描边用蓝色（BGM）/ 绿色（音效）区分 */
+/* 分段控件：容器内缩 3px 形成凹槽，选中项用主色填充表示当前操作方式 */
 .mode-switch {
     display: flex;
     gap: 3px;
@@ -2528,6 +2644,7 @@ body:has(.info-sidebar.open, .achievement-sidebar.open, .rule-sidebar.open,
     line-height: 1.5;
 }
 
+/* 原生滑杆重置：去掉系统外观，只保留 6px 圆角轨道，滑块由伪元素自绘 */
 input[type="range"] {
     -webkit-appearance: none;
     appearance: none;
@@ -2601,7 +2718,8 @@ input[type="range"] {
     cursor: pointer;
 }
 
-/* ============================== 26. 信息栏折叠 ============================== */
+/* ===== 26. 信息栏折叠 ===== */
+/* 折叠面板：标题即按钮，箭头旋转 90° 表示展开态，内容区展开时才参与布局 */
 .rm-acc {
     margin-bottom: 14px;
 }
@@ -2662,7 +2780,8 @@ input[type="range"] {
     display: block;
 }
 
-/* ============================== 27. 成就与记录 ============================== */
+/* ===== 27. 成就与记录 ===== */
+/* 成就统计：金色渐变卡片，用最暖的一档色表示"已解锁成果"的汇总区 */
 .achievement-stats {
     margin-bottom: 14px;
     padding: 16px 14px;
@@ -2756,7 +2875,7 @@ input[type="range"] {
 }
 
 .achievement-item.hidden-ach:hover {
-    background: rgba(233, 81, 78, 0.4);
+    background: rgba(233, 81, 78, .075);
     box-shadow: none;
 }
 
@@ -2836,7 +2955,7 @@ input[type="range"] {
     opacity: .65;
 }
 
-/* 悬浮说明 */
+/* 悬浮说明：深色气泡 + 小三角，宽度 180~300px 自适应；解锁后气泡转暖金色 */
 .achievement-item::after {
     content: attr(data-tip);
     position: absolute;
@@ -2898,7 +3017,8 @@ input[type="range"] {
     border-top-color: rgba(120, 82, 0, .96);
 }
 
-/* ============================== 28. 成就横幅 ============================== */
+/* ===== 28. 成就横幅 ===== */
+/* 成就横幅：顶部居中浮层，pointer-events: none，只在解锁时出现且不阻挡操作 */
 .achievement-popup-overlay {
     display: none;
     position: fixed;
@@ -2975,7 +3095,8 @@ input[type="range"] {
     line-height: 1.45;
 }
 
-/* ============================== 29. 难度弹窗 ============================== */
+/* ===== 29. 难度弹窗 ===== */
+/* 难度弹窗：整层可滚动，卡片宽 580px、纵向 7vh 留白，避免小屏被裁切 */
 .challenge-modal {
     display: none;
     position: fixed;
@@ -3086,7 +3207,8 @@ input[type="range"] {
     margin-top: 10px;
 }
 
-/* ============================== 30. 创造模式 ============================== */
+/* ===== 30. 创造模式 ===== */
+/* 创造模式：独立的一套棋盘与工具面板，与主局互斥显示 */
 .create-mode-panel {
     display: none;
     flex-direction: column;
@@ -3099,17 +3221,17 @@ input[type="range"] {
     display: flex;
 }
 
-/* 创造模式不再使用主棋盘，棋盘托盘随之收起 */
+/* 创造模式占用主棋盘的位置，主棋盘托盘同时收起，避免同时出现两套棋盘 */
 body:has(.create-mode-panel.visible) .board-tray {
     display: none;
 }
 
-/* 主棋盘被 JS 隐藏时（预设难度确认、创造模式等），托盘不要留下空条 */
+/* 主棋盘被 JS 隐藏时（预设确认、创造模式），托盘同步隐藏以免页面出现空条 */
 body:has(#board[style*="none"]) .board-tray {
     display: none;
 }
 
-/* 创造模式 / 预设确认时，隐藏主局的状态行，避免和当前面板的数据打架 */
+/* 创造模式或预设确认态下隐藏主局状态行，避免两套数据同时显示造成误读 */
 body:has(.create-mode-panel.visible) .hud-meta,
 body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     display: none;
@@ -3475,7 +3597,8 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     box-shadow: none;
 }
 
-/* ============================== 31. 教学气泡 ============================== */
+/* ===== 31. 教学气泡 ===== */
+/* 教学气泡：毛玻璃圆角板 + 顶部小三角，指向棋盘当前步骤，讲解与操作同屏可见 */
 #slot.teach-slot-host {
     position: relative;
     flex-direction: column;
@@ -3716,7 +3839,7 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     font-size: 11.5px;
 }
 
-/* 规则弹窗（复用 .auto-modal 外观） */
+/* 规则弹窗：沿用 .auto-modal 的毛玻璃外观，仅调整宽度与内边距 */
 .teach-rule-modal {
     top: 50%;
     width: min(92vw, 540px);
@@ -3790,7 +3913,7 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     margin-bottom: 6px !important;
 }
 
-/* 教学高亮 */
+/* 教学高亮：目标格蓝色脉冲、答对绿闪、答错红抖动，沿用棋盘的三态语义 */
 .cell-teach-target {
     box-shadow: inset 0 0 0 2px var(--rm-blue), 0 0 18px rgba(47, 127, 235, .32) !important;
     animation: teachCellPulse 2.2s ease-in-out infinite;
@@ -3826,7 +3949,8 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     80%      { transform: translateX(-1px); }
 }
 
-/* ============================== 32. 拖拽与提示 ============================== */
+/* ===== 32. 拖拽与提示 ===== */
+/* 拖拽跟随元素：fixed 定位并 pointer-events: none，跟随指针但不拦截落点检测 */
 .drag-ghost {
     position: fixed;
     top: 0;
@@ -3865,7 +3989,8 @@ body.drag-mode .cell.mine-here {
     -webkit-tap-highlight-color: transparent;
 }
 
-/* ============================== 33. 全局提示条 ============================== */
+/* ===== 33. 全局提示条 ===== */
+/* 全局提示条：底部居中的深色气泡，pointer-events: none，只做一闪而过的反馈 */
 .rm-toast {
     position: fixed;
     left: 50%;
@@ -3894,7 +4019,8 @@ body.drag-mode .cell.mine-here {
     transform: translateX(-50%) translateY(0) scale(1);
 }
 
-/* ============================== 34. 确认框 / 导入框 ============================== */
+/* ===== 34. 确认框与导入框 ===== */
+/* 确认与导入框：在通用弹窗外壳上按语义分色（蓝 = 主操作、红 = 危险、绿 = 合并） */
 .rm-confirm-overlay { z-index: 1300 !important; }
 .rm-confirm-modal { z-index: 1301 !important; }
 .rm-overlay-top { z-index: 1200 !important; }
@@ -4056,7 +4182,8 @@ body.drag-mode .cell.mine-here {
     margin-top: 8px;
 }
 
-/* ============================== 35. 图鉴分类 / 系列入口 ============================== */
+/* ===== 35. 图鉴分类与系列入口 ===== */
+/* 图鉴分类：按系列分组，组内行高压缩以在一屏内展示更多炸弹种类 */
 .category-section {
     margin-bottom: 14px;
 }
@@ -4113,12 +4240,13 @@ body.drag-mode .cell.mine-here {
     color: var(--rm-ink-4);
 }
 
-/* 手机端底部按钮收起的圆钮：桌面端隐藏 */
+/* 移动端底部工具栏收起钮：桌面端不占位，仅在窄屏出现 */
 .rm-bar-toggle {
     display: none;
 }
 
-/* ============================== 36. 窄屏适配 ============================== */
+/* ===== 36. 窄屏适配 ===== */
+/* 断点 700px：低于此宽度切换单列窄版，棋盘与地雷坞各自横向滚动而不挤压 */
 @media (max-width: 700px) {
     body {
         padding: calc(12px + env(safe-area-inset-top, 0px)) 10px calc(88px + env(safe-area-inset-bottom, 0px));
@@ -4233,7 +4361,7 @@ body.drag-mode .cell.mine-here {
     .mine-item > div:nth-child(2) { font-size: 10.5px; }
     .mine-item > div:nth-child(3) { font-size: 9.5px; }
 
-    /* 教学气泡：单列排布 */
+    /* 教学气泡：窄屏改为单列，地雷候选行提到正文之前，便于单手操作 */
     #slot.teach-slot-host {
         width: 100%;
         min-width: 0;
@@ -4284,7 +4412,7 @@ body.drag-mode .cell.mine-here {
         border-bottom: none;
     }
 
-    /* 抽屉改为底部卡片 */
+    /* 抽屉：窄屏改为底部卡片，限高 74vh 并加顶部拖拽指示条 */
     .info-sidebar,
     .rule-sidebar,
     .achievement-sidebar,
@@ -4349,7 +4477,7 @@ body.drag-mode .cell.mine-here {
         animation-delay: 0s;
     }
 
-    /* 底部导航条 */
+    /* 底部导航条：窄屏把侧栏入口改为横排的底部工具栏 */
     .left-sidebar-container,
     .right-sidebar-container {
         top: auto;
@@ -4405,7 +4533,7 @@ body.drag-mode .cell.mine-here {
         transform: translateY(130%);
     }
 
-    /* 弹窗 */
+    /* 弹窗：窄屏收窄到 90% 视口宽，圆角与字号同步下调 */
     .auto-modal {
         width: 90%;
         max-width: 360px;
@@ -4452,7 +4580,7 @@ body.drag-mode .cell.mine-here {
     .brain-win-modal h2 { font-size: 24px; }
     .brain-win-modal p { font-size: 13.5px; }
 
-    /* 难度弹窗 */
+    /* 难度弹窗：窄屏压缩上下留白，内容区改为 86vh 内滚动 */
     .challenge-modal {
         padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px));
     }
@@ -4470,7 +4598,7 @@ body.drag-mode .cell.mine-here {
     .challenge-head h2 { font-size: 17px; }
     .challenge-body { padding: 14px 16px 16px; max-height: calc(86vh - 70px); }
 
-    /* 教学规则弹窗 */
+    /* 教学规则弹窗：窄屏接近全宽，正文行高略微收紧 */
     #teachRuleModal {
         width: 94%;
         max-width: 94%;
@@ -4485,7 +4613,7 @@ body.drag-mode .cell.mine-here {
     .teach-rule-sec p,
     .teach-rule-sec li { font-size: 12px; line-height: 1.65; }
 
-    /* 创造模式 */
+    /* 创造模式：窄屏各面板改为整宽，按钮与输入框同步缩小 */
     .create-mode-panel,
     #createBoardArea,
     #createMineSlot {
@@ -4513,7 +4641,7 @@ body.drag-mode .cell.mine-here {
     .generate-code-area { gap: 8px; }
     .code-output { max-width: 100%; width: 100%; font-size: 11px; }
 
-    /* 底部按钮收起圆纽 */
+    /* 底部工具栏收起钮：窄屏固定在右下角，收起时整体下移并旋转箭头 */
     .rm-bar-toggle {
         display: flex;
         align-items: center;
@@ -4586,7 +4714,8 @@ body.drag-mode .cell.mine-here {
     }
 }
 
-/* ============================== 36. 触屏与动效偏好 ============================== */
+/* ===== 37. 触屏与动效偏好 ===== */
+/* 触屏：取消 hover 位移与悬浮气泡；系统开启减少动态时，动画归零并隐藏漂浮特效 */
 @media (hover: none) and (pointer: coarse) {
     body,
     body * {
@@ -4636,7 +4765,8 @@ body.drag-mode .cell.mine-here {
     }
 }
 
-/* ============================== 37. 系列挑战高亮 ============================== */
+/* ===== 38. 系列挑战高亮 ===== */
+/* 系列挑战高亮：入口被定位时闪一次紫色轮廓，提示玩家该系列就在这一区 */
 @keyframes rmCatFlash {
     0%   { outline-color: rgba(124, 92, 214, 0); background: rgba(124, 92, 214, 0); }
     14%  { outline-color: rgba(124, 92, 214, .65); background: rgba(124, 92, 214, .08); }
@@ -4654,16 +4784,8 @@ body.drag-mode .cell.mine-here {
     animation: rmCatFlash 2.6s ease-in-out both;
 }
 
-/* ==========================================================================
-   v1.2.21 · 1.2.1 主界面皮肤
-   --------------------------------------------------------------------------
-   以下规则只覆盖上面的 1.2.2「主游戏区」：
-   背景、标题、主按钮条、计时/信息、棋盘、地雷 dock、进度条、创造面板、
-   教学气泡等，全部恢复 1.2.1 的视觉。
-   侧边栏按钮 / 抽屉内容 / 各弹窗继续沿用上面的 1.2.2 规则。
-   ========================================================================== */
-
-/* 让 1.2.2 新增的三层包装在布局上"消失"，恢复 1.2.1 的 body 直接子元素结构 */
+/* ===== 39. 主界面布局骨架 ===== */
+/* 布局包装层：设为 display: contents，使标题、按钮、棋盘成为 body 的直接 flex 子项 */
 .hero,
 .hud,
 .hud-meta,
@@ -4671,7 +4793,8 @@ body.drag-mode .cell.mine-here {
     display: contents;
 }
 
-/* ============================== 背景 ============================== */
+/* ===== 40. 主界面背景 ===== */
+/* 20px 方格纸底纹：1px 白线叠在薄荷绿渐变上，给主界面一层"答题卡"质感 */
 body {
     padding: 20px;
     min-height: calc(100vh + 1px);
@@ -4700,7 +4823,7 @@ body.brain-golden {
     background: linear-gradient(155deg, #ffd700 0%, #ffe066 25%, #fff8b0 55%, #ffed4e 80%, #ffd700 100%) !important;
 }
 
-/* 1.2.1 的蓝色扫描线与背景幽灵 */
+/* 扫描线与残影：主界面统一为偏蓝的冷色光带，强化"扫描探测"的主题 */
 .bg-scan-line {
     top: -5%;
     height: 2px;
@@ -4743,7 +4866,8 @@ body.brain-golden {
     100% { opacity: 0; transform: scale(.3) translateY(-6px); }
 }
 
-/* ============================== 标题与操作提示 ============================== */
+/* ===== 41. 主界面标题与操作提示 ===== */
+/* 主标题：56px / 900 字重，是全页唯一的超大字号，直接承担视觉锚点 */
 body > footer.sidebar-version {
     margin-top: 30px;
     padding-top: 15px;
@@ -4799,7 +4923,8 @@ body > footer.sidebar-version {
     border-bottom-color: #90b8e0;
 }
 
-/* ============================== 主按钮条 ============================== */
+/* ===== 42. 主按钮条 ===== */
+/* 主按钮条：不换行居中排布，按钮按功能各自着色，hover 以放大代替变色 */
 .panel {
     display: flex;
     flex-wrap: nowrap;
@@ -4913,7 +5038,8 @@ body > footer.sidebar-version {
     filter: none;
 }
 
-/* ============================== 计时 / 信息 ============================== */
+/* ===== 43. 计时与信息 ===== */
+/* 计时与放置数：主界面各占一行、居中对齐，纯文本呈现、不加底衬 */
 .timer-box {
     width: auto;
     margin: 10px 0;
@@ -4954,7 +5080,8 @@ body > footer.sidebar-version {
     font-weight: inherit;
 }
 
-/* ============================== 进度条 ============================== */
+/* ===== 44. 主进度条 ===== */
+/* 进度条：450px 上限的白色卡片，填充条带流光，只在教学流程中出现 */
 #tutorialProgressBar {
     width: 70%;
     max-width: 450px;
@@ -5042,7 +5169,8 @@ body > footer.sidebar-version {
     animation: progressShine 2.5s linear infinite;
 }
 
-/* ============================== 棋盘 ============================== */
+/* ===== 45. 主棋盘 ===== */
+/* 棋盘外框：4px 内边距 + 灰色渐变边，在白色格子外形成一圈细金属框 */
 .board {
     display: grid;
     gap: 2px;
@@ -5157,7 +5285,7 @@ body > footer.sidebar-version {
 .n-5 { color: #a02626; }
 .n-6 { color: #9b2626; }
 
-/* 影响值角标：恢复 1.2.1 的右下角三角 */
+/* 影响值角标：裁成右下角三角，颜色由黄转红表示对邻格压力的大小 */
 .cell-influence {
     position: absolute;
     right: 0;
@@ -5208,7 +5336,8 @@ body > footer.sidebar-version {
     transition: transform .25s cubic-bezier(.34, 1.56, .64, 1);
 }
 
-/* ============================== 地雷 dock ============================== */
+/* ===== 46. 地雷 dock 外观 ===== */
+/* 地雷坞：白色托盘 + 15px 间距，卡片 80×85 采用细描边而非投影，弱化"按钮感" */
 .mine-slot-box {
     display: flex;
     flex-wrap: wrap;
@@ -5253,7 +5382,7 @@ body > footer.sidebar-version {
         opacity .5s ease;
 }
 
-/* 1.2.1 里名称 / 数量都继承 item 的字号 */
+/* 名称与数量：继承卡片字号，两行信息保持同一层级 */
 .mine-item > div:nth-child(2) {
     max-width: none;
     margin: 0;
@@ -5372,7 +5501,8 @@ body > footer.sidebar-version {
     transition-duration: .15s;
 }
 
-/* ============================== 预设开始卡片 ============================== */
+/* ===== 47. 预设开始卡片 ===== */
+/* 开始卡：白色卡面 + 蓝色虚线边框，用"待填入"的暗示邀请玩家点开始 */
 .preset-start-card {
     display: flex;
     flex-direction: column;
@@ -5462,7 +5592,8 @@ body > footer.sidebar-version {
 .preset-start-tag.tag-hell   { background: linear-gradient(135deg, #b794f4, #6b21a8); }
 .preset-start-tag.tag-brain  { background: linear-gradient(135deg, #fff654 0%, #56daff 25%, #5694ff 50%, #a455ff 75%, #ea4fff 100%); }
 
-/* ============================== 创造模式主区 ============================== */
+/* ===== 48. 创造模式主区 ===== */
+/* 创造模式主区：900px 宽上限，棋盘与地雷坞各自独立成块，便于反复试摆 */
 .create-mode-panel {
     width: 100%;
     max-width: 900px;
@@ -5494,6 +5625,7 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     box-shadow: 0 8px 24px rgba(0, 0, 0, .07), inset 0 0 0 1px rgba(66, 153, 225, .06);
 }
 
+/* 备用雷区：虚线边框表示"可拖入"，与右侧棋盘的实线外框区分 */
 #createMineSlot {
     width: 100%;
     max-width: 1100px;
@@ -5682,7 +5814,8 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     transition-duration: .1s;
 }
 
-/* ============================== 教学气泡 ============================== */
+/* ===== 49. 教学气泡定位 ===== */
+/* 教学气泡：紫蓝渐变底 + 白字，顶部三角指向棋盘，落在棋盘正下方 */
 #slot.teach-slot-host {
     position: relative;
     flex-direction: column;
@@ -5790,6 +5923,7 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     text-align: center;
 }
 
+/* 候选雷区：气泡右侧独立一列，与讲解文案之间用细线分隔 */
 .teach-bubble-mines {
     display: flex;
     flex: 0 0 auto;
@@ -5926,7 +6060,8 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     80%      { transform: translateX(-1px); }
 }
 
-/* ============================== 拖拽 / 提示 ============================== */
+/* ===== 50. 主界面拖拽与提示 ===== */
+/* 拖拽与提示：拖拽影子取 46px、落点格蓝框放大，明确"可以放在这里" */
 .drag-ghost {
     width: 46px;
     height: 46px;
@@ -5965,7 +6100,8 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     transform: translateX(-50%) translateY(0);
 }
 
-/* ============================== 1.2.1 移动端主区 ============================== */
+/* ===== 51. 移动端主界面 ===== */
+/* 移动端主界面：700px 以下主按钮换行、标题降为 34px，底部预留工具栏高度 */
 @media (max-width: 700px) {
     body {
         padding: 10px 6px calc(96px + env(safe-area-inset-bottom, 0px));
@@ -6026,6 +6162,7 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
         font-size: calc(var(--cell-size, 40px) * .58);
     }
 
+    /* 棋盘：窄屏允许横向滚动，保证 8 列格子不被压缩变形 */
     #board,
     #createBoardArea {
         max-width: 100%;
@@ -6033,6 +6170,7 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
         -webkit-overflow-scrolling: touch;
     }
 
+    /* 地雷坞：窄屏限高 30vh 并纵向滚动，避免把棋盘挤出首屏 */
     .mine-slot-box {
         gap: 8px;
         margin-top: 12px;
@@ -6155,13 +6293,8 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     }
 }
 
-/* ==========================================================================
-   v1.2.21 · 记录栏「成就」+ 成就横幅回到 1.2.1
-   --------------------------------------------------------------------------
-   只覆盖 #achSection（成就区）与成就弹窗；#recSection（成绩）继续用 1.2.2。
-   ========================================================================== */
-
-/* ---------- 顶部统计 ---------- */
+/* ===== 52. 顶部统计 ===== */
+/* 顶部统计：金色描边卡，用最大字号的数字展示成就解锁进度 */
 .achievement-stats {
     margin-bottom: 16px;
     padding: 12px;
@@ -6185,7 +6318,8 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     font-weight: 600;
 }
 
-/* ---------- 成就区：去掉 1.2.2 的白卡，恢复 1.2.1 的标题 ---------- */
+/* ===== 53. 成就区 ===== */
+/* 成就区：透明容器 + 金色竖线标题，条目之间以背景色区分而不是分割线 */
 #achSection {
     margin-bottom: 22px;
     padding: 0;
@@ -6205,7 +6339,8 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     letter-spacing: .3px;
 }
 
-/* ---------- 成就条目 ---------- */
+/* ===== 54. 成就条目 ===== */
+/* 成就条目：左侧 3px 色条表示状态，解锁转金色、隐藏成就转红色 */
 .achievement-item {
     position: relative;
     display: flex;
@@ -6328,7 +6463,8 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     opacity: 1;
 }
 
-/* ---------- 成就条目悬浮说明 ---------- */
+/* ===== 55. 成就悬浮说明 ===== */
+/* 悬浮说明：深色气泡配小三角，解锁后转深金色，与条目的金色状态呼应 */
 .achievement-item::after {
     content: attr(data-tip);
     position: absolute;
@@ -6388,7 +6524,8 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     border-top-color: #92400e;
 }
 
-/* ---------- 成就横幅（1.2.1 金色） ---------- */
+/* ===== 56. 成就横幅 ===== */
+/* 成就横幅：金色描边卡从顶部弹入，回弹后停驻，是解锁瞬间唯一的动效焦点 */
 .achievement-popup-overlay {
     display: none;
     position: fixed;

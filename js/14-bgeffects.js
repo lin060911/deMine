@@ -1,12 +1,25 @@
 /* ==========================================================================
- * 反向扫雷 · 14-bgeffects.js
- * 职责：背景漂浮地雷特效
+ * 模块 14 · 背景氛围特效（js/14-bgeffects.js）
+ *
+ * 职责：在页面背景层持续生成漂浮的「地雷幽灵」元素，强化扫雷主题氛围。
+ * 依赖：DOM 中的 #bgEffects 容器（index.html 静态定义）与 .bg-mine-ghost 样式。
+ * 对外：无。本模块以 IIFE 自执行，不向全局暴露任何接口。
+ * 设计要点：
+ *   1) 特效纯装饰，不参与任何游戏逻辑；容器缺失时直接静默退出。
+ *   2) 采用 setTimeout 自调度而非 setInterval，使生成间隔带随机抖动，
+ *      避免长时间运行后出现机械的「节拍感」。
+ *   3) 每个元素在动画结束后自行移除，DOM 节点数量始终保持有界。
  * ========================================================================== */
 
 (function initBgEffects() {
     const container = document.getElementById("bgEffects");
     if (!container) return;
+    // 幽灵元素的候选符号：均取自游戏内已有的地雷 / 道具 emoji，保持视觉语言统一
     const mineEmojis = [ "💣", "🚩", "❓", "💥", "🕳️", "☢️", "🌶️", "✖️", "🍺", "🌀", "🛡️", "🐮", "🗿" ];
+    /**
+     * 生成一个漂浮幽灵元素：随机位置、随机尺寸与随机动画时长，到期自动移除。
+     * @sideeffect 向 #bgEffects 追加一个节点，并在 duration 秒后将其移除。
+     */
     function spawnMineGhost() {
         if (!container) return;
         let el = document.createElement("div");
@@ -22,9 +35,13 @@
             if (el && el.parentNode) el.parentNode.removeChild(el);
         }, duration * 1e3);
     }
+    // 启动阶段先补 6 个元素，避免刚进入页面时背景空荡
     for (let i = 0; i < 6; i++) {
         setTimeout(spawnMineGhost, Math.random() * 1500);
     }
+    /**
+     * 自调度循环：每 600~1400ms 生成一个幽灵元素，使背景持续保持动感。
+     */
     function loopSpawn() {
         spawnMineGhost();
         setTimeout(loopSpawn, 600 + Math.random() * 800);

@@ -1,29 +1,52 @@
 /* ==========================================================================
- * 反向扫雷 · 04-mines.js
- * 职责：地雷图鉴（22 种）与各雷种的影响函数、战术类连锁结算
+ * 模块 04 · 地雷定义与战术结算（js/04-mines.js）
+ *
+ * 职责：定义 5 个系列共 22 种地雷的元数据与影响函数 f()，并把一份「已放置
+ *       地雷」结算成整盘影响值矩阵（含战术雷的连锁结算）。
+ * 依赖：全局棋盘尺寸 SR / SC（00-core）与系列开启状态 seriesState（01-storage）。
+ * 对外：CATEGORY、M、applyTacticalEffects、addVal、getEnabledMineKeys、
+ *       pickMinesFromEnabled。
+ * 设计要点：
+ *   1) 每种雷只回答"我如何改变影响值"，不关心渲染、判分与出题；所有雷共用
+ *      同一套结算流程，新增雷型只需要在 M 里追加一条记录。
+ *   2) 影响函数分为两类：一类是线性叠加的影响核，可以按任意顺序累加；
+ *      另一类带特殊语义（护盾置 0、放大器依赖邻域、虹吸器依赖计数），
+ *      无法用叠加表达，必须由 applyTacticalEffects 统一结算。
+ *   3) 地雷以 "行,列" 字符串为键、雷型 key 为值存放在 G.placed，因此 f()
+ *      只接收数字坐标，与鼠标、拖拽等交互状态解耦。
+ *   4) 出题时先在棋盘上随机布雷，再把这些 f() 依次作用到全零矩阵上反算出
+ *      目标值矩阵，因此同一条定义同时服务于"出题"与"玩家操作后的重算"。
  * ========================================================================== */
 
+/* ---------- 1. 系列目录：图鉴分组与展示顺序 ---------- */
+/* 每个系列记录中文名、展示顺序与图标；order 决定图鉴与练习列表中的分组
+   先后（数值小者在前），emoji 只参与展示，不参与任何规则判定。 */
 const CATEGORY = {
+    // 基础系列：默认全部开启，是其他系列的教学参照
     basic: {
         name: "基础系列",
         order: 0,
         emoji: "💣"
     },
+    // 异形系列：斜线、环形、八向等非矩形影响核
     special: {
         name: "异形系列",
         order: 1,
         emoji: "✖️"
     },
+    // 物理律系列：引入负影响、强度衰减等"非均匀"效果
     physics: {
         name: "物理律系列",
         order: 2,
         emoji: "☢️"
     },
+    // 对称系列：同一个影响核在多个对称位置重复落子
     symmetry: {
         name: "对称系列",
         order: 3,
         emoji: "‼️"
     },
+    // 战术系列：不改几何形状，而是改写其他雷的结算方式
     tactical: {
         name: "战术系列",
         order: 4,
@@ -31,7 +54,26 @@ const CATEGORY = {
     }
 };
 
+/* ---------- 2. 图鉴总表：记录字段与影响核分组 ---------- */
+/* 图鉴记录字段约定：
+ *   category  所属系列 key，用于图鉴分组与解锁筛选
+ *   n / e     中文名 / 图鉴与棋盘上使用的 emoji
+ *   cls       地雷专属 CSS 类名，决定棋盘上的配色
+ *   tip       一句话影响说明，直接用于槽位悬浮提示与图鉴
+ *   f         影响函数：把本雷的影响累加到矩阵 v（参数为数字行列坐标）
+ *   preview   图鉴缩略图数据源：size 网格边长、active 受影响的相对格、
+ *             center 雷自身位置、values 逐格增量（缺省表示全部 +1）、
+ *             split 是否用对角分隔线标出两个对称区域
+ *
+ * 影响核分组的阅读顺序：
+ *   基础系列是纯几何核（矩形、线形、十字），核与核之间可以直接叠加；
+ *   异形、物理律系列仍是几何核，但允许负值与强度衰减；
+ *   对称系列是同一个几何核在多个对称位置重复落子；
+ *   战术系列的 f() 大多只写自身，真正的语义在 applyTacticalEffects 中结算。
+ */
 const M = {
+    /* ---------- 3. 基础系列：纯几何影响核 ---------- */
+    // 基准核：3x3（含中心）+1，其他雷的影响范围都以它为单位描述
     normal: {
         category: "basic",
         n: "普通雷",
@@ -45,6 +87,7 @@ const M = {
             center: [ 1, 1 ]
         }
     },
+    // 范围放大版基准核：5x5 +1，用来制造大面积同值区域
     big5: {
         category: "basic",
         n: "巨型雷",
@@ -58,6 +101,7 @@ const M = {
             center: [ 2, 2 ]
         }
     },
+    // 强度放大版基准核：3x3 +2，单格影响是普通雷的两倍
     high: {
         category: "basic",
         n: "高爆雷",
@@ -72,6 +116,7 @@ const M = {
             values: [ [ 2, 2, 2 ], [ 2, 2, 2 ], [ 2, 2, 2 ] ]
         }
     },
+    // 竖直线形核：同列上下各 2 格（含自身）各 +1
     chiliV: {
         category: "basic",
         n: "竖辣椒",
@@ -90,6 +135,7 @@ const M = {
             center: [ 2, 2 ]
         }
     },
+    // 水平线形核：同行左右各 2 格（含自身）各 +1
     chiliH: {
         category: "basic",
         n: "横辣椒",
@@ -108,6 +154,7 @@ const M = {
             center: [ 2, 2 ]
         }
     },
+    // 十字核：横竖各 2 格 +1，中心格只计一次
     chiliPlus: {
         category: "basic",
         n: "十字辣椒",
@@ -127,6 +174,8 @@ const M = {
             center: [ 2, 2 ]
         }
     },
+    /* ---------- 4. 异形系列：非矩形与稀疏影响核 ---------- */
+    // 斜线核：3x3 两条对角线 +1，中心只计一次
     chiliDiag: {
         category: "special",
         n: "对角辣椒",
@@ -146,6 +195,7 @@ const M = {
             center: [ 1, 1 ]
         }
     },
+    // 斜线核的 5x5 尺寸：两条长对角线 +1
     chiliBigDiag: {
         category: "special",
         n: "大对角辣椒",
@@ -165,6 +215,7 @@ const M = {
             center: [ 2, 2 ]
         }
     },
+    // 空心核：5x5 外圈 +1，中心 3x3 完全不受影响
     ring: {
         category: "special",
         n: "环形雷",
@@ -188,6 +239,7 @@ const M = {
             center: [ 2, 2 ]
         }
     },
+    // 米字核：8 个方向各延伸 2 格 +1，另加自身
     eight: {
         category: "special",
         n: "八向雷",
@@ -210,6 +262,8 @@ const M = {
             center: [ 2, 2 ]
         }
     },
+    /* ---------- 5. 物理律系列：带符号与强度梯度的核 ---------- */
+    // 负影响核：3x3 -1，用于抵消周围雷的正向累加
     anti: {
         category: "physics",
         n: "反物质炸弹",
@@ -224,6 +278,7 @@ const M = {
             values: [ [ -1, -1, -1 ], [ -1, -1, -1 ], [ -1, -1, -1 ] ]
         }
     },
+    // 衰减核：中心 +3、内环 8 格 +2、外环 +1，形成同心梯度
     radiation: {
         category: "physics",
         n: "辐射雷",
@@ -251,6 +306,7 @@ const M = {
             values: [ [ 1, 1, 1, 1, 1 ], [ 1, 2, 2, 2, 1 ], [ 1, 2, 3, 2, 1 ], [ 1, 2, 2, 2, 1 ], [ 1, 1, 1, 1, 1 ] ]
         }
     },
+    // 漏斗核：中心 -1，四个斜角与四个轴向 2 格 +1，十字方向保持 0
     blackhole: {
         category: "physics",
         n: "黑洞炸弹",
@@ -271,6 +327,7 @@ const M = {
             values: [ [ 0, 0, 1, 0, 0 ], [ 0, 1, 0, 1, 0 ], [ 1, 0, -1, 0, 1 ], [ 0, 1, 0, 1, 0 ], [ 0, 0, 1, 0, 0 ] ]
         }
     },
+    // 大漏斗核：中心 -2、内环 -1、外环 +1，负值区扩大一圈
     bigBlackhole: {
         category: "physics",
         n: "大黑洞炸弹",
@@ -298,6 +355,8 @@ const M = {
             values: [ [ 1, 1, 1, 1, 1 ], [ 1, -1, -1, -1, 1 ], [ 1, -1, -2, -1, 1 ], [ 1, -1, -1, -1, 1 ], [ 1, 1, 1, 1, 1 ] ]
         }
     },
+    /* ---------- 6. 对称系列：同一影响核在对称位置重复落子 ---------- */
+    // 对称核：在自身与中心对称点各落一个 3x3 +1
     mirror: {
         category: "symmetry",
         n: "镜像双雷",
@@ -315,6 +374,7 @@ const M = {
             split: true
         }
     },
+    // 对称核：自身 3x3 +1，中心对称点 3x3 -1，正负成对出现
     yinYang: {
         category: "symmetry",
         n: "阴阳炸弹",
@@ -333,6 +393,7 @@ const M = {
             split: true
         }
     },
+    // 对称核：两个中心对称位置都落 3x3 -1
     negativeMirror: {
         category: "symmetry",
         n: "负镜像双雷",
@@ -351,6 +412,7 @@ const M = {
             split: true
         }
     },
+    // 三重复制：自身、水平镜像、垂直镜像三处各落一个 3x3 +1
     triSym: {
         category: "symmetry",
         n: "对称·叁雷",
@@ -369,6 +431,8 @@ const M = {
             values: [ [ 1, 1, 1, 1, 1, 1 ], [ 1, 1, 1, 1, 1, 1 ], [ 1, 1, 1, 1, 1, 1 ], [ 1, 1, 1, 0, 0, 0 ], [ 1, 1, 1, 0, 0, 0 ], [ 1, 1, 1, 0, 0, 0 ] ]
         }
     },
+    /* ---------- 7. 战术系列：f() 只写自身，语义在结算阶段展开 ---------- */
+    // 特殊语义：本格 +1；邻域内每有一枚其他雷，就把该雷的 3x3 再加 1
     amplifier: {
         category: "tactical",
         n: "伤害放大器",
@@ -384,6 +448,7 @@ const M = {
             center: [ 1, 1 ]
         }
     },
+    // 特殊语义：本格无影响，只在所在行、列的首尾格各 +1
     locator: {
         category: "tactical",
         n: "坐标定位器",
@@ -402,6 +467,7 @@ const M = {
             center: [ 2, 2 ]
         }
     },
+    // 特殊语义：3x3 影响值强制置 0；f() 留空，由结算阶段统一清零
     shield: {
         category: "tactical",
         n: "屏障生成器",
@@ -416,6 +482,7 @@ const M = {
             values: [ [ 0, 0, 0 ], [ 0, 0, 0 ], [ 0, 0, 0 ] ]
         }
     },
+    // 特殊语义：本格 +1；5x5 内每有一枚其他雷再 +1，按邻域计数结算
     siphon: {
         category: "tactical",
         n: "能量虹吸器",
@@ -433,7 +500,18 @@ const M = {
     }
 };
 
+/* ---------- 8. 战术连锁结算：护盾的优先级最高 ---------- */
+/**
+ * 把战术雷的特殊语义结算到影响矩阵上（原地修改 board）。
+ * 结算顺序固定为：首轮护盾清零 → 放大器加成 → 虹吸器计数 → 末轮护盾清零。
+ * 护盾放到最后再清一次，是为了让"护盾范围内恒为 0"的语义不被后结算的
+ * 放大器与虹吸器破坏。出题反算与玩家操作后的重算都会调用本函数。
+ * @param {number[][]} board 影响值矩阵，尺寸为 SR x SC
+ * @param {Object} placed 已放置地雷表，键为 "行,列"，值为雷型 key
+ * @sideeffect 直接修改入参 board
+ */
 function applyTacticalEffects(board, placed) {
+    // 首轮清零：先抹掉护盾范围内来自普通雷的累加值
     for (let k in placed) {
         if (placed[k] === "shield") {
             let [r, c] = k.split(",").map(Number);
@@ -443,6 +521,7 @@ function applyTacticalEffects(board, placed) {
             }
         }
     }
+    // 放大器加成先记在独立的 extra 层，最后统一并入，避免边算边改读到脏数据
     let extra = Array(SR).fill().map(() => Array(SC).fill(0));
     for (let k in placed) {
         if (placed[k] === "amplifier") {
@@ -451,6 +530,7 @@ function applyTacticalEffects(board, placed) {
                 let y = r + dr, x = c + dc;
                 if (y < 0 || y >= SR || x < 0 || x >= SC) continue;
                 let nk = y + "," + x;
+                // 只放大邻域内"其他"雷：放大器自己占的格子不参与
                 if (nk === k || !placed[nk]) continue;
                 for (let d2r = -1; d2r <= 1; d2r++) for (let d2c = -1; d2c <= 1; d2c++) {
                     let yy = y + d2r, xx = x + d2c;
@@ -459,10 +539,12 @@ function applyTacticalEffects(board, placed) {
             }
         }
     }
+    // 先合并放大器加成，再单独处理虹吸器：虹吸器只数雷，不读影响值
     for (let i = 0; i < SR; i++) for (let j = 0; j < SC; j++) board[i][j] += extra[i][j];
     for (let k in placed) {
         if (placed[k] === "siphon") {
             let [r, c] = k.split(",").map(Number);
+            // 虹吸器的强度只取决于 5x5 内其他雷的数量，与雷型无关
             let cnt = 0;
             for (let dr = -2; dr <= 2; dr++) for (let dc = -2; dc <= 2; dc++) {
                 let y = r + dr, x = c + dc;
@@ -472,6 +554,7 @@ function applyTacticalEffects(board, placed) {
             board[r][c] += cnt;
         }
     }
+    // 末轮清零：护盾优先级最高，覆盖放大器与虹吸器刚写入的加成
     for (let k in placed) {
         if (placed[k] === "shield") {
             let [r, c] = k.split(",").map(Number);
@@ -483,6 +566,18 @@ function applyTacticalEffects(board, placed) {
     }
 }
 
+/* ---------- 9. 影响核写入辅助 ---------- */
+/**
+ * 以 (r,c) 为中心，把增量 n 累加到半径 dr x dc 的矩形区域内（含中心）。
+ * 越界格子直接跳过，因此棋盘边缘的雷也能安全调用。
+ * @param {number} r 中心行
+ * @param {number} c 中心列
+ * @param {number} dr 行方向半径（例如 1 表示上下各 1 行）
+ * @param {number} dc 列方向半径
+ * @param {number[][]} v 目标影响值矩阵
+ * @param {number} n 每格增量，可为负数
+ * @sideeffect 直接修改入参 v
+ */
 function addVal(r, c, dr, dc, v, n) {
     for (let nr = -dr; nr <= dr; nr++) for (let nc = -dc; nc <= dc; nc++) {
         let y = r + nr, x = c + nc;
@@ -490,6 +585,12 @@ function addVal(r, c, dr, dc, v, n) {
     }
 }
 
+/* ---------- 10. 图鉴筛选与随机牌池抽样 ---------- */
+/**
+ * 返回当前已开启系列中的全部雷型 key。
+ * 顺序跟随 M 的声明顺序；需要随机性时由调用方自行打乱。
+ * @returns {string[]} 雷型 key 列表
+ */
 function getEnabledMineKeys() {
     let keys = [];
     for (let k in M) {
@@ -498,19 +599,30 @@ function getEnabledMineKeys() {
     return keys;
 }
 
+/**
+ * 从已开启雷型中抽出一份"雷型 -> 数量"牌池，供随机出题使用。
+ * 普通雷按约 35% 的比例保底（至少 1 颗），其余名额在特殊雷中等概率抽取；
+ * 特殊雷候选耗尽后，剩余名额回落为普通雷。
+ * @param {number} count 本局地雷总数
+ * @param {boolean} excludeNormal 预留的排除开关，当前实现未使用
+ * @returns {Object} 键为雷型 key、值为该雷型本局数量的牌池
+ */
 function pickMinesFromEnabled(count, excludeNormal) {
     let enabled = getEnabledMineKeys();
     let normalAvailable = enabled.includes("normal");
     let specials = enabled.filter(k => k !== "normal");
     let pool = {};
+    // 普通雷占比约 35%：数量少时也至少保留 1 颗，保证基础难度存在
     let normalCount = normalAvailable ? Math.max(1, Math.floor(count * .35)) : 0;
     if (normalCount > 0) pool.normal = normalCount;
     let remain = count - normalCount;
+    // 剩余名额在特殊雷里随机分配，同一雷型可以被多次抽中
     while (remain > 0 && specials.length > 0) {
         let t = specials[Math.floor(Math.random() * specials.length)];
         pool[t] = (pool[t] || 0) + 1;
         remain--;
     }
+    // 特殊雷候选耗尽后，剩余名额回落为普通雷
     while (remain > 0) {
         pool.normal = (pool.normal || 0) + 1;
         remain--;

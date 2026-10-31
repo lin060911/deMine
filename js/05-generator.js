@@ -266,12 +266,19 @@ function renderMineInfo() {
         // 基础系列默认开启：只提供基础挑战入口，不显示解锁按钮
         if (catKey === "basic") {
             html += `<span style="margin-left:auto;font-size:12px;color:#38a169;">✅始终开启</span>`;
-            html += `<button class="tutorial-btn-inline" onclick="openPracticeMode()">基础挑战</button>`;
+            // 基础挑战：未完成显示红色「基础挑战」，完成后变绿色「练习」
+            if (typeof isBasicChallengeDone === "function" && isBasicChallengeDone()) {
+                html += `<button class="tutorial-btn-inline tutorial-btn-practice" onclick="openPracticeMode()">练习</button>`;
+            } else {
+                html += `<button class="tutorial-btn-inline tutorial-btn-challenge" onclick="openPracticeMode()">基础挑战</button>`;
+            }
         } else if (unlocked) {
-            html += `<button class="tutorial-btn-inline" onclick="startCategoryTutorial('${catKey}')">练习</button>`;
+            // 已通关的系列：绿色「练习」
+            html += `<button class="tutorial-btn-inline tutorial-btn-practice" onclick="startCategoryTutorial('${catKey}')">练习</button>`;
             html += `<span style="margin-left:8px;font-size:12px;color:#38a169;">🔓已解锁</span>`;
         } else {
-            html += `<button class="tutorial-btn-inline" onclick="startCategoryTutorial('${catKey}')" style="border-color:#805ad5;color:#805ad5;background:#f5f0ff;">挑战</button>`;
+            // 未通关的系列：红色「挑战」
+            html += `<button class="tutorial-btn-inline tutorial-btn-challenge" onclick="startCategoryTutorial('${catKey}')">挑战</button>`;
             html += `<span style="margin-left:8px;font-size:12px;color:#a0aec0;">🔒 挑战完成解锁</span>`;
         }
         html += `</div>`;

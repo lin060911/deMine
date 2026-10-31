@@ -71,7 +71,7 @@
                 <label>棋盘大小</label>
                 <div class="num-control">
                     <button class="num-btn" onclick="setVal('size',-1)">-</button>
-                    <div class="num-display" id="size">10</div>
+                    <div class="num-display" id="size">8</div>
                     <button class="num-btn" onclick="setVal('size',1)">+</button>
                 </div>
             </div>
@@ -79,7 +79,7 @@
                 <label>总地雷数</label>
                 <div class="num-control">
                     <button class="num-btn" onclick="setVal('total',-1)">-</button>
-                    <div class="num-display" id="total">6</div>
+                    <div class="num-display" id="total">4</div>
                     <button class="num-btn" onclick="setVal('total',1)">+</button>
                 </div>
             </div>
@@ -95,7 +95,7 @@
                 <label>特殊雷总数</label>
                 <div class="num-control">
                     <button class="num-btn" onclick="setVal('spec',-1)">-</button>
-                    <div class="num-display" id="spec">3</div>
+                    <div class="num-display" id="spec">2</div>
                     <button class="num-btn" onclick="setVal('spec',1)">+</button>
                 </div>
             </div>
@@ -293,13 +293,13 @@
     </div>
 
     <!-- 区块：教学规则弹窗
-         正文由 09-tutorial.js 在打开时按当前教学关卡写入 #teachRuleBody；
-         与左侧信息栏的规则说明是两份独立文案 -->
+         规则由 09-tutorial.js 按短句拆成多页写入 #teachRuleBody，
+         「下一处」逐页翻完；由教学入口打开时最后一页直接开始第一关 -->
     <div class="auto-modal teach-rule-modal" id="teachRuleModal" style="display:none;">
         <div class="icon">📖</div>
         <h2>游戏规则</h2>
         <div class="teach-rule-body" id="teachRuleBody"></div>
-        <button id="teachRuleOkBtn" onclick="closeTeachRuleModal()">我明白了，开始教学 ▶</button>
+        <button id="teachRuleOkBtn" onclick="teachRuleNext()">明白</button>
     </div>
 
     <!-- 区块：创造模式面板
@@ -557,15 +557,15 @@
         <div class="sidebar-section">
             <div class="sidebar-title hint-title">🔢 地块提示</div><br>
             <div class="switch-row">
-                <div class="switch-label">🔺 实时影响值</div>
+                <div class="switch-label">🔺 实时影响</div>
                 <div class="switch-toggle" id="influenceHintToggle" onclick="toggleInfluenceHint()"></div>
             </div>
             <div class="switch-hint">开启后，当前影响值 <strong>不为 0</strong> 且 <strong>不等于题目数字</strong> 的地块，会在右下角显示该地块当前的实时影响值<br><br></div>
             <div class="switch-row">
-                <div class="switch-label">👁️ 效果预览</div>
+                <div class="switch-label">👀 效果预览</div>
                 <div class="switch-toggle" id="effectPreviewToggle" onclick="toggleEffectPreview()"></div>
             </div>
-            <div class="switch-hint">开启后，<strong>拖拽</strong>放置地雷时（鼠标 / 触屏）悬浮在棋盘格上，受影响地块会预演<strong>放置后</strong>的三色状态并标出影响值<br><br></div>
+            <div class="switch-hint">开启后，<strong>拖拽</strong>地雷时（鼠标 / 触屏）悬浮在棋盘格上，会显示<strong>放置后</strong>受影响地块的三色状态及影响值<br><br></div>
         </div>
         <!-- 存档管理：导出 / 导入 / 清空三个入口，接线在 15-boot.js；
              导入会先弹三选一确认框，并在写入前留快照，可撤销 -->
@@ -581,12 +581,17 @@
         </div>
     </div>
 
+    <!-- 区块：新手引导层
+         小手 emoji、目标高亮环与一句话气泡都在运行时由 16-guide.js 生成；
+         自身 pointer-events:none，不拦截任何点击与拖拽 -->
+    <div class="guide-layer" id="guideLayer" aria-hidden="true"></div>
+
     <!-- 区块：页脚
          署名与联系方式，纯静态文本，脚本不依赖 -->
     <footer class="sidebar-version">v1.2.21<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
 
     <!-- 区块：脚本加载区（顺序即依赖）
-         16 个外部脚本按 00 → 15 的书写顺序同步执行，共享同一个全局作用域：
+         17 个外部脚本按 00 → 16 的书写顺序同步执行，共享同一个全局作用域：
          前一个模块用 function 声明或全局变量暴露的能力，后一个模块直接使用，
          因此顺序即依赖，不能调换。各模块职责如下：
            00-core          RM 命名空间、常量、全局状态与错误兜底
@@ -605,6 +610,7 @@
            13-achievements  成就系统与 installHooks 钩子装配
            14-bgeffects     背景漂浮幽灵，只依赖 DOM，位置相对自由
            15-boot          启动自检与存档管理，必须最后执行
+           16-guide         新手引导层（小手动画 / 高亮 / 提示气泡）
          举例：06-render.js 在顶层就调用 Store.get 读取提示开关，如果它排在
          01-storage.js 前面，加载阶段就会因 Store 未定义而报错。 -->
     <script src="js/00-core.js"></script>
@@ -623,5 +629,6 @@
     <script src="js/13-achievements.js"></script>
     <script src="js/14-bgeffects.js"></script>
     <script src="js/15-boot.js"></script>
+    <script src="js/16-guide.js"></script>
 </body>
 </html>

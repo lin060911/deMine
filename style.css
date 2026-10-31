@@ -4213,6 +4213,30 @@ body.drag-mode .cell.mine-here {
     color: var(--rm-ink-4);
 }
 
+/* 挑战按钮：还没通关时用红色，提示"去挑战" */
+.tutorial-btn-inline.tutorial-btn-challenge {
+    border-color: rgba(229, 62, 62, .28);
+    background: rgba(229, 62, 62, .1);
+    color: #c53030;
+}
+
+.tutorial-btn-inline.tutorial-btn-challenge:hover:not(.locked) {
+    background: rgba(229, 62, 62, .18);
+    box-shadow: 0 4px 12px rgba(229, 62, 62, .16);
+}
+
+/* 练习按钮：已通关时用绿色，提示"再练一次" */
+.tutorial-btn-inline.tutorial-btn-practice {
+    border-color: rgba(56, 161, 105, .28);
+    background: rgba(56, 161, 105, .12);
+    color: #2f855a;
+}
+
+.tutorial-btn-inline.tutorial-btn-practice:hover:not(.locked) {
+    background: rgba(56, 161, 105, .2);
+    box-shadow: 0 4px 12px rgba(56, 161, 105, .16);
+}
+
 /* 移动端底部工具栏收起钮：桌面端不占位，仅在窄屏出现 */
 .rm-bar-toggle {
     display: none;
@@ -4738,24 +4762,8 @@ body.drag-mode .cell.mine-here {
     }
 }
 
-/* ===== 38. 系列挑战高亮 ===== */
-/* 系列挑战高亮：入口被定位时闪一次紫色轮廓，提示玩家该系列就在这一区 */
-@keyframes rmCatFlash {
-    0%   { outline-color: rgba(124, 92, 214, 0); background: rgba(124, 92, 214, 0); }
-    14%  { outline-color: rgba(124, 92, 214, .65); background: rgba(124, 92, 214, .08); }
-    32%  { outline-color: rgba(124, 92, 214, .2); background: rgba(124, 92, 214, .02); }
-    50%  { outline-color: rgba(124, 92, 214, .65); background: rgba(124, 92, 214, .08); }
-    68%  { outline-color: rgba(124, 92, 214, .2); background: rgba(124, 92, 214, .02); }
-    86%  { outline-color: rgba(124, 92, 214, .65); background: rgba(124, 92, 214, .08); }
-    100% { outline-color: rgba(124, 92, 214, 0); background: rgba(124, 92, 214, 0); }
-}
-
-.category-section.rm-cat-flash {
-    border-radius: 16px;
-    outline: 2px solid transparent;
-    outline-offset: 8px;
-    animation: rmCatFlash 2.6s ease-in-out both;
-}
+/* ===== 38. 系列挑战入口（高亮统一由引导层 #guideLayer 提供） ===== */
+/* 旧的分区闪烁高亮已移除：导航到系列挑战后由引导层用统一的高亮框指向「挑战」按钮 */
 
 /* ===== 39. 主界面布局骨架 ===== */
 /* 布局包装层：设为 display: contents，使标题、按钮、棋盘成为 body 的直接 flex 子项 */
@@ -6642,4 +6650,148 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     color: #a16207;
     font-size: 12px;
     line-height: normal;
+}
+
+/* ===== 51. 新手引导层与教学规则分页 ===== */
+/* 引导层本身不拦截任何操作：小手、高亮环与气泡都只是视觉提示 */
+.guide-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 1500;
+    overflow: hidden;
+    pointer-events: none;
+    display: none;
+}
+
+.guide-layer.show {
+    display: block;
+}
+
+/* 目标高亮环：呼吸描边，不遮挡目标本身，也不影响布局 */
+.guide-ring {
+    position: fixed;
+    z-index: 1;
+    border: 2px solid rgba(47, 127, 235, .85);
+    border-radius: 12px;
+    box-shadow: 0 0 0 4px rgba(47, 127, 235, .16), 0 0 18px rgba(47, 127, 235, .35);
+    pointer-events: none;
+    animation: guideRingPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes guideRingPulse {
+    0%, 100% { opacity: .9; transform: scale(1); }
+    50%      { opacity: 1; transform: scale(1.04); }
+}
+
+/* 小手锚点：固定在目标中心，动画只用相对偏移，组件移动时整体跟着走 */
+.guide-anchor {
+    position: fixed;
+    z-index: 3;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+/* 小手：emoji 本身，由 JS 用 WAAPI 相对锚点移动 */
+.guide-hand {
+    position: absolute;
+    left: -18px;
+    top: -18px;
+    font-size: 36px;
+    line-height: 1;
+    pointer-events: none;
+    filter: drop-shadow(0 4px 8px rgba(18, 38, 58, .3));
+    transform-origin: 50% 80%;
+    will-change: transform;
+}
+
+/* 引导气泡：一句话说明 + 「下一处」按钮，靠目标上方或下方并自动避让视口 */
+.guide-bubble {
+    position: fixed;
+    z-index: 2;
+    max-width: 250px;
+    padding: 8px 12px 9px;
+    border-radius: 12px;
+    background: rgba(30, 40, 54, .94);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.5;
+    text-align: left;
+    pointer-events: none;
+    box-shadow: 0 10px 24px rgba(10, 24, 40, .28);
+    animation: guideBubbleIn .22s var(--rm-spring, ease) both;
+}
+
+.guide-bubble-text {
+    display: block;
+}
+
+.guide-bubble::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: -6px;
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    background: rgba(30, 40, 54, .94);
+    transform: translateX(-50%) rotate(45deg);
+}
+
+.guide-bubble.below::after {
+    top: -6px;
+    bottom: auto;
+}
+
+@keyframes guideBubbleIn {
+    0%   { opacity: 0; transform: translateY(6px) scale(.94); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* 「下一处」按钮：居中显示；引导层整体 pointer-events:none，只有按钮本身可点 */
+.guide-next {
+    display: block;
+    margin: 7px auto 0;
+    padding: 5px 12px;
+    border: none;
+    border-radius: 99px;
+    background: linear-gradient(180deg, #4ed289, #34c759);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    pointer-events: auto;
+    box-shadow: 0 4px 10px rgba(52, 199, 89, .3);
+    transition: transform .18s var(--rm-spring, ease);
+}
+
+.guide-next:active {
+    transform: scale(.94);
+}
+
+/* 教学规则弹窗分页：每页一句短文案 + 页码 */
+.teach-rule-page {
+    margin: 4px 0 10px;
+    font-size: 14px;
+    line-height: 1.75;
+    color: var(--rm-ink, #2d3748);
+}
+
+.teach-rule-step {
+    color: var(--rm-ink-4, #a0aec0);
+    font-size: 11.5px;
+    font-weight: 600;
+    text-align: right;
+}
+
+/* 关闭动效偏好时：去掉呼吸与入场动画，只保留静态手与高亮 */
+@media (prefers-reduced-motion: reduce) {
+    .guide-ring {
+        animation: none;
+    }
+
+    .guide-bubble {
+        animation: none;
+    }
 }

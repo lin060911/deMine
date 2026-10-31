@@ -131,6 +131,7 @@
         "seriesState", "seriesUnlocked",
         "tutorialStep", "tutorialCompleted",
         "placeMode_v1", "mineInfluenceHint", "mineEffectPreview", "mineSoundSettings",
+        "teachFinished",
         "welcomeLastShown", "hasVisitedBefore",
         "achievementState_v1", "rmSchemaVersion"
     ];

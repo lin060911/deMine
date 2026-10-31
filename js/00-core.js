@@ -113,8 +113,10 @@ RM.onError = function(where, err) {
 /* ---------- 4. 棋盘参数与预设难度 ---------- */
 
 /* 当前棋盘参数：S 为边长，SR / SC 为行数与列数，T 为总雷数，
- * TY 为地雷类型数，SP 为特殊道具数。只允许 applyBoardParams 写入。 */
-let S = 10, SR = 10, SC = 10, T = 6, TY = 3, SP = 4;
+ * TY 为地雷类型数，SP 为特殊道具数。只允许 applyBoardParams 写入。
+ * 初始值取入门档（8×8 / 4 雷），四个系列挑战全部完成后由
+ * applyStandardParams 切到标准档（10×10 / 6 雷）。 */
+let S = 8, SR = 8, SC = 8, T = 4, TY = 3, SP = 2;
 
 /* 创造模式各参数的允许区间：[最小值, 最大值] */
 const LIMIT = {
@@ -174,14 +176,34 @@ const DIFF_LABEL = {
     free: "自由"
 };
 
-/* 标准参数：退出创造、教学、系列挑战等特殊模式后统一回到这组数值，
- * 以 PRE.free（10 / 6 / 3 / 3）为准，与页面初始显示保持一致。 */
-const STD_PARAM = {
-    size: PRE.free.size,
-    total: PRE.free.total,
-    type: PRE.free.type,
-    spec: PRE.free.spec
+/* 标准参数分两档：四个系列挑战全部完成前用入门档，全部完成后恢复标准档。
+ * 退出创造、教学、系列挑战等特殊模式后统一回到其中一档。 */
+const STD_PARAM_INTRO = {
+    size: 8,
+    total: 4,
+    type: 3,
+    spec: 2
 };
+
+const STD_PARAM_FULL = {
+    size: 10,
+    total: 6,
+    type: 3,
+    spec: 4
+};
+
+/**
+ * 判断四个非基础系列挑战是否全部完成（对应系列均已解锁）。
+ * @returns {boolean} 全部完成返回 true；存储尚未就绪时按未完成处理
+ */
+function allSeriesChallengesDone() {
+    try {
+        return !!(seriesUnlocked.special && seriesUnlocked.physics &&
+            seriesUnlocked.symmetry && seriesUnlocked.tactical);
+    } catch (e) {
+        return false;
+    }
+}
 
 /**
  * 应用一组棋盘参数，并同步页面上的数字显示。
@@ -209,11 +231,11 @@ function applyBoardParams(p) {
 }
 
 /**
- * 切回标准的自由模式参数（10 / 6 / 3 / 3）。
+ * 切回当前进度的标准参数：四系列未全部完成用入门档，全部完成用标准档。
  * @sideeffect 同 applyBoardParams
  */
 function applyStandardParams() {
-    applyBoardParams(STD_PARAM);
+    applyBoardParams(allSeriesChallengesDone() ? STD_PARAM_FULL : STD_PARAM_INTRO);
 }
 // 挂到 window 上，供内联事件与其他脚本按全局函数调用
 window.applyStandardParams = applyStandardParams;

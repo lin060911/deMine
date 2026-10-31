@@ -42,6 +42,7 @@ document.getElementById("toggleInfoSidebar").onclick = () => {
     const willOpen = !infoSb.classList.contains("open");
     closeSidebarsExcept("infoSidebar");
     infoSb.classList.toggle("open", willOpen);
+    if (typeof guideRefresh === "function") guideRefresh();
 };
 
 /**
@@ -56,6 +57,7 @@ document.getElementById("toggleCreateSidebar").onclick = () => {
     createSb.classList.toggle("open", willOpen);
     // 展开时才刷新参数，收起时不做多余计算
     if (willOpen) prepareCreateParams();
+    if (typeof guideRefresh === "function") guideRefresh();
 };
 
 /* ---------- 2. 信息栏折叠部件 ---------- */
@@ -235,13 +237,17 @@ window.isBasicChallengeDone = isBasicChallengeDone;
 /* ---------- 6. 系列挑战入口 ---------- */
 
 /**
- * 把玩家送到炸弹信息里的指定系列：打开侧边栏、滚到对应分区并高亮闪烁。
+ * 把玩家送到炸弹信息里的指定系列：打开侧边栏、滚到对应分区，
+ * 再由引导层用统一的高亮框指着该系列的「挑战」按钮。
  * @param {string} catKey 系列键（special / physics / symmetry / tactical 等）
- * @sideeffect 打开 infoSidebar、修改滚动位置与 rm-cat-flash 类
+ * @sideeffect 打开 infoSidebar、修改滚动位置，并激活该系列的引导
  */
 function gotoSeriesChallenge(catKey) {
     var sb = document.getElementById("infoSidebar");
     if (!sb) return;
+    // 保留/重设该系列标记：导航完成后由引导层指向「挑战」按钮
+    window._guideLockedSeries = catKey;
+    window._guideLockedDifficulty = null;
     // 先收掉所有弹窗，避免难度弹窗或确认框挡住目标分区
     closeAllModals();
     closeSidebarsExcept("infoSidebar");
@@ -254,28 +260,23 @@ function gotoSeriesChallenge(catKey) {
     }
     var box = document.getElementById("mineInfoList");
     var target = box ? box.querySelector('.category-section[data-cat="' + catKey + '"]') : null;
-    if (!target) return;
-    // 清掉其它分区上的闪烁类，保证一次只有一个分区在闪
-    Array.prototype.forEach.call(box.querySelectorAll(".category-section"), function(x) {
-        x.classList.remove("rm-cat-flash");
-    });
-    // 先滚动再闪烁：等滚动动画把分区带进视口，玩家才看得到高亮
+    if (!target) {
+        if (typeof guideRefresh === "function") guideRefresh();
+        return;
+    }
+    // 先把分区滚进视口，再让引导层用与其它高亮一致的样式指向「挑战」按钮
+    try {
+        if (typeof target.scrollIntoView === "function") {
+            target.scrollIntoView({ behavior: "smooth", block: "center" });
+        } else if (sb.scrollTop !== undefined && target.offsetTop !== undefined) {
+            // 不支持 scrollIntoView 选项的浏览器退回手算滚动位置
+            sb.scrollTop = Math.max(0, target.offsetTop - 40);
+        }
+    } catch (e) {}
+    if (typeof guideRefresh === "function") guideRefresh();
     setTimeout(function() {
-        try {
-            if (typeof target.scrollIntoView === "function") {
-                target.scrollIntoView({ behavior: "smooth", block: "center" });
-            } else if (sb.scrollTop !== undefined && target.offsetTop !== undefined) {
-                // 不支持 scrollIntoView 选项的浏览器退回手算滚动位置
-                sb.scrollTop = Math.max(0, target.offsetTop - 40);
-            }
-        } catch (e) {}
-        // 读取布局属性强制重排，让闪烁动画能从头播放
-        void target.offsetWidth;
-        target.classList.add("rm-cat-flash");
-        setTimeout(function() {
-            target.classList.remove("rm-cat-flash");
-        }, 2600);
-    }, 260);
+        if (typeof guideRefresh === "function") guideRefresh();
+    }, 350);
 }
 window.gotoSeriesChallenge = gotoSeriesChallenge;
 
@@ -310,6 +311,11 @@ function onLockedSeriesClick(catKey) {
             }
         }
     });
+    // 记下来源系列：确认框关掉后，引导会先指信息栏、再指该系列的挑战入口
+    window._guideLockedSeries = catKey;
+    // 玩家已经开始处理系列开关，难度门槛路线让位给这条更具体的引导
+    window._guideLockedDifficulty = null;
+    if (typeof guideRefresh === "function") guideRefresh();
 }
 window.onLockedSeriesClick = onLockedSeriesClick;
 
@@ -326,6 +332,7 @@ function openChallengeModal() {
     updatePresetButtons();
     const m = document.getElementById("challengeModal");
     if (m) m.style.display = "block";
+    if (typeof guideRefresh === "function") guideRefresh();
 }
 
 /**
@@ -335,6 +342,7 @@ function openChallengeModal() {
 function closeChallengeModal() {
     const m = document.getElementById("challengeModal");
     if (m) m.style.display = "none";
+    if (typeof guideRefresh === "function") guideRefresh();
 }
 
 window.openChallengeModal = openChallengeModal;
@@ -350,6 +358,7 @@ document.getElementById("toggleSettingSidebar").onclick = () => {
     const willOpen = !setSb.classList.contains("open");
     closeSidebarsExcept("settingSidebar");
     setSb.classList.toggle("open", willOpen);
+    if (typeof guideRefresh === "function") guideRefresh();
 };
 
 /**
@@ -474,7 +483,10 @@ function toggleSeries(catKey) {
     seriesState[catKey] = !seriesState[catKey];
     saveSeriesState(seriesState);
     AudioFX.toggle(seriesState[catKey]);
+    // 玩家已经在动开关了，难度门槛的引导路线到此结束
+    window._guideLockedDifficulty = null;
     renderSeriesSwitches();
+    if (typeof guideRefresh === "function") guideRefresh();
 }
 
 /**
@@ -583,6 +595,8 @@ function showPresetLockedModal(d) {
     } else {
         document.getElementById("presetLockedModal").style.display = "block";
     }
+    // 关掉说明框后，引导会带玩家去难度弹窗把系列开关开够
+    window._guideLockedDifficulty = d;
     AudioFX.modalOpen();
 }
 
@@ -620,6 +634,7 @@ function setPre(d) {
     if (d === "free") {
         isFreeMode = true;
         diff = "free";
+        window._guideLockedDifficulty = null;
         document.getElementById("customPanel").classList.add("visible");
         updatePresetButtons();
         renderSeriesSwitches();
@@ -634,6 +649,7 @@ function setPre(d) {
         return;
     }
     isFreeMode = false;
+    window._guideLockedDifficulty = null;
     // 用预设整体覆盖棋盘参数，避免沿用上一局教学 5×5 或创造 15×15 的尺寸
     applyPresetParams(d);
     diff = d;
@@ -1007,6 +1023,7 @@ function closeBrainLockedModal() {
     AudioFX.confirm();
     document.getElementById("overlay").style.display = "none";
     document.getElementById("brainLockedModal").style.display = "none";
+    if (typeof guideRefresh === "function") guideRefresh();
 }
 
 /** 关闭脑王通关框，同时停止飘落庆祝与金色背景。 */
@@ -1040,6 +1057,7 @@ function closeTutorialComplete() {
         document.getElementById("moreTutorialGuide").style.display = "block";
         AudioFX.modalOpen();
     }, 300);
+    if (typeof guideRefresh === "function") guideRefresh();
 }
 
 /** 关闭"更多挑战"引导框。 */
@@ -1047,6 +1065,7 @@ function closeMoreTutorialGuide() {
     AudioFX.confirm();
     document.getElementById("overlay").style.display = "none";
     document.getElementById("moreTutorialGuide").style.display = "none";
+    if (typeof guideRefresh === "function") guideRefresh();
 }
 
 /** 关闭普通难度未解锁说明框。 */
@@ -1054,6 +1073,7 @@ function closePresetLockedModal() {
     AudioFX.confirm();
     document.getElementById("overlay").style.display = "none";
     document.getElementById("presetLockedModal").style.display = "none";
+    if (typeof guideRefresh === "function") guideRefresh();
 }
 
 /** 关闭地狱难度未解锁说明框。 */
@@ -1061,6 +1081,7 @@ function closeHellLockedModal() {
     AudioFX.confirm();
     document.getElementById("overlay").style.display = "none";
     document.getElementById("hellLockedModal").style.display = "none";
+    if (typeof guideRefresh === "function") guideRefresh();
 }
 
 /* ---------- 15. 遮罩点击关闭策略 ---------- */
@@ -1087,4 +1108,5 @@ document.getElementById("overlay").addEventListener("click", () => {
     document.getElementById("hellLockedModal").style.display = "none";
     document.getElementById("brainUnlockedModal").style.display = "none";
     document.getElementById("brainLockedModal").style.display = "none";
+    if (typeof guideRefresh === "function") guideRefresh();
 });

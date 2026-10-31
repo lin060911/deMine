@@ -68,7 +68,11 @@ function onTutorialWin() {
         // 结算阶段隐藏进度条，避免与完成弹窗叠在一起
         document.getElementById("tutorialProgressBar").style.display = "none";
         isTutorialMode = false;
-        if (!cat) Store.set("tutorialCompleted", "true");
+        if (!cat) {
+            Store.set("tutorialCompleted", "true");
+            // 基础挑战完成后，把信息栏的入口同步成绿色「练习」
+            renderMineInfo();
+        }
     } else {
         // 中间关：轻提示，不打断，短暂停顿后自动进下一关
         setTimeout(() => {
@@ -117,7 +121,7 @@ function openTutorialSelector() {
 /* ---------- 2. 挑战棋盘初始化与门禁 ---------- */
 
 /**
- * 初始化一局挑战：固定 10×10、共 5 颗雷的专属配比，生成题目并渲染棋盘。
+ * 初始化一局挑战：基础挑战固定 8×8、共 4 颗雷；系列挑战固定 10×10、5 颗雷。
  * @param {string|null} catKey 系列键；null 表示基础挑战
  * @sideeffect 重置棋局、写入棋盘参数与挑战状态，渲染棋盘
  */
@@ -125,18 +129,31 @@ function setupTutorialBoard(catKey) {
     fullReset();
     currentTutorialType = catKey;
     isTutorialMode = true;
-    // 挑战固定 10×10：必须显式写 SR/SC，否则会沿用上一局（如 hard 的 12×12）
-    S = 10;
-    SR = 10;
-    SC = 10;
-    T = 5;
-    TY = 3;
-    SP = 3;
+    window._guideLockedSeries = null;
+    window._guideLockedDifficulty = null;
+    // 必须显式写 SR/SC，否则会沿用上一局（如 hard 的 12×12）
+    if (catKey) {
+        S = 10;
+        SR = 10;
+        SC = 10;
+        T = 5;
+        TY = 3;
+        SP = 3;
+    } else {
+        // 基础挑战：入门难度 8×8 / 4 颗雷
+        S = 8;
+        SR = 8;
+        SC = 8;
+        T = 4;
+        TY = 3;
+        SP = 3;
+    }
     setupTutorialParams();
     genTutorialGame(catKey);
     showTutorialProgress(catKey);
     render();
     document.getElementById("win").style.display = "none";
+    if (typeof guideRefresh === "function") guideRefresh();
 }
 
 /**
@@ -479,94 +496,84 @@ let teachCompleted = [];
 // 规则弹窗是否处于"看明白后立即开始教学"的等待状态
 let teachRulePending = false;
 
-// 规则弹窗的兜底文案：页面中的规则条目抽取失败时直接使用这一份
-const TEACH_RULE_FALLBACK = `
-        <div class="teach-rule-sec">
-            <div class="teach-rule-sec-title">🎯 目标</div>
-            <p>在棋盘上放置规定数量的地雷（普通雷 + 特殊雷），使得棋盘上每个格子显示的数字，恰好等于它周围（或特定规则下）所有地雷对它的总影响值。</p>
-        </div>
-        <div class="teach-rule-sec">
-            <div class="teach-rule-sec-title">🏁 胜利条件</div>
-            <p>所有地雷放完，且棋盘数字与地雷影响匹配（棋盘上都是🟩）。</p>
-        </div>
-        <div class="teach-rule-sec">
-            <div class="teach-rule-sec-title">🧩 地块状态解读</div>
-            <p class="teach-rule-intro">游戏会根据你当前的布雷情况，实时用颜色提示每个格子：</p>
-            <ul>
-                <li>🟩 合适：该格子的当前影响值 [等于] 显示数字（正确）。</li>
-                <li>🟨 偏低：该格子的当前影响值 [小于] 显示数字（还需在周围加雷）。</li>
-                <li>🟥 偏高：该格子的当前影响值 [大于] 显示数字（周围雷太多，需删除）。</li>
-            </ul>
-        </div>`;
+// 规则弹窗当前页：规则按短句拆成多页，避免一次显示一大段文字
+let teachRulePage = 0;
+
+// 规则分页数据：每页只讲一个点，一句话说清
+const TEACH_RULE_PAGES = [ {
+    icon: "🎯",
+    title: "① 游戏目标",
+    text: "把地雷放回棋盘，让每个格子显示的数字，等于周围地雷对它的影响值。"
+}, {
+    icon: "🏁",
+    title: "② 胜利条件",
+    text: "地雷放满规定数量，并且所有格子都变成 🟩。"
+}, {
+    icon: "🟩",
+    title: "③ 颜色含义",
+    text: "🟨 偏低：还差影响值；🟥 偏高：雷放多了；🟩 刚好合适。"
+}, {
+    icon: "🖱️",
+    title: "④ 怎么操作",
+    text: "拖拽或点选放雷；右键（触屏长按）可以删除已放的雷。"
+} ];
 
 /* ---------- 6. 教学规则弹窗 ---------- */
 
 /**
- * 从信息栏的规则条目中抽取"目标 / 胜利条件 / 地块状态"三段内容，
- * 重新组织成教学规则弹窗的 HTML；任一段缺失时退回内置文案。
- * @returns {string} 可直接写入容器 innerHTML 的规则片段
+ * 渲染规则弹窗的当前页：图标、标题、一句说明、页码与按钮文案。
+ * @sideeffect 改写 #teachRuleModal 内的图标/标题/正文与按钮文字
  */
-function buildTeachRuleContent() {
-    const box = document.querySelector("#infoSidebar .rule-content");
-    let goalHTML = "", winHTML = "", stateHTML = "";
-    if (box) {
-        // 去掉条目自带的强调标题，只保留正文，便于按统一版式重新排版
-        const stripLabel = html => String(html).replace(/^\s*<strong>[^<]*<\/strong>\s*(?:<br\s*\/?>)?/i, "").trim();
-        Array.prototype.forEach.call(box.querySelectorAll("li"), li => {
-            const head = (li.textContent || "").replace(/\s+/g, "");
-            if (!goalHTML && head.indexOf("目标：") === 0) goalHTML = stripLabel(li.innerHTML);
-            else if (!winHTML && head.indexOf("胜利条件：") === 0) winHTML = stripLabel(li.innerHTML);
-        });
-        Array.prototype.forEach.call(box.querySelectorAll("h3"), h3 => {
-            if ((h3.textContent || "").indexOf("地块状态解读") < 0) return;
-            let intro = "", lists = "";
-            let node = h3.nextElementSibling;
-            while (node && node.tagName !== "H3") {
-                if (node.tagName === "P") intro = node.innerHTML;
-                else if (node.tagName === "UL") lists += node.innerHTML;
-                node = node.nextElementSibling;
-            }
-            stateHTML = (intro ? `<p class="teach-rule-intro">${intro}</p>` : "") + (lists ? `<ul>${lists}</ul>` : "");
-        });
+function renderTeachRulePage() {
+    const modal = document.getElementById("teachRuleModal");
+    if (!modal) return;
+    const page = TEACH_RULE_PAGES[Math.max(0, Math.min(teachRulePage, TEACH_RULE_PAGES.length - 1))];
+    const iconEl = modal.querySelector(".icon");
+    const titleEl = modal.querySelector("h2");
+    if (iconEl) iconEl.textContent = page.icon;
+    if (titleEl) titleEl.textContent = page.title;
+    const body = document.getElementById("teachRuleBody");
+    if (body) {
+        body.innerHTML = '<p class="teach-rule-page">' + page.text + "</p>" +
+            '<div class="teach-rule-step">' + (teachRulePage + 1) + " / " + TEACH_RULE_PAGES.length + "</div>";
+        body.scrollTop = 0;
     }
-    // 任一区块抽取失败就整体退回内置文案，保证弹窗始终有内容
-    if (!goalHTML || !winHTML || !stateHTML) return TEACH_RULE_FALLBACK;
-    return `
-        <div class="teach-rule-sec">
-            <div class="teach-rule-sec-title">🎯 目标</div>
-            <p>${goalHTML}</p>
-        </div>
-        <div class="teach-rule-sec">
-            <div class="teach-rule-sec-title">🏁 胜利条件</div>
-            <p>${winHTML}</p>
-        </div>
-        <div class="teach-rule-sec">
-            <div class="teach-rule-sec-title">🧩 地块状态解读</div>
-            ${stateHTML}
-        </div>`;
+    const okBtn = document.getElementById("teachRuleOkBtn");
+    if (!okBtn) return;
+    const last = teachRulePage >= TEACH_RULE_PAGES.length - 1;
+    if (!last) okBtn.textContent = "明白";
+    else okBtn.textContent = teachRulePending ? "开始教学 ▶" : "知道啦 ✌️";
 }
 
 /**
- * 打开教学规则弹窗：每次打开都重新抽取规则内容，按钮文案随场景变化。
+ * 打开教学规则弹窗：从第一页开始，按「下一处」逐条读规则。
  * @param {boolean} playSound 是否播放弹窗打开音效（教学自动弹出时静音）
  * @sideeffect 写入弹窗内容并显示遮罩
  */
 function openTeachRuleModal(playSound) {
     const modal = document.getElementById("teachRuleModal");
     if (!modal) return;
-    const body = document.getElementById("teachRuleBody");
-    if (body) {
-        body.innerHTML = buildTeachRuleContent();
-        // 每次打开都回到顶部，避免沿用上次的滚动位置
-        body.scrollTop = 0;
-    }
-    const okBtn = document.getElementById("teachRuleOkBtn");
-    // 由教学入口打开时，确认按钮的文案跟随"看完是否立即开始教学"
-    if (okBtn) okBtn.textContent = teachRulePending ? "我明白了，开始教学 ▶" : "知道了 ✌️";
+    teachRulePage = 0;
+    renderTeachRulePage();
     document.getElementById("overlay").style.display = "block";
     modal.style.display = "block";
     if (playSound) AudioFX.modalOpen();
 }
+
+/**
+ * 规则弹窗的按钮入口：非最后一页翻到下一页，最后一页关闭并（若需要）开始教学。
+ * @sideeffect 可能改写页码或关闭弹窗
+ */
+function teachRuleNext() {
+    if (teachRulePage < TEACH_RULE_PAGES.length - 1) {
+        teachRulePage++;
+        AudioFX.pop();
+        renderTeachRulePage();
+        return;
+    }
+    closeTeachRuleModal();
+}
+window.teachRuleNext = teachRuleNext;
 
 /**
  * 隐藏教学规则弹窗；若正处于"看完即开始"的等待状态，则顺势装载第一关。
@@ -581,6 +588,7 @@ function hideTeachRuleModal() {
         // 只有仍在教学流程里才装载关卡，避免退出教学后又被拉回来
         if (teachActive) loadTeachLevel();
     }
+    if (typeof guideRefresh === "function") guideRefresh();
 }
 
 /**
@@ -594,8 +602,9 @@ function closeTeachRuleModal() {
 /* ---------- 7. 教学模式入口 ---------- */
 
 /**
- * 进入新手引导教学：清空所有教学状态，先展示规则弹窗，确认后从第 1 关开始。
- * @sideeffect 重置教学状态、隐藏主面板与棋盘，打开规则弹窗
+ * 进入新手引导教学：清空所有教学状态，先按短句分页展示游戏规则，
+ * 读完规则（最后一页的「开始教学」）再装载第 1 关。
+ * @sideeffect 重置教学状态、隐藏主面板，打开规则弹窗
  */
 function openTeachMode() {
     AudioFX.confirm();
@@ -609,19 +618,16 @@ function openTeachMode() {
     fullReset();
     teachActive = true;
     syncMainPanel();
-    // 教学关卡的棋盘尺寸由各关的 boardRows/boardCols 决定，这里先给默认值
-    S = 5;
-    SR = 5;
-    SC = 5;
     document.getElementById("overlay").style.display = "none";
     document.getElementById("teachProgressBar").style.display = "flex";
     updateTeachProgressBar();
     ensureTeachSlotHost(true);
     document.getElementById("board").innerHTML = "";
     document.getElementById("slot").style.display = "none";
-    // 标记"规则看完即开始"，由 hideTeachRuleModal 触发第一关装载
+    // 规则看完后由 hideTeachRuleModal 装载第一关
     teachRulePending = true;
     openTeachRuleModal(false);
+    if (typeof guideRefresh === "function") guideRefresh();
 }
 
 /**
@@ -673,6 +679,7 @@ function loadTeachLevel() {
     document.getElementById("timer").style.display = "none";
     document.getElementById("placed").textContent = "0";
     document.getElementById("max").textContent = String(teachExpectedCount);
+    if (typeof guideRefresh === "function") guideRefresh();
 }
 
 // 最近一次落雷的坐标键：只给这一颗播放下落动画，后续重绘不会重播
@@ -823,7 +830,33 @@ function clearTeachSlotHost() {
 /* ---------- 10. 删除、移动与完成检查 ---------- */
 
 /**
- * 在教学关卡中放置一颗雷：登记坐标与类型，重算影响值并推进提示。
+ * 按当前放置列表重算教学关卡的影响值矩阵。
+ * @sideeffect 覆盖 G.p
+ */
+function recomputeTeachInfluence() {
+    G.p = Array(SR).fill().map(() => Array(SC).fill(0));
+    for (let item of teachPlaceList) {
+        M[item.type].f(item.r, item.c, G.p);
+    }
+    applyTacticalEffects(G.p, G.placed);
+}
+
+/**
+ * 判断当前棋盘是否已与目标矩阵完全一致。
+ * @returns {boolean} 完全一致返回 true
+ */
+function teachBoardMatched() {
+    for (let i = 0; i < SR; i++) {
+        for (let j = 0; j < SC; j++) {
+            if (G.p[i][j] !== G.tar[i][j]) return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * 在教学关卡中放置一颗雷：登记坐标与类型，重算影响值，按操作步推进提示。
+ * 放错位置时只提醒一句并自动撤回该颗雷，保证不会卡在错误局面里。
  * @param {number} r 行号
  * @param {number} c 列号
  * @param {string} forceType 指定雷种；省略时取槽位选中类型或自动挑一个
@@ -865,44 +898,30 @@ function teachDrop(r, c, forceType) {
     teachPlacedTypes[dragType] = (teachPlacedTypes[dragType] || 0) + 1;
     teachPlacedCount++;
     AudioFX.place();
-    // 影响值按"清零 → 重放所有已放置的雷 → 叠加战术效果"的顺序重算，
-    // 因此结果与放置顺序无关
-    G.p = Array(SR).fill().map(() => Array(SC).fill(0));
-    for (let item of teachPlaceList) {
-        M[item.type].f(item.r, item.c, G.p);
-    }
-    applyTacticalEffects(G.p, G.placed);
+    recomputeTeachInfluence();
     renderTeachBoard();
     renderTeachSlot();
     document.getElementById("placed").textContent = String(teachPlacedCount);
     updateTeachProgressBar();
     if (teachPlacedCount >= teachExpectedCount) {
-        // 雷已放满：逐格比对，全部匹配即过关，否则停在当前局面等待调整
-        let allCorrect = true;
-        for (let i = 0; i < SR; i++) for (let j = 0; j < SC; j++) {
-            if (G.p[i][j] !== G.tar[i][j]) allCorrect = false;
-        }
-        if (allCorrect) {
+        // 雷已放满：逐格比对，全部匹配即过关，否则推进到提示步等玩家调整
+        if (teachBoardMatched()) {
             showTeachStep(true);
             setTimeout(() => teachLevelComplete(), 1200);
-        } else {
-            let steps = lvl.steps || [];
-            teachStepIdx = Math.min(teachStepIdx + 1, steps.length - 1);
-            showTeachStep(false);
+            return;
         }
-    } else {
-        // 还没放满则推进到下一条提示，最多停在最后一步
-        let steps = lvl.steps || [];
-        teachStepIdx = Math.min(teachStepIdx + 1, steps.length - 1);
-        showTeachStep(false);
     }
+    // 每次落子都推进一条提示，最多停在最后一步
+    let steps = lvl.steps || [];
+    teachStepIdx = Math.min(teachStepIdx + 1, steps.length - 1);
+    showTeachStep(false);
 }
 
 /**
  * 删除教学关卡中某格的雷，并重算影响值。
  * @param {number} r 行号
  * @param {number} c 列号
- * @sideeffect 同步更新放置列表与统计，并把提示退回到第一步
+ * @sideeffect 同步更新放置列表与统计，并刷新当前步骤提示
  */
 function teachRemove(r, c) {
     let k = r + "," + c;
@@ -913,17 +932,20 @@ function teachRemove(r, c) {
     teachPlacedTypes[removedType] = Math.max(0, (teachPlacedTypes[removedType] || 0) - 1);
     teachPlacedCount = Math.max(0, teachPlacedCount - 1);
     AudioFX.remove();
-    G.p = Array(SR).fill().map(() => Array(SC).fill(0));
-    for (let item of teachPlaceList) {
-        M[item.type].f(item.r, item.c, G.p);
-    }
-    applyTacticalEffects(G.p, G.placed);
+    recomputeTeachInfluence();
     renderTeachBoard();
     renderTeachSlot();
     document.getElementById("placed").textContent = String(teachPlacedCount);
     updateTeachProgressBar();
-    // 删除后提示回到第一步，让玩家重新按引导操作
-    teachStepIdx = 0;
+    // 删掉的是某个提示步的目标格时，气泡退回那一步，让玩家重新放回来
+    let steps = (TEACH_LEVELS[teachLevelIdx].steps || []);
+    for (let i = 0; i < steps.length; i++) {
+        let s = steps[i];
+        if (s.targetCell && s.targetCell[0] === r && s.targetCell[1] === c) {
+            teachStepIdx = i;
+            break;
+        }
+    }
     showTeachStep(false);
 }
 
@@ -949,11 +971,7 @@ function teachMove(fromKey, r, c) {
         type: t
     });
     AudioFX.place();
-    G.p = Array(SR).fill().map(() => Array(SC).fill(0));
-    for (let item of teachPlaceList) {
-        M[item.type].f(item.r, item.c, G.p);
-    }
-    applyTacticalEffects(G.p, G.placed);
+    recomputeTeachInfluence();
     renderTeachBoard();
     renderTeachSlot();
     document.getElementById("placed").textContent = String(teachPlacedCount);
@@ -968,11 +986,7 @@ function teachMove(fromKey, r, c) {
  */
 function teachCheckComplete() {
     if (teachPlacedCount < teachExpectedCount) return;
-    for (let i = 0; i < SR; i++) {
-        for (let j = 0; j < SC; j++) {
-            if (G.p[i][j] !== G.tar[i][j]) return;
-        }
-    }
+    if (!teachBoardMatched()) return;
     showTeachStep(true);
     setTimeout(() => teachLevelComplete(), 1200);
 }
@@ -980,52 +994,57 @@ function teachCheckComplete() {
 /* ---------- 11. 提示气泡与进度条 ---------- */
 
 /**
- * 刷新教学气泡：显示当前步骤的提示文字、图标与目标格高亮。
- * @param {boolean} isCorrect 本次放置是否正确；true 时气泡切换为过关文案
- * @sideeffect 改写气泡内四个文本节点与目标格高亮类
+ * 取当前关卡正在显示的步骤对象。
+ * @returns {Object} 步骤对象；越界时返回最后一个步骤
  */
-function showTeachStep(isCorrect) {
+function currentTeachStep() {
     let lvl = TEACH_LEVELS[teachLevelIdx];
+    let steps = (lvl && lvl.steps) || [];
+    if (!steps.length) return { text: "" };
+    return steps[Math.max(0, Math.min(teachStepIdx, steps.length - 1))];
+}
+
+/**
+ * 读 / 写气泡的四个文本区。
+ * @param {string} icon 图标
+ * @param {string} title 标题
+ * @param {string} text 正文（一次只显示一小段）
+ * @param {string} hint 底部提示
+ * @sideeffect 改写气泡内节点
+ */
+function paintTeachBubble(icon, title, text, hint) {
     let bubble = document.getElementById("teachBubble");
+    if (!bubble) return;
     // 先摘除再添加 visible，配合强制重排让气泡重新播放入场动画
     bubble.classList.remove("visible", "mines-only");
     void bubble.offsetWidth;
     bubble.classList.add("visible");
-    let steps = lvl.steps || [];
-    let stepIdx = Math.min(teachStepIdx, steps.length - 1);
-    // 步骤下标越界时退回第一步，保证气泡始终有内容
-    let step = steps[stepIdx] || steps[0] || {
-        text: "",
-        hint: ""
-    };
-    if (isCorrect) {
-        // 过关文案：与普通提示区分，避免玩家误以为还需要继续放置
-        document.getElementById("teachBubbleIcon").textContent = "✅";
-        document.getElementById("teachBubbleTitle").textContent = "正确!";
-        document.getElementById("teachBubbleText").textContent = "放置正确，棋盘已全部匹配！\n\n 该教学已完成\n";
-        document.getElementById("teachBubbleHint").textContent = "";
-    } else {
-        document.getElementById("teachBubbleIcon").textContent = lvl.icon;
-        document.getElementById("teachBubbleTitle").textContent = lvl.title;
-        document.getElementById("teachBubbleText").textContent = step.text;
-        document.getElementById("teachBubbleHint").textContent = step.hint || "";
-    }
-    // 每次只高亮当前步骤的目标格，切换前先清掉上一处高亮
-    document.querySelectorAll(".cell-teach-target").forEach(el => el.classList.remove("cell-teach-target"));
-    if (step.targetCell && !isCorrect) {
-        let [tr, tc] = step.targetCell;
-        let cellEl = document.querySelector(`.cell[data-r="${tr}"][data-c="${tc}"]`);
-        if (cellEl) cellEl.classList.add("cell-teach-target");
-    }
+    document.getElementById("teachBubbleIcon").textContent = icon;
+    document.getElementById("teachBubbleTitle").textContent = title;
+    document.getElementById("teachBubbleText").textContent = text || "";
+    document.getElementById("teachBubbleHint").textContent = hint || "";
 }
 
 /**
- * 显示一条气泡消息：固定切到第 2 步（提示步）后刷新气泡。
- * @param {string} text 消息文本（当前实现由步骤表提供文案）
+ * 刷新教学气泡：显示当前步骤的短文案、图标与目标格高亮。
+ * @param {boolean} isCorrect 本次放置是否正确；true 时气泡切换为过关文案
+ * @sideeffect 改写气泡文本、目标格高亮，并通知引导层刷新
  */
-function showTeachBubbleMsg(text) {
-    teachStepIdx = 1;
-    showTeachStep(false);
+function showTeachStep(isCorrect) {
+    let lvl = TEACH_LEVELS[teachLevelIdx];
+    let step = currentTeachStep();
+    document.querySelectorAll(".cell-teach-target").forEach(el => el.classList.remove("cell-teach-target"));
+    if (isCorrect) {
+        paintTeachBubble("✅", "正确!", "放对啦，这一关完成了！", "");
+    } else {
+        paintTeachBubble(lvl.icon, lvl.title, step.text, step.hint);
+        if (step.targetCell) {
+            let [tr, tc] = step.targetCell;
+            let cellEl = document.querySelector(`.cell[data-r="${tr}"][data-c="${tc}"]`);
+            if (cellEl) cellEl.classList.add("cell-teach-target");
+        }
+    }
+    if (typeof guideRefresh === "function") guideRefresh();
 }
 
 /**
@@ -1065,6 +1084,9 @@ function teachLevelComplete() {
         nextBtn.style.display = "";
         exitBtn.style.display = "none";
         practiceBtn.style.display = "";
+        try {
+            Store.set("teachFinished", "true");
+        } catch (e) {}
         AudioFX.winBrain();
         if (window.Achievements && window.Achievements.unlock) {
             window.Achievements.unlock("finish_tutorial");
@@ -1088,6 +1110,7 @@ function teachLevelComplete() {
         void bubble.offsetWidth;
         bubble.classList.add("visible", "mines-only");
     }
+    if (typeof guideRefresh === "function") guideRefresh();
 }
 
 /**
@@ -1128,6 +1151,7 @@ function teachExit() {
     render();
     renderRecordList();
     document.getElementById("win").style.display = "none";
+    if (typeof guideRefresh === "function") guideRefresh();
 }
 
 /**
@@ -1155,4 +1179,5 @@ function teachExitToPractice() {
     isTutorialMode = true;
     tutorialStep = parseInt(Store.get("tutorialStep")) || 0;
     setupTutorialBoard(null);
+    if (typeof guideRefresh === "function") guideRefresh();
 }

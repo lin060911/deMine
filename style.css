@@ -1098,69 +1098,51 @@ body.brain-golden .bg-mine-ghost {
 
 /* ===== 9. 通关遮罩 ===== */
 /* 通关遮罩：全屏毛玻璃压暗背景，居中结果卡把注意力收拢到「再来一局」 */
-.win {
-    position: fixed;
-    inset: 0;
-    z-index: 100;
-    display: none;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 24px;
-    background: rgba(12, 24, 38, .48);
-    -webkit-backdrop-filter: blur(18px) saturate(140%);
-    backdrop-filter: blur(18px) saturate(140%);
-    color: #fff;
-    font-size: clamp(24px, 4vw, 34px);
-    font-weight: 800;
-    letter-spacing: -.01em;
-    text-align: center;
-    text-shadow: 0 2px 24px rgba(0, 0, 0, .22);
-    animation: winOverlayIn .45s var(--rm-ease) both;
-}
 
-@keyframes winOverlayIn {
-    0%   { opacity: 0; -webkit-backdrop-filter: blur(0); backdrop-filter: blur(0); }
-    100% { opacity: 1; -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%); }
-}
+        .win {
+            position: fixed;
+            top:0;left:0;width:100%;height:100%;
+            background:rgba(0, 0, 0, 0.5);
+            display:none;
+            flex-direction:column;
+            align-items:center;
+            justify-content:center;
+            color:#fcc367;
+            font-size:40px;
+            z-index: 100;
+            text-shadow: 0 0 16px rgba(252, 195, 103, 0.9), 0 0 32px rgba(252, 195, 103, 0.3);
+            animation: winOverlayIn 0.7s cubic-bezier(0.4, 0, 0.2, 1) both;
+            backdrop-filter: blur(2px);
+        }
 
-.win > div {
-    padding: 24px 38px;
-    border: 1px solid rgba(255, 255, 255, .18);
-    border-radius: 26px;
-    background: rgba(255, 255, 255, .10);
-    -webkit-backdrop-filter: blur(18px);
-    backdrop-filter: blur(18px);
-    box-shadow: 0 18px 50px rgba(0, 0, 0, .18), inset 0 1px 0 rgba(255, 255, 255, .18);
-    line-height: 1.35;
-}
+        @keyframes winOverlayIn {
+            0%   { opacity: 0; backdrop-filter: blur(0px); }
+            100% { opacity: 1; backdrop-filter: blur(2px); }
+        }
 
-.win button {
-    margin-top: 20px;
-    height: 52px;
-    padding: 0 40px;
-    border: none;
-    border-radius: 18px;
-    background: linear-gradient(180deg, #48bb78, #38a169);
-    color: #ffffff;
-    font-size: 16px;
-    font-weight: 700;
-    cursor: pointer;
-    box-shadow: 0 12px 34px rgba(0, 0, 0, .24), inset 0 1px 0 rgba(255, 255, 255, .22);
-    transition: transform .25s var(--rm-spring), box-shadow .25s ease, filter .25s ease;
-}
-
-.win button:hover {
-    transform: translateY(-2px) scale(1.02);
-    box-shadow: 0 18px 44px rgba(0, 0, 0, .28), inset 0 1px 0 rgba(255, 255, 255, .22);
-    filter: brightness(1.06);
-}
-
-.win button:active {
-    transform: scale(.97);
-    transition-duration: .1s;
-}
+        .win button {
+            margin-top: 30px;
+            padding: 14px 32px;
+            background: linear-gradient(180deg, #48bb78, #38a169);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.35s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.35s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.15);
+            will-change: transform;
+        }
+        .win button:hover {
+            background: linear-gradient(180deg, #38a169, #2d8a5a);
+            transform: scale(1.08);
+            box-shadow: 0 8px 24px rgba(56,161,105,0.45), inset 0 1px 0 rgba(255,255,255,0.15);
+        }
+        .win button:active {
+            transform: scale(1.03);
+            transition-duration: 0.1s;
+        }
 
 /* ===== 10. 脑王彩蛋 ===== */
 /* 脑王弹窗：环形渐变描边 + 长周期光晕，作为隐藏彩蛋的最高规格反馈 */
@@ -2305,21 +2287,21 @@ body:has(.info-sidebar.open, .achievement-sidebar.open, .rule-sidebar.open,
 }
 
 .preview-cell.active {
-    background: #dcf3e4;
+    background: #9fdf9f;
 }
 
 .preview-cell.center {
-    background: linear-gradient(180deg, #4b9df3, #2f7feb) !important;
+    background: linear-gradient(180deg, #72c3e4, #6dade0) !important;
     color: #ffffff;
 }
 
 .preview-cell.split-left,
 .preview-cell.split-right {
-    background: #dcf3e4;
+    background: #9fdf9f;
 }
 
 .preview-cell.negative {
-    background: #ffe3e1;
+    background: #fca5a5;
 }
 
 .diagonal-line {
@@ -6071,6 +6053,27 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
     opacity: .94;
+}
+
+/* 原生拖放预览节点：只给 setDragImage 截取用，内容仅地雷 emoji。
+   常驻视口外是为了保持"已渲染"（display:none 会被截成空图），玩家看不到它 */
+.mine-drag-image {
+    position: fixed;
+    top: -200px;
+    left: -200px;
+    z-index: -1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    pointer-events: none;
+}
+
+/* 预览里的 emoji 放大到 30px，与触屏拖影的观感对齐 */
+.mine-drag-image [class$="-bomb"] {
+    font-size: 30px;
+    line-height: 1;
 }
 
 .cell.drag-over {

@@ -29,9 +29,10 @@ let _origDel = null;
  * 开始新一局：先清理上一局状态，再按当前模式生成棋盘或进入待开局。
  * 预设难度不会立即生成棋盘，而是先套用预设参数并展示待开局卡片，
  * 由 beginPresetGame 在玩家确认后接手。
- * @sideeffect 重置对局状态并重绘棋盘与记录表。
+ * @sideeffect 重置对局状态并重绘棋盘与记录表；难度条件不满足时只弹出说明框
  */
 function newGame() {
+    if (!ensurePresetAllowed()) return;
     AudioFX.confirm();
     fullReset();
     if (isPresetDifficulty(diff) && !isFreeMode && !isTutorialMode) {
@@ -109,9 +110,11 @@ function fullReset() {
 /**
  * 从待开局卡片真正开始一局预设难度：重新套用难度参数，显示棋盘与
  * 道具栏，生成题目后启动计时（自由模式不启动计时）。
- * @sideeffect 关闭待开局卡片，改写 isPresetPending / isTutorialMode 与计时状态。
+ * @sideeffect 关闭待开局卡片，改写 isPresetPending / isTutorialMode 与计时状态；
+ *             难度条件不满足时保留待开局卡片，只弹出说明框
  */
 function beginPresetGame() {
+    if (!ensurePresetAllowed()) return;
     AudioFX.confirm();
     // 参数只取决于当前难度，生成前重设一次，避免跨模式残留的尺寸参与生成
     if (isPresetDifficulty(diff)) applyPresetParams(diff);
@@ -172,8 +175,13 @@ window.onload = () => {
 /**
  * 全局代理 dragstart：把拖拽预览图换成空图像，消除浏览器默认的
  * 半透明拖拽残影；只影响视觉，不改变 dataTransfer 中的数据。
+ * 地雷槽位是例外：它由 07-board 的 setMineDragImage 换成单个 emoji，
+ * 这里必须放行，否则会把已经设好的 emoji 预览覆盖成空图。
  */
 document.addEventListener("dragstart", function(e) {
+    const src = e.target;
+    // 从地雷槽拖出时保留 07-board 设置的单 emoji 预览
+    if (src && src.closest && src.closest(".mine-item")) return;
     try {
         e.dataTransfer.setDragImage(new Image, 0, 0);
     } catch (_) {}

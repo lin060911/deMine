@@ -246,9 +246,6 @@ let diff = null;
 /* 是否为自由创造模式：该模式不限时，也不计入成绩与胜场 */
 let isFreeMode = false;
 
-/* 预设难度对局中锁定系列挑战入口，避免中途切换系列影响解锁判定 */
-let seriesLocked = false;
-
 /* 预设难度已选中、玩家尚未点开始：等待开始确认卡片 */
 let isPresetPending = false;
 

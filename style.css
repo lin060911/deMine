@@ -1506,13 +1506,13 @@ body.brain-golden .bg-mine-ghost {
     font-size: 16px;
 }
 
-.preset-start-tag.tag-easy   { background: rgba(47, 169, 107, .13); color: #1f7f50; }
-.preset-start-tag.tag-medium { background: rgba(239, 138, 44, .14); color: #a85f12; }
-.preset-start-tag.tag-hard   { background: rgba(233, 81, 78, .13); color: #b43a37; }
-.preset-start-tag.tag-hell   { background: rgba(124, 92, 214, .13); color: #5b41ad; }
+.preset-start-tag.tag-easy   { background: rgba(47, 169, 107, .13); color: #ebffe9; }
+.preset-start-tag.tag-medium { background: rgba(239, 138, 44, .14); color: #fffcdd; }
+.preset-start-tag.tag-hard   { background: rgba(233, 81, 78, .13); color: #ffd8d7; }
+.preset-start-tag.tag-hell   { background: rgba(124, 92, 214, .13); color: #eae4ff; }
 .preset-start-tag.tag-brain  {
     background: linear-gradient(120deg, rgba(255, 224, 102, .5), rgba(127, 224, 255, .4) 40%, rgba(185, 140, 255, .4));
-    color: #6b4a9e;
+    color: #ffdbff;
 }
 
 /* ===== 14. 教学完成框 ===== */
@@ -1918,7 +1918,7 @@ body:has(.info-sidebar.open, .achievement-sidebar.open, .rule-sidebar.open,
 }
 
 .preset-medium {
-    background: linear-gradient(180deg, #ed8a3c, #c06a25);
+    background: linear-gradient(180deg, #f5cc5d,#edb53c );
     border-color: rgba(255, 255, 255, .38);
     color: #ffffff;
 }
@@ -1991,23 +1991,6 @@ body:has(.info-sidebar.open, .achievement-sidebar.open, .rule-sidebar.open,
 .custom-panel.visible {
     display: block;
     animation: sidebarSectionIn .35s var(--rm-spring) both;
-}
-
-.series-locked-notice {
-    display: none;
-    margin-bottom: 10px;
-    padding: 9px 12px;
-    border: 1px solid rgba(233, 81, 78, .16);
-    border-radius: 12px;
-    background: rgba(233, 81, 78, .07);
-    color: #b43a37;
-    font-size: 12px;
-    font-weight: 500;
-    line-height: 1.6;
-}
-
-.series-locked-notice.visible {
-    display: block;
 }
 
 .custom-item {
@@ -2387,9 +2370,17 @@ body:has(.info-sidebar.open, .achievement-sidebar.open, .rule-sidebar.open,
     transform: translateX(20px);
 }
 
+.switch-row.locked-row {
+    opacity: .55;
+    filter: grayscale(1);
+}
+
+.switch-row.locked-row:hover {
+    background: transparent;
+}
+
 .switch-row.locked-row .switch-toggle {
     cursor: not-allowed;
-    opacity: .4;
 }
 
 .switch-hint {
@@ -5560,16 +5551,16 @@ body > footer.sidebar-version {
     margin-top: 24px;
     padding: 7px 20px;
     border-radius: 12px;
-    background: linear-gradient(135deg, #48bb78, #38a169);
+    background: linear-gradient #ffffff;
     color: #fff;
     font-size: 15px;
     font-weight: 700;
-    box-shadow: 0 3px 12px rgba(72, 187, 120, .35);
+    box-shadow: 0 3px 12px #fff;
     animation: tagPulse 2.5s ease-in-out infinite;
 }
 
 .preset-start-tag.tag-easy   { background: linear-gradient(135deg, #68d391, #38a169); }
-.preset-start-tag.tag-medium { background: linear-gradient(135deg, #f6ad55, #dd6b20); }
+.preset-start-tag.tag-medium { background: linear-gradient(135deg, #f5cc5d,#edb53c); }
 .preset-start-tag.tag-hard   { background: linear-gradient(135deg, #fc8181, #e53e3e); }
 .preset-start-tag.tag-hell   { background: linear-gradient(135deg, #b794f4, #6b21a8); }
 .preset-start-tag.tag-brain  { background: linear-gradient(135deg, #fff654 0%, #56daff 25%, #5694ff 50%, #a455ff 75%, #ea4fff 100%); }
@@ -6081,6 +6072,49 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     box-shadow: inset 0 0 0 2px #4299e1, 0 0 14px rgba(66, 153, 225, .55) !important;
     transform: scale(1.06);
     transition-duration: .2s;
+}
+
+/* 效果预览：拖动中悬停时，受影响格直接显示「放置后」的三态底色，
+   虚线描边 + 左下角数字表示这是预演而不是真实状态 */
+.cell.rm-preview-valid::before,
+.cell.rm-preview-low::before,
+.cell.rm-preview-over::before {
+    content: attr(data-preview-val);
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+    padding: 0 1px 1px 2px;
+    border: 1px dashed rgba(30, 48, 66, .45);
+    border-radius: inherit;
+    color: #17202a;
+    font-size: max(8px, calc(var(--cell-size, 40px) * .32));
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -.02em;
+    pointer-events: none;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, .6);
+}
+
+.cell.rm-preview-valid {
+    background: #9fdf9f !important;
+}
+
+.cell.rm-preview-low {
+    background: #fde68a !important;
+}
+
+.cell.rm-preview-over {
+    background: #fca5a5 !important;
+}
+
+/* 两位数预览：收窄字号与内边距，保证数字完整落在格内 */
+.cell.rm-preview-wide::before {
+    padding: 0 1px 1px 1px;
+    font-size: max(7px, calc(var(--cell-size, 40px) * .26));
+    letter-spacing: -.06em;
 }
 
 .rm-toast {

@@ -288,6 +288,7 @@ function bindCellDrag(cell, kind) {
     if (isDrag && hasMine) {
         cell.draggable = true;
         cell.ondragstart = function(e) {
+            clearPlacementPreview();
             try {
                 // 用 0×0 的空 Image 作拖影，避免浏览器截图式拖影遮挡落点
                 e.dataTransfer.setDragImage(new Image, 0, 0);
@@ -303,6 +304,7 @@ function bindCellDrag(cell, kind) {
         cell.ondragend = function() {
             cell.classList.remove("dragging");
             G.drag = null;
+            clearPlacementPreview();
         };
     } else {
         cell.draggable = false;
@@ -315,13 +317,19 @@ function bindCellDrag(cell, kind) {
             // 必须阻止默认行为，浏览器才会把该元素视为可放置区域
             e.preventDefault();
             cell.classList.add("drag-over");
+            previewPlacementEffect(kind, cell);
         };
-        cell.ondragleave = function() {
+        cell.ondragleave = function(e) {
             cell.classList.remove("drag-over");
+            // 移到别的格子或本格子元素时交给下一处 dragover 覆盖，避免预览闪断
+            const to = e && e.relatedTarget;
+            if (to && to.closest && to.closest(".cell")) return;
+            clearPlacementPreview();
         };
         cell.ondrop = function(e) {
             e.preventDefault();
             cell.classList.remove("drag-over");
+            clearPlacementPreview();
             let t = null;
             try {
                 t = e.dataTransfer.getData("text/plain");
@@ -333,6 +341,47 @@ function bindCellDrag(cell, kind) {
         cell.ondragleave = null;
         cell.ondrop = null;
     }
+}
+
+/* ---- 原生拖拽预览：只截取单个 emoji ---- */
+
+/**
+ * 取得（必要时创建）常驻的拖拽预览节点，并把内容换成指定地雷的 emoji。
+ * 节点固定在视口外：原生拖放只截取「已渲染」元素的外观，display:none 会被
+ * 当成空图像，所以这里保留布局与渲染、只把位置挪出屏幕。
+ * @param {string} type 地雷类型键
+ * @returns {HTMLElement} 位于 body 下、视口外的预览节点
+ * @sideeffect 首次调用时向 body 追加 #mineDragImage，之后只替换其内容
+ */
+function mineDragImageNode(type) {
+    const m = M[type] || null;
+    let el = document.getElementById("mineDragImage");
+    if (!el) {
+        el = document.createElement("div");
+        el.id = "mineDragImage";
+        el.className = "mine-drag-image";
+        // 纯视觉节点，对读屏软件隐藏
+        el.setAttribute("aria-hidden", "true");
+        document.body.appendChild(el);
+    }
+    // emoji 与图形类名复用槽位卡片的写法，保证颜色 / 旋转等视觉一致
+    el.innerHTML = '<span class="' + (m ? m.cls : "normal-bomb") + '">' + (m ? m.e : "💣") + "</span>";
+    return el;
+}
+
+/**
+ * 把原生拖拽预览替换成单个 emoji，替代浏览器默认截取的整张槽位卡片。
+ * 只影响视觉：dataTransfer 载荷、G.drag 等拖拽逻辑一概不动。
+ * @param {DragEvent} e dragstart 事件
+ * @param {string} type 地雷类型键
+ * @sideeffect 可能追加 #mineDragImage，并改写 dataTransfer 的拖拽图像
+ */
+function setMineDragImage(e, type) {
+    try {
+        const el = mineDragImageNode(type);
+        // 以预览中心对准指针，让 emoji 跟着光标而不是偏在一侧
+        e.dataTransfer.setDragImage(el, el.offsetWidth / 2, el.offsetHeight / 2);
+    } catch (_) {}
 }
 
 /**
@@ -348,14 +397,14 @@ function bindSlotItemDrag(div, t, kind) {
     if (isDrag) {
         div.draggable = !full;
         div.ondragstart = function(e) {
-            try {
-                e.dataTransfer.setDragImage(new Image, 0, 0);
-            } catch (_) {}
             if (full) {
                 // 配额已满的槽位仍会收到 dragstart，这里立即取消以形成"拖不动"的手感
                 e.preventDefault();
                 return;
             }
+            clearPlacementPreview();
+            // 原生拖放预览只截取单个 emoji，不再截取整张「emoji + 名称 + 数量」卡片
+            setMineDragImage(e, t);
             // 从槽位拖出的是新雷，不是棋盘上已有的雷，清空 G.drag 避免误判为移动
             G.drag = null;
             setSelectedType(kind, t);
@@ -368,6 +417,7 @@ function bindSlotItemDrag(div, t, kind) {
         };
         div.ondragend = function() {
             div.classList.remove("dragging");
+            clearPlacementPreview();
         };
     } else {
         div.draggable = false;
@@ -463,6 +513,7 @@ function setPlaceMode(mode) {
         } catch (e) {}
         AudioFX.confirm();
     }
+    clearPlacementPreview();
     applyPlaceModeToDom();
     applyPlaceModeUI();
 }
@@ -509,6 +560,7 @@ window.addEventListener("resize", function() {
         const key = kind + "|" + rows + "x" + cols + "|" + calcCellSize(rows, cols);
         if (key === _lastSizeKey) return;
         _lastSizeKey = key;
+        clearPlacementPreview();
         if (kind === "create") {
             renderCreateBoard();
             renderCreateMineSlot();
@@ -588,12 +640,14 @@ window.addEventListener("resize", function() {
     /**
      * 移除拖影并清除源元素的高亮类。
      * @param {Object|null} s 指针会话状态
-     * @sideeffect 从 document.body 中删除拖影节点
+     * @sideeffect 从 document.body 中删除拖影节点并收起落点预览
      */
     function killGhost(s) {
         if (!s) return;
         if (s.ghost && s.ghost.parentNode) s.ghost.parentNode.removeChild(s.ghost);
         s.ghost = null;
+        s.pvCell = null;
+        clearPlacementPreview();
         if (s.src && s.src.classList) s.src.classList.remove("dragging");
     }
     /**
@@ -605,6 +659,22 @@ window.addEventListener("resize", function() {
             s.hover.classList.remove("drag-over");
             s.hover = null;
         }
+    }
+    /**
+     * 更新触屏拖拽的落点预览：同一目标格只结算一次，离开可放置格时收起。
+     * @param {Object} s 指针会话状态
+     * @param {HTMLElement|null} cell 当前指针下的格子
+     */
+    function updateDragPreview(s, cell) {
+        // 源格自身不作为落点预览，与落点高亮的处理保持一致
+        const target = cell && cell !== s.src ? cell : null;
+        if (target === s.pvCell) return;
+        s.pvCell = target;
+        if (!target) {
+            clearPlacementPreview();
+            return;
+        }
+        previewPlacementEffect(s.kind, target, s.mode === "cell" ? s.fromKey : "");
     }
     /**
      * 触发设备振动反馈；设备不支持振动接口时静默跳过。
@@ -689,6 +759,7 @@ window.addEventListener("resize", function() {
                 canDrag: true,
                 ghost: null,
                 hover: null,
+                pvCell: null,
                 lpTimer: 0
             };
             return;
@@ -715,6 +786,7 @@ window.addEventListener("resize", function() {
                 canDrag: window._placeMode === "drag",
                 ghost: null,
                 hover: null,
+                pvCell: null,
                 lpTimer: 0
             };
             // 长按删除：点选模式下已有雷不可拖动，这是该类设备上的删除入口
@@ -769,6 +841,7 @@ window.addEventListener("resize", function() {
                 st.hover = cell;
             }
         }
+        updateDragPreview(st, cell);
     }
     /**
      * 指针抬起：有落点则执行放置或移动，没有落点则只清理现场。

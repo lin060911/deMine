@@ -453,30 +453,23 @@ function renderSeriesSwitches() {
     let onCount = getSeriesOnCount();
     if (onCount < 5) {
         hint.className = "switch-hint";
-        // 3 个是普通难度的门槛，5 个是地狱 / 脑王的门槛，提示文案随之变化
-        let need = onCount < 3 ? "≥3个才能使用<strong>简单/中等/困难</strong>" : "<strong>简单/中等/困难</strong>已可用✅<br>所有系列全开才能挑战<strong>地狱/脑王</strong>";
-        hint.innerHTML = `当前开启<strong> ${onCount}/5 </strong>个系列<br>${need}<br>💡在<strong>💣信息 → 炸弹信息</strong>里通关系列<strong>挑战</strong>可解锁`;
+        let need = onCount < 3 ? "困难需<strong>≥3</strong>个 · 地狱/脑王需全开" : "困难可用✅ · 地狱/脑王需全开";
+        hint.innerHTML = `已开启<strong> ${onCount}/5 </strong>个系列<br>${need}`;
     } else {
         hint.className = "switch-hint unlock-hint";
         let brainReady = (wins.hell || 0) >= BRAIN_HELL_WINS_REQ;
-        if (brainReady) {
-            hint.textContent = `全部 ${onCount}/5 个系列已开启 ✅ 地狱 & 脑王均可挑战`;
-        } else {
-            hint.innerHTML = `全部 ${onCount}/5 个系列已开启 ✅ 地狱可用<br>地狱通关${BRAIN_HELL_WINS_REQ}次后解锁<strong>脑王🤯</strong>`;
-        }
+        hint.innerHTML = brainReady ? `全部 ${onCount}/5 已开启 ✅ 地狱 & 脑王均可挑战` : `全部 ${onCount}/5 已开启 ✅ 地狱可用<br>脑王需地狱通关<strong>${BRAIN_HELL_WINS_REQ}</strong>次`;
     }
     updatePresetButtons();
 }
 
 /**
- * 切换某个系列的开关；基础系列、难度已锁定或尚未解锁的系列都不响应。
+ * 切换某个系列的开关；基础系列与尚未解锁的系列不响应。
  * @param {string} catKey 系列键
  * @sideeffect 写入 seriesState 并持久化，随后重绘开关列表
  */
 function toggleSeries(catKey) {
     if (catKey === "basic") return;
-    // 已选定预设难度时锁定系列配置，避免中途改变本局的雷种范围
-    if (seriesLocked) return;
     if (!seriesUnlocked[catKey]) return;
     seriesState[catKey] = !seriesState[catKey];
     saveSeriesState(seriesState);
@@ -519,24 +512,26 @@ function checkBrainUnlocked() {
 /* ---------- 10. 难度预设 ---------- */
 
 /**
- * 刷新难度按钮的锁定样式：普通难度需 3 个系列、地狱需 5 个、脑王另需通关次数。
+ * 刷新难度按钮的锁定样式：困难需 3 个系列、地狱需 5 个、脑王另需通关次数；
+ * 简单 / 中等不设系列门槛，方便新手直接开始。
  * @sideeffect 切换各难度按钮的 locked 类
  */
 function updatePresetButtons() {
     let onCount = getSeriesOnCount();
-    let normalLocked = onCount < 3;
+    let hardLocked = onCount < 3;
     let hellLocked = onCount < 5;
     let brainLocked = !checkBrainUnlocked();
-    [ "btnEasy", "btnMedium", "btnHard" ].forEach(id => {
+    // 简单 / 中等始终可用：入门难度不再受系列开关数量限制
+    [ "btnEasy", "btnMedium" ].forEach(id => {
         let btn = document.getElementById(id);
-        if (!btn) return;
-        // 自由模式下难度由玩家自定，预设按钮不显示锁定态
-        if (isFreeMode) {
-            btn.classList.remove("locked");
-            return;
-        }
-        if (normalLocked) btn.classList.add("locked"); else btn.classList.remove("locked");
+        if (btn) btn.classList.remove("locked");
     });
+    let btnHard = document.getElementById("btnHard");
+    if (btnHard) {
+        // 自由模式下难度由玩家自定，预设按钮不显示锁定态
+        if (isFreeMode || !hardLocked) btnHard.classList.remove("locked");
+        else btnHard.classList.add("locked");
+    }
     let btnHell = document.getElementById("btnHell");
     if (btnHell) {
         if (isFreeMode) {
@@ -565,7 +560,43 @@ function checkPresetAllowed(d) {
     let onCount = getSeriesOnCount();
     if (d === "brain") return checkBrainUnlocked();
     if (d === "hell") return onCount >= 5;
+    // 简单 / 中等不设系列门槛，仅困难要求至少 3 个系列开启
+    if (d === "easy" || d === "medium") return true;
     return onCount >= 3;
+}
+
+/**
+ * 弹出"条件不满足"的说明框：困难使用通用的"无法使用"框，
+ * 地狱 / 脑王分别显示当前进度。
+ * @param {string} d 难度键
+ * @sideeffect 显示遮罩与对应弹窗并播放提示音
+ */
+function showPresetLockedModal(d) {
+    document.getElementById("overlay").style.display = "block";
+    if (d === "brain") {
+        document.getElementById("brainHellWins").textContent = wins.hell || 0;
+        document.getElementById("brainSeriesCount").textContent = getSeriesOnCount();
+        document.getElementById("brainLockedModal").style.display = "block";
+    } else if (d === "hell") {
+        document.getElementById("hellLockedCount").textContent = getSeriesOnCount();
+        document.getElementById("hellLockedModal").style.display = "block";
+    } else {
+        document.getElementById("presetLockedModal").style.display = "block";
+    }
+    AudioFX.modalOpen();
+}
+
+/**
+ * 开新局前重新校验当前预设难度。系列开关解锁后随时可调，困难局中途可能被
+ * 关到 3 个以下，因此每次开局都要按"当前"系列状态再判一次。
+ * @returns {boolean} true 表示可以继续开局；false 表示已弹出说明框
+ * @sideeffect 条件不满足时显示遮罩与对应说明弹窗
+ */
+function ensurePresetAllowed() {
+    if (isFreeMode || !isPresetDifficulty(diff)) return true;
+    if (checkPresetAllowed(diff)) return true;
+    showPresetLockedModal(diff);
+    return false;
 }
 
 /**
@@ -588,10 +619,8 @@ function setPre(d) {
     fullReset();
     if (d === "free") {
         isFreeMode = true;
-        seriesLocked = false;
         diff = "free";
         document.getElementById("customPanel").classList.add("visible");
-        document.getElementById("seriesLockedNotice").classList.remove("visible");
         updatePresetButtons();
         renderSeriesSwitches();
         resetTi();
@@ -601,33 +630,15 @@ function setPre(d) {
         return;
     }
     if (!checkPresetAllowed(d)) {
-        // 未达门槛：按难度分别弹出说明框，并写入当前的真实进度
-        if (d === "brain") {
-            document.getElementById("brainHellWins").textContent = wins.hell || 0;
-            document.getElementById("brainSeriesCount").textContent = getSeriesOnCount();
-            document.getElementById("overlay").style.display = "block";
-            document.getElementById("brainLockedModal").style.display = "block";
-            AudioFX.modalOpen();
-        } else if (d === "hell") {
-            document.getElementById("hellLockedCount").textContent = getSeriesOnCount();
-            document.getElementById("overlay").style.display = "block";
-            document.getElementById("hellLockedModal").style.display = "block";
-            AudioFX.modalOpen();
-        } else {
-            document.getElementById("overlay").style.display = "block";
-            document.getElementById("presetLockedModal").style.display = "block";
-            AudioFX.modalOpen();
-        }
+        showPresetLockedModal(d);
         return;
     }
     isFreeMode = false;
-    seriesLocked = true;
     // 用预设整体覆盖棋盘参数，避免沿用上一局教学 5×5 或创造 15×15 的尺寸
     applyPresetParams(d);
     diff = d;
     pendingDiff = d;
     document.getElementById("customPanel").classList.remove("visible");
-    document.getElementById("seriesLockedNotice").classList.add("visible");
     updatePresetButtons();
     renderSeriesSwitches();
     AudioFX.confirm();

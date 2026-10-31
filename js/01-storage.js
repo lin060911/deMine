@@ -130,7 +130,7 @@
         "brainUnlockedNotified", "brainCleared",
         "seriesState", "seriesUnlocked",
         "tutorialStep", "tutorialCompleted",
-        "placeMode_v1", "mineInfluenceHint", "mineSoundSettings",
+        "placeMode_v1", "mineInfluenceHint", "mineEffectPreview", "mineSoundSettings",
         "welcomeLastShown", "hasVisitedBefore",
         "achievementState_v1", "rmSchemaVersion"
     ];

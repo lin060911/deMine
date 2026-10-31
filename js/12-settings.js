@@ -4,7 +4,8 @@
  * 职责：读取并保存背景音乐 / 音效音量，把滑块变化实时作用到音频模块，
  *       并登记 window._gameNS 供成就系统等扩展模块取用业务函数。
  * 依赖：Store（01-storage）、AudioFX 与 RetroBGM（02-audio）、
- *       setInfluenceHint 与 influenceHintOn（06-render）。
+ *       setInfluenceHint / influenceHintOn 与 setEffectPreview / effectPreviewOn
+ *       （06-render）。
  * 对外：window._gameNS，集中引用 newGame / fullReset / clearAll / del /
  *       drop / onTutorialWin / unlockSeries / generatePuzzleCode /
  *       applyPuzzleCode；本模块只读取这些函数，不包装它们。
@@ -100,6 +101,7 @@
         applySfx(sfxInit);
         // 静默同步一次影响提示的开关状态，避免开局时额外弹提示
         if (typeof setInfluenceHint === "function") setInfluenceHint(influenceHintOn, true);
+        if (typeof setEffectPreview === "function") setEffectPreview(effectPreviewOn, true);
     }
     bgmSlider.addEventListener("input", function() {
         const val = clamp(this.value);

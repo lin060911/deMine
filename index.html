@@ -104,12 +104,11 @@
         </div>
 
 
-        <!-- 系列开关：每个系列一组开关；未解锁的系列显示锁定提示，
+        <!-- 系列开关：每个系列一组开关；解锁后可随时调整，
              解锁由 08-ui.js 的 unlockSeries() 写入，01-storage.js 的
              seriesUnlocked 负责持久化，09-tutorial.js 在通关后触发解锁 -->
         <div class="sidebar-section">
             <div class="sidebar-title lock-title">🔓 系列开关</div>
-            <div class="series-locked-notice" id="seriesLockedNotice">⚠️ 系列开关已锁定🔒，切换到<strong>[🔧自由]</strong>模式可重新调整</div>
             <div id="seriesSwitchList"></div>
             <div class="switch-hint" id="seriesSwitchHint">完成对应关卡可解锁系列</div>
         </div>
@@ -177,7 +176,7 @@
 
     <!-- 区块：难度锁定与解锁提示弹窗群
          这一组弹窗在难度条件不满足或刚好满足时出现，用来解释原因或庆祝解锁：
-           · #presetLockedModal   系列开关不足 3 个时尝试预设难度
+           · #presetLockedModal   系列开关不足 3 个时尝试「困难」
            · #hellLockedModal     地狱难度要求 5 个系列全部开启
            · #brainUnlockedModal  地狱通关满 10 次后的脑王解锁庆祝
            · #brainLockedModal    脑王双条件未满足时说明当前进度
@@ -185,7 +184,7 @@
     <div class="auto-modal" id="presetLockedModal" style="display:none;">
         <div class="icon">😣</div>
         <h2>无法使用!</h2>
-        <p id="presetLockedText">需要在主按钮<b>🕹️难度</b>里开启至少3个系列开关<br>才能使用预设难度哦！</p>
+        <p id="presetLockedText">需要在<b>🕹️难度</b>里开启至少3个系列开关<br>才能使用「困难」难度哦！</p>
         <button onclick="closePresetLockedModal()">知道了</button>
     </div>
 
@@ -407,12 +406,14 @@
                 </ul>
                 <h3>🔓 系列开关机制</h3>
                 <ul>
-                    <li>基础系列始终开启</li>
-                    <li>其他系列需通过对应挑战（5关）后解锁并开启</li>
-                    <li>简单/中等/困难：需开启≥3个系列开关</li>
+                    <li>基础系列始终开启，未解锁的系列显示为灰色</li>
+                    <li>其他系列需通过对应挑战（5关）后解锁</li>
+                    <li>解锁后可随时调整开关，无需切换模式</li>
+                    <li>简单/中等：无系列门槛，可直接开始✅</li>
+                    <li>困难：需开启≥3个系列开关</li>
                     <li>地狱👿：需开启<b>全部</b>系列开关</li>
                     <li>脑王🤯：地狱通关≥10次 + 全部系列开启</li>
-                    <li>🔧自由模式：可自定义参数+自由调整系列开关，不记录成绩</li>
+                    <li>🔧自由模式：可自定义参数，不记录成绩</li>
                 </ul>
                 </div>
             </div>
@@ -560,6 +561,11 @@
                 <div class="switch-toggle" id="influenceHintToggle" onclick="toggleInfluenceHint()"></div>
             </div>
             <div class="switch-hint">开启后，当前影响值 <strong>不为 0</strong> 且 <strong>不等于题目数字</strong> 的地块，会在右下角显示该地块当前的实时影响值<br><br></div>
+            <div class="switch-row">
+                <div class="switch-label">👁️ 效果预览</div>
+                <div class="switch-toggle" id="effectPreviewToggle" onclick="toggleEffectPreview()"></div>
+            </div>
+            <div class="switch-hint">开启后，<strong>拖拽</strong>放置地雷时（鼠标 / 触屏）悬浮在棋盘格上，受影响地块会预演<strong>放置后</strong>的三色状态并标出影响值<br><br></div>
         </div>
         <!-- 存档管理：导出 / 导入 / 清空三个入口，接线在 15-boot.js；
              导入会先弹三选一确认框，并在写入前留快照，可撤销 -->

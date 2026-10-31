@@ -1,14 +1,15 @@
 /* ==========================================================================
  * 模块 06 · 渲染引擎（js/06-render.js）
  *
- * 职责：把 G.tar / G.p / G.placed 三份状态映射到棋盘 DOM，并维护地雷槽与
- *       影响值提示开关；是"状态 -> 界面"的主要出口。
- * 依赖：G、SR/SC、selectedMineType（00-core）；M（04）；calcCellSize、
- *       applyBoardMetrics、sizeCellsIn、bindCellsIn、bindCellDrag、
- *       bindSlotItemDrag（07-board）；AudioFX；Store（01-storage）；
- *       checkWin（08-ui）；教学渲染分支（09-tutorial）。
+ * 职责：把 G.tar / G.p / G.placed 三份状态映射到棋盘 DOM，并维护地雷槽、
+ *       影响值提示开关与拖拽落点效果预览；是"状态 -> 界面"的主要出口。
+ * 依赖：G、SR/SC、selectedMineType（00-core）；M（04）；computeInfluenceMap
+ *       （05-generator）；calcCellSize、applyBoardMetrics、sizeCellsIn、
+ *       bindCellsIn、bindCellDrag、bindSlotItemDrag（07-board）；AudioFX；
+ *       Store（01-storage）；checkWin（08-ui）；教学渲染分支（09-tutorial）。
  * 对外：render、renderSlot、setInfluenceHint、toggleInfluenceHint、
- *       appendInfluenceBadge、RM.renderEngine。
+ *       setEffectPreview、toggleEffectPreview、previewPlacementEffect、
+ *       clearPlacementPreview、appendInfluenceBadge、RM.renderEngine。
  * 设计要点：
  *   1) 采用差量渲染：棋盘网格只在尺寸变化或结构校验失败时重建，之后每次
  *      只更新发生变化的格子，避免整盘重建导致落雷动画重播与焦点丢失。
@@ -53,6 +54,136 @@ function setInfluenceHint(on, silent) {
  */
 function toggleInfluenceHint() {
     setInfluenceHint(!influenceHintOn);
+}
+
+/* ---------- 1.1 效果预览：拖拽落点预演 ---------- */
+// 初始化时读取存档中的开关状态，未存过则默认关闭
+let effectPreviewOn = Store.get("mineEffectPreview") === "true";
+
+// 预览签名：记录当前正在预演"哪个雷型放在哪一格"，同一位置不重复结算
+let _previewSig = "";
+
+/**
+ * 设置"效果预览"开关：写存档、同步按钮状态，关闭时立即收起预览。
+ * @param {boolean} on 是否开启
+ * @param {boolean} [silent] 是否静默（初始化时用，不发声）
+ * @sideeffect 写 Store、切换 #effectPreviewToggle 的 class，关闭时清除预览高亮
+ */
+function setEffectPreview(on, silent) {
+    effectPreviewOn = !!on;
+    try {
+        Store.set("mineEffectPreview", effectPreviewOn ? "true" : "false");
+    } catch (e) {}
+    let tg = document.getElementById("effectPreviewToggle");
+    if (tg) tg.classList.toggle("on", effectPreviewOn);
+    if (!silent && typeof AudioFX !== "undefined" && AudioFX.toggle) AudioFX.toggle(effectPreviewOn);
+    if (!effectPreviewOn) clearPlacementPreview();
+}
+
+/**
+ * 切换效果预览开关（按钮 onclick 入口）。
+ */
+function toggleEffectPreview() {
+    setEffectPreview(!effectPreviewOn);
+}
+
+/**
+ * 清掉棋盘上已加的预览类与预览数值，但不改动预览签名。
+ * @sideeffect 移除受影响格的 rm-preview-* 类与 data-preview-val
+ */
+function clearPreviewCells() {
+    let host = document.getElementById("board");
+    if (!host) return;
+    Array.prototype.forEach.call(host.querySelectorAll(".rm-preview-valid, .rm-preview-low, .rm-preview-over"), function(el) {
+        el.classList.remove("rm-preview-valid", "rm-preview-low", "rm-preview-over", "rm-preview-wide");
+        el.removeAttribute("data-preview-val");
+    });
+}
+
+/**
+ * 结束一次预览：清除高亮并复位签名，下次悬停会重新结算。
+ * @sideeffect 清除 rm-preview-* 类与预览数值
+ */
+function clearPlacementPreview() {
+    _previewSig = "";
+    clearPreviewCells();
+}
+
+/**
+ * 解析从槽位拖出时的雷型：优先取当前选中的雷型，主棋盘再回落到上次拖拽类型。
+ * @param {string} kind 棋盘标识 main / teach
+ * @returns {string|null} 雷型 key，无法判定时为 null
+ */
+function previewDragType(kind) {
+    let t = getSelectedType(kind);
+    if (!t && kind === "main") t = G.lastDragType;
+    return t || null;
+}
+
+/**
+ * 判断一次落点预演是否值得展示：目标格必须为空，非移动时还要满足该雷型的配额。
+ * @param {string} kind 棋盘标识 main / teach
+ * @param {string} key 目标格坐标键
+ * @param {string|null} type 雷型 key
+ * @param {boolean} moving 是否在移动棋盘上已有的雷
+ * @returns {boolean} true 表示该落点合法、可以预览
+ */
+function isPreviewDropLegal(kind, key, type, moving) {
+    if (!type || !M[type]) return false;
+    if (G.placed[key]) return false;
+    if (moving) return true;
+    return !slotTypeFull(type, kind);
+}
+
+/**
+ * 拖动中指针悬浮在格子上时预演这一步的净效果：对影响值会变化的地块，
+ * 直接显示"放置后"的三态配色，并在左下角显示放置后的影响值。
+ * 移动棋盘上已有的雷时，同时预演"移走旧雷 + 放下新雷"的合并结果。
+ * @param {string} kind 棋盘标识 main / teach
+ * @param {HTMLElement} cell 当前悬停格
+ * @param {string} [moveFrom] 触屏拖拽时由调用方显式传入的拖动起点；省略时按 G.drag 判断
+ * @sideeffect 给受影响格加 rm-preview-* 类与 data-preview-val，并清除上一处预览
+ */
+function previewPlacementEffect(kind, cell, moveFrom) {
+    if (!effectPreviewOn || !cell || !cell.dataset || window._placeMode !== "drag") return;
+    if (kind !== "main" && kind !== "teach") return;
+    // 棋子尚未生成或尺寸不匹配时不预演，避免读到空矩阵
+    if (!G.tar || !G.p || G.tar.length !== SR || G.p.length !== SR || !SR || !SC) return;
+    const r = +cell.dataset.r, c = +cell.dataset.c;
+    if (r < 0 || c < 0 || r >= SR || c >= SC) return;
+    const key = r + "," + c;
+    // 鼠标拖拽用 G.drag 判断是否在移动已有雷；触屏拖拽没有 G.drag，由调用方传入起点
+    const explicitFrom = typeof moveFrom === "string";
+    const moving = explicitFrom ? !!G.placed[moveFrom] : !!(G.drag && G.placed[G.drag]);
+    const fromKey = moving ? (explicitFrom ? moveFrom : G.drag) : "";
+    const type = moving ? G.placed[fromKey] : previewDragType(kind);
+    const sig = kind + "|" + key + "|" + (type || "") + "|" + fromKey;
+    // 同一格连续触发只结算一次
+    if (sig === _previewSig) return;
+    _previewSig = sig;
+    clearPreviewCells();
+    // 原地不动或非法落点：清掉旧预览后直接返回
+    if (fromKey === key || !isPreviewDropLegal(kind, key, type, moving)) return;
+    const placed2 = {};
+    for (let k in G.placed) placed2[k] = G.placed[k];
+    if (moving) delete placed2[fromKey];
+    placed2[key] = type;
+    const p2 = computeInfluenceMap(placed2);
+    const host = document.getElementById("board");
+    if (!host) return;
+    for (let i = 0; i < SR; i++) {
+        for (let j = 0; j < SC; j++) {
+            // 只标注影响值真的会变化的地块
+            if (p2[i][j] === G.p[i][j]) continue;
+            const el = host.children[i * SC + j];
+            if (!el || !el.classList || !el.classList.contains("cell")) continue;
+            const tar = G.tar[i][j];
+            el.classList.add(p2[i][j] === tar ? "rm-preview-valid" : (p2[i][j] < tar ? "rm-preview-low" : "rm-preview-over"));
+            // 两位数（含负号）时收窄字号，避免预览数字溢出格子
+            if (Math.abs(p2[i][j]) >= 10) el.classList.add("rm-preview-wide");
+            el.dataset.previewVal = String(p2[i][j]);
+        }
+    }
 }
 
 /**

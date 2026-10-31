@@ -289,19 +289,30 @@ function renderMineInfo() {
 
 /* ---------- 4. 影响值重算 ---------- */
 /**
+ * 按给定放置表结算整盘影响值，不写入任何对局状态。
+ * 先逐颗累加每颗雷的影响核，再结算战术雷的连锁语义；棋盘尺寸取当前 SR/SC。
+ * @param {Object} placed 坐标键 "r,c" -> 雷型 key 的放置表
+ * @returns {number[][]} SR×SC 的影响值矩阵
+ */
+function computeInfluenceMap(placed) {
+    let board = Array(SR).fill().map(() => Array(SC).fill(0));
+    for (let k in placed) {
+        let [r, c] = k.split(",");
+        M[placed[k]].f(+r, +c, board);
+    }
+    // 战术雷依赖整份放置集合，放在基础影响核重算之后结算
+    applyTacticalEffects(board, placed);
+    return board;
+}
+
+/**
  * 依据当前已放置的地雷重新计算影响值矩阵 G.p（每次都从全零开始重算）。
- * 先逐颗累加每颗雷的影响核，再结算战术雷的连锁语义；G.tar 不参与计算。
+ * G.tar 不参与计算。
  * @sideeffect 覆盖 G.p
  */
 function resetP() {
     // 全量重算：单颗雷的影响可能跨越多格，增量更新容易漏算
-    G.p = Array(SR).fill().map(() => Array(SC).fill(0));
-    for (let k in G.placed) {
-        let [r, c] = k.split(",");
-        M[G.placed[k]].f(+r, +c, G.p);
-    }
-    // 战术雷依赖整份放置集合，放在基础影响核重算之后结算
-    applyTacticalEffects(G.p, G.placed);
+    G.p = computeInfluenceMap(G.placed);
 }
 
 /* ---------- 5. 通关彩蛋 ---------- */

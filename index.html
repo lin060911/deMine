@@ -534,7 +534,7 @@
             </div>
             <div class="mode-hint" id="modeHint">按住地雷拖到棋盘格子上松手即可放置</div>
         </div>
-        <div class="sidebar-section">
+        <div class="sidebar-section" id="SoundSetting">
             <div class="sidebar-title sound-title">🔊 音量设置</div>
             <div class="sound-hint"><br></div>
             <div class="sound-item">
@@ -554,7 +554,7 @@
             </div>
             <div class="sound-hint"><br></div>
         </div>
-        <div class="sidebar-section">
+        <div class="sidebar-section" id="SuggestiveSetting">
             <div class="sidebar-title hint-title">🔢 地块提示</div><br>
             <div class="switch-row">
                 <div class="switch-label">🔺 实时影响</div>
@@ -569,7 +569,7 @@
         </div>
         <!-- 存档管理：导出 / 导入 / 清空三个入口，接线在 15-boot.js；
              导入会先弹三选一确认框，并在写入前留快照，可撤销 -->
-        <div class="sidebar-section">
+        <div class="sidebar-section" id="SaveManage">
             <div class="sidebar-title">💾 存档管理</div>
             <div class="save-manage-row">
                 <button class="apply-input-btn" onclick="RMSave.exportSave()">📤 导出</button>

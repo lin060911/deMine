@@ -366,24 +366,14 @@
             target: q("#modeSwitch"),
             text: "① 这里可以切换操作方式"
         }, {
-            target: function() {
-                return document.querySelectorAll("#settingSidebar .sound-item")[0] || null;
-            },
-            text: "② 背景音乐：拖动滑块调整音量"
+            target: q("#SoundSetting"),
+            text: "② 这里可以调节背景音乐和音效"
         }, {
-            target: function() {
-                return document.querySelectorAll("#settingSidebar .sound-item")[1] || null;
-            },
-            text: "③ 游戏音效：调整放雷等音效"
+            target: q("#SuggestiveSetting"),
+            text: "③ 可开启提示性功能，游戏更简单直观"
         }, {
-            target: q("#influenceHintToggle"),
-            text: "④ 实时影响：开启后显示每格当前影响值"
-        }, {
-            target: q("#effectPreviewToggle"),
-            text: "⑤ 效果预览：拖拽时预览放置后的效果"
-        }, {
-            target: q("#settingSidebar .save-manage-row"),
-            text: "⑥ 这里可以管理你的存档"
+            target: q("#SaveManage"),
+            text: "④ 此处可以管理你的存档"
         } ];
     }
 

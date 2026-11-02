@@ -3744,33 +3744,6 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     border-left: none;
 }
 
-.teach-bubble .teach-rule-link {
-    margin-top: 10px;
-    padding: 6px 15px;
-    border: 1px solid rgba(47, 127, 235, .18);
-    border-radius: 99px;
-    background: var(--rm-blue-tint);
-    color: var(--rm-blue-deep);
-    font-size: 11.5px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background-color .22s ease, transform .22s var(--rm-spring), box-shadow .22s ease;
-}
-
-.teach-bubble .teach-rule-link:hover {
-    background: rgba(47, 127, 235, .16);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(47, 127, 235, .12);
-}
-
-.teach-bubble .teach-rule-link:active {
-    transform: scale(.97);
-}
-
-.teach-bubble.mines-only .teach-rule-link {
-    display: none;
-}
-
 .teach-progress {
     display: flex;
     gap: 7px;
@@ -3810,80 +3783,6 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     width: 78px;
     height: 84px;
     font-size: 11.5px;
-}
-
-/* 规则弹窗：沿用 .auto-modal 的毛玻璃外观，仅调整宽度与内边距 */
-.teach-rule-modal {
-    top: 50%;
-    width: min(92vw, 540px);
-    min-width: 0;
-    max-width: 92vw;
-    padding: 26px 24px 22px;
-}
-
-.teach-rule-modal .icon {
-    margin-bottom: 4px;
-    font-size: 54px;
-}
-
-.teach-rule-modal h2 {
-    margin-bottom: 12px;
-    font-size: 21px;
-}
-
-.teach-rule-body {
-    max-height: 50vh;
-    margin-bottom: 16px;
-    padding-right: 4px;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    text-align: left;
-}
-
-.teach-rule-sec {
-    margin-bottom: 12px;
-}
-
-.teach-rule-sec:last-child {
-    margin-bottom: 0;
-}
-
-.teach-rule-sec-title {
-    margin-bottom: 6px;
-    padding: 5px 10px;
-    border-radius: 9px;
-    background: #f2f7fd;
-    color: var(--rm-blue-deep);
-    font-size: 13px;
-    font-weight: 700;
-}
-
-.teach-rule-sec p,
-.teach-rule-sec li {
-    color: var(--rm-ink-2);
-    font-size: 12.5px;
-    line-height: 1.7;
-}
-
-.teach-rule-sec p {
-    margin: 0;
-}
-
-.teach-rule-sec ul {
-    margin: 0;
-    padding-left: 18px;
-}
-
-.teach-rule-sec li {
-    margin-bottom: 4px;
-}
-
-.teach-rule-sec li:last-child {
-    margin-bottom: 0;
-}
-
-.teach-rule-intro {
-    margin-bottom: 6px !important;
 }
 
 /* 教学高亮：目标格蓝色脉冲、答对绿闪、答错红抖动，沿用棋盘的三态语义 */
@@ -4594,21 +4493,6 @@ body.drag-mode .cell.mine-here {
 
     .challenge-head h2 { font-size: 17px; }
     .challenge-body { padding: 14px 16px 16px; max-height: calc(86vh - 70px); }
-
-    /* 教学规则弹窗：窄屏接近全宽，正文行高略微收紧 */
-    #teachRuleModal {
-        width: 94%;
-        max-width: 94%;
-        max-height: 88vh;
-        padding: 20px 16px 18px;
-    }
-
-    #teachRuleModal .icon { font-size: 44px; }
-    #teachRuleModal h2 { font-size: 19px; margin-bottom: 10px; }
-    #teachRuleModal button { padding: 11px 22px; font-size: 13.5px; }
-    .teach-rule-body { max-height: 46vh; margin-bottom: 14px; }
-    .teach-rule-sec p,
-    .teach-rule-sec li { font-size: 12px; line-height: 1.65; }
 
     /* 创造模式：窄屏各面板改为整宽，按钮与输入框同步缩小 */
     .create-mode-panel,
@@ -5938,7 +5822,8 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
 
 .teach-bubble.mines-only .teach-bubble-head,
 .teach-bubble.mines-only .teach-bubble-text,
-.teach-bubble.mines-only .teach-bubble-hint {
+.teach-bubble.mines-only .teach-bubble-hint,
+.teach-bubble.mines-only .teach-rule-card {
     display: none;
 }
 
@@ -5949,27 +5834,92 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     border-left: none;
 }
 
-.teach-bubble .teach-rule-link {
-    margin-top: 12px;
-    padding: 5px 16px;
-    border: 1px solid rgba(255, 255, 255, .55);
-    border-radius: 999px;
-    background: rgba(255, 255, 255, .18);
-    color: #ffffff;
-    font-size: 12.5px;
-    font-weight: 400;
-    box-shadow: none;
-    transition: background .3s ease, transform .3s cubic-bezier(.34, 1.56, .64, 1), box-shadow .3s ease;
+/* 规则高亮卡：把本关要讲的规则从普通提示里单独拎出来强调 */
+.teach-rule-card {
+    display: none;
+    width: 100%;
+    gap: 12px;
+    align-items: flex-start;
+    margin-top: 10px;
+    padding: 11px 14px 12px;
+    border: 2px solid rgba(255, 255, 255, .75);
+    border-left: 6px solid #3f7cf0;
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, .98), rgba(238, 245, 255, .96));
+    box-shadow: 0 8px 22px rgba(16, 34, 64, .22), inset 0 1px 0 #ffffff;
+    color: #23324a;
+    text-align: left;
+    animation: teachRuleCardIn .34s cubic-bezier(.34, 1.56, .64, 1) both;
 }
 
-.teach-bubble .teach-rule-link:hover {
-    background: rgba(255, 255, 255, .34);
-    transform: scale(1.06);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, .18);
+.teach-rule-card.show {
+    display: flex;
 }
 
-.teach-bubble .teach-rule-link:active {
-    transform: scale(1.01);
+.teach-rule-icon {
+    flex: 0 0 auto;
+    font-size: 32px;
+    line-height: 1.15;
+    filter: drop-shadow(0 3px 6px rgba(16, 34, 64, .18));
+}
+
+.teach-rule-copy {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.teach-rule-title {
+    margin-bottom: 2px;
+    color: #1d4ed8;
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: .02em;
+}
+
+.teach-rule-text {
+    color: #23324a;
+    font-size: 15.5px;
+    font-weight: 700;
+    line-height: 1.55;
+}
+
+.teach-rule-sub {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px dashed rgba(35, 50, 74, .2);
+    color: #53647e;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+/* 不同规则用左侧色条与标题色区分：目标蓝 / 偏高红 / 胜利绿 */
+.teach-rule-card.tone-red {
+    border-left-color: #e24d4d;
+    background: linear-gradient(180deg, #ffffff, #fff3f3);
+}
+
+.teach-rule-card.tone-red .teach-rule-title {
+    color: #b91c1c;
+}
+
+.teach-rule-card.tone-green {
+    border-left-color: #2fa96b;
+    background: linear-gradient(180deg, #ffffff, #f1fcf6);
+}
+
+.teach-rule-card.tone-green .teach-rule-title {
+    color: #15803d;
+}
+
+@keyframes teachRuleCardIn {
+    0% {
+        opacity: 0;
+        transform: translateY(-8px) scale(.96);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 .teach-progress {
@@ -6282,6 +6232,28 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
 
     .teach-bubble .teach-bubble-title {
         font-size: 22px;
+    }
+
+    .teach-rule-card {
+        gap: 9px;
+        padding: 10px 11px 11px;
+        border-radius: 13px;
+    }
+
+    .teach-rule-icon {
+        font-size: 26px;
+    }
+
+    .teach-rule-title {
+        font-size: 15px;
+    }
+
+    .teach-rule-text {
+        font-size: 14px;
+    }
+
+    .teach-rule-sub {
+        font-size: 11.5px;
     }
 
     .teach-bubble.mines-only .teach-bubble-mines {
@@ -6652,7 +6624,7 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     line-height: normal;
 }
 
-/* ===== 51. 新手引导层与教学规则分页 ===== */
+/* ===== 51. 新手引导层 ===== */
 /* 引导层本身不拦截任何操作：小手、高亮环与气泡都只是视觉提示 */
 .guide-layer {
     position: fixed;
@@ -6770,19 +6742,30 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     transform: scale(.94);
 }
 
-/* 教学规则弹窗分页：每页一句短文案 + 页码 */
-.teach-rule-page {
-    margin: 4px 0 10px;
-    font-size: 14px;
-    line-height: 1.75;
-    color: var(--rm-ink, #2d3748);
+.category-section.guide-series-flash {
+    margin: -6px -6px 8px;
+    padding: 6px;
+    border-radius: 14px;
+    outline: 2px solid rgba(47, 127, 235, .55);
+    outline-offset: 6px;
+    animation: guideSeriesFlash 1.2s ease-in-out infinite;
 }
 
-.teach-rule-step {
-    color: var(--rm-ink-4, #a0aec0);
-    font-size: 11.5px;
-    font-weight: 600;
-    text-align: right;
+.category-section.guide-series-flash:last-child {
+    margin-bottom: -6px;
+}
+
+@keyframes guideSeriesFlash {
+    0%, 100% {
+        background-color: rgba(47, 127, 235, .025);
+        outline-color: rgba(47, 127, 235, .25);
+        box-shadow: 0 0 0 4px rgba(47, 127, 235, .05), 0 0 18px 6px rgba(47, 127, 235, .12);
+    }
+    50% {
+        background-color: rgba(47, 127, 235, .1);
+        outline-color: rgba(47, 127, 235, .85);
+        box-shadow: 0 0 0 8px rgba(47, 127, 235, .16), 0 0 34px 12px rgba(47, 127, 235, .4);
+    }
 }
 
 /* 关闭动效偏好时：去掉呼吸与入场动画，只保留静态手与高亮 */
@@ -6794,4 +6777,1047 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     .guide-bubble {
         animation: none;
     }
+
+    .category-section.guide-series-flash {
+        animation: none;
+        background-color: rgba(47, 127, 235, .1);
+        outline-color: rgba(47, 127, 235, .85);
+        box-shadow: 0 0 0 8px rgba(47, 127, 235, .16), 0 0 34px 12px rgba(47, 127, 235, .4);
+    }
+}
+
+/* ==========================================================================
+ * 57. v1.3.0 存档升级：挑战面板 + 存档详情 / 完整性状态
+ *
+ * 说明：本段是本版新增样式的收口，全部使用既有设计令牌（--rm-*）与
+ *   记录栏 / 弹窗的视觉语言；只新增类，不覆盖前面任何既有选择器。
+ * ========================================================================== */
+
+/* ----- 57.1 📝记录 → 挑战完成情况面板（08-ui.js renderChallengeList） ----- */
+#achChallengeList {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    padding: 2px 0;
+}
+
+.challenge-item {
+    padding: 10px 12px 11px;
+    border-radius: 14px;
+    background: #f7f9fc;
+    transition: background-color .22s ease, transform .22s var(--rm-spring);
+}
+
+.challenge-item:hover {
+    background: #f1f5fa;
+    transform: translateY(-1px);
+}
+
+.challenge-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 20px;
+}
+
+.challenge-label {
+    overflow: hidden;
+    color: var(--rm-ink);
+    font-size: 12.5px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.challenge-state {
+    flex: none;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.5;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.challenge-state.challenge-done {
+    color: #2f855a;
+    background: rgba(72, 187, 120, .14);
+}
+
+.challenge-state.challenge-active {
+    color: #b26a10;
+    background: rgba(237, 137, 54, .16);
+}
+
+.challenge-state.challenge-locked {
+    color: #718096;
+    background: rgba(160, 174, 192, .16);
+}
+
+.challenge-bar {
+    height: 6px;
+    margin-top: 8px;
+    border-radius: 999px;
+    background: #e8eef5;
+    overflow: hidden;
+}
+
+.challenge-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #4299e1, #63b3ed);
+    transition: width .4s var(--rm-ease);
+}
+
+.challenge-item:has(.challenge-done) .challenge-fill {
+    background: linear-gradient(90deg, #2f855a, #68d391);
+}
+
+.challenge-item:has(.challenge-locked) .challenge-fill {
+    background: #cbd5e0;
+}
+
+/* ----- 57.2 💾设置 → 存档状态行（15-boot.js 写入 #saveHint） ----- */
+.save-hint b {
+    color: var(--rm-ink);
+}
+
+.save-hint .save-status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-top: 5px;
+    margin-right: 5px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #f1f5fa;
+    color: var(--rm-ink-3);
+    font-size: 10.5px;
+    font-weight: 700;
+    line-height: 1.6;
+    font-variant-numeric: tabular-nums;
+}
+
+.save-hint .save-status-chip.ok {
+    color: #2f855a;
+    background: rgba(72, 187, 120, .12);
+}
+
+.save-hint .save-status-chip.warn {
+    color: #c53030;
+    background: rgba(245, 101, 101, .12);
+}
+
+.save-hint .save-status-chip.info {
+    color: #2b6cb0;
+    background: rgba(66, 153, 225, .12);
+}
+
+/* ----- 57.3 📄存档详情弹窗（15-boot.js 运行时创建） ----- */
+.rm-detail-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    background: rgba(12, 22, 32, .44);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.rm-detail-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    z-index: 1201;
+    display: flex;
+    flex-direction: column;
+    width: min(92vw, 580px);
+    max-height: 84vh;
+    transform: translate(-50%, -50%);
+    border-radius: 24px;
+    background: #ffffff;
+    box-shadow: 0 24px 70px rgba(12, 22, 32, .28), 0 4px 14px rgba(12, 22, 32, .12);
+    overflow: hidden;
+}
+
+.rm-detail-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 18px 20px 10px;
+}
+
+.rm-detail-head .rm-detail-icon {
+    font-size: 26px;
+    line-height: 1;
+}
+
+.rm-detail-head h2 {
+    margin: 0;
+    color: var(--rm-ink);
+    font-size: 19px;
+    font-weight: 800;
+}
+
+.rm-detail-badge {
+    margin-left: auto;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.rm-detail-badge.ok {
+    color: #2f855a;
+    background: rgba(72, 187, 120, .16);
+}
+
+.rm-detail-badge.warn {
+    color: #c53030;
+    background: rgba(245, 101, 101, .16);
+}
+
+.rm-detail-body {
+    flex: 1 1 auto;
+    padding: 2px 20px 16px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.rm-detail-sec {
+    margin-top: 14px;
+}
+
+.rm-detail-sec:first-child {
+    margin-top: 6px;
+}
+
+.rm-detail-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--rm-hairline);
+    color: var(--rm-ink);
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.rm-detail-title small {
+    color: var(--rm-ink-4);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.rm-detail-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 6px 2px;
+    border-bottom: 1px dashed rgba(22, 33, 43, .07);
+    font-size: 12.5px;
+}
+
+.rm-detail-row:last-child {
+    border-bottom: none;
+}
+
+.rm-detail-k {
+    flex: none;
+    color: var(--rm-ink-3);
+}
+
+.rm-detail-v {
+    color: var(--rm-ink);
+    font-weight: 700;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.rm-detail-v.good { color: var(--rm-green-deep); }
+.rm-detail-v.bad { color: #c53030; }
+.rm-detail-v.muted { color: var(--rm-ink-4); font-weight: 600; }
+
+.rm-detail-ach {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 2px;
+    border-bottom: 1px dashed rgba(22, 33, 43, .07);
+    font-size: 12.5px;
+}
+
+.rm-detail-ach:last-child {
+    border-bottom: none;
+}
+
+.rm-detail-ach-emoji {
+    flex: none;
+    width: 20px;
+    text-align: center;
+}
+
+.rm-detail-ach-name {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--rm-ink);
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rm-detail-ach-time {
+    flex: none;
+    margin-left: auto;
+    color: var(--rm-ink-4);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+}
+
+.rm-detail-empty {
+    padding: 8px 2px;
+    color: var(--rm-ink-4);
+    font-size: 12px;
+}
+
+.rm-detail-note {
+    margin-top: 12px;
+    padding: 9px 12px;
+    border-radius: 12px;
+    background: #f2f6fa;
+    color: var(--rm-ink-3);
+    font-size: 11.5px;
+    line-height: 1.65;
+}
+
+.rm-detail-foot {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 20px 18px;
+    border-top: 1px solid var(--rm-hairline);
+}
+
+.rm-detail-foot .rm-btn {
+    height: 38px;
+    min-width: 96px;
+    padding: 0 18px;
+    font-size: 13px;
+}
+
+/* 导入对比表里的挑战行沿用 .rm-cmp，只补一个不可见说明用的细分类 */
+.rm-cmp .rm-sub {
+    color: var(--rm-ink-4);
+    font-size: 10.5px;
+    font-weight: 600;
+}
+
+/* ----- 57.4 小屏适配 ----- */
+@media (max-width: 700px) {
+    .rm-detail-modal {
+        width: 92vw;
+        max-height: 80vh;
+        border-radius: 20px;
+    }
+
+    .rm-detail-head {
+        padding: 15px 16px 8px;
+    }
+
+    .rm-detail-body {
+        padding: 0 16px 12px;
+    }
+
+    .rm-detail-foot {
+        padding: 10px 16px 14px;
+    }
+
+    .challenge-item {
+        padding: 9px 10px 10px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .challenge-item,
+    .challenge-fill,
+    .rm-detail-modal {
+        transition: none;
+        animation: none;
+    }
+}
+
+/* 详情弹窗底部的按钮独立于 .auto-modal，需要补一份基础外观 */
+.rm-detail-foot .rm-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 14px;
+    background: #edf1f6;
+    color: var(--rm-ink);
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color .18s ease, transform .18s var(--rm-spring), box-shadow .18s ease;
+}
+
+.rm-detail-foot .rm-btn:hover {
+    background: #e2e8f0;
+    transform: translateY(-1px);
+}
+
+.rm-detail-foot .rm-btn:active {
+    transform: scale(.97);
+}
+
+.rm-detail-foot .rm-btn.rm-btn-primary {
+    background: var(--rm-blue);
+    color: #ffffff;
+    box-shadow: 0 6px 16px rgba(47, 127, 235, .28);
+}
+
+/* ===== 58. 记录栏统一与折叠（v1.3.1） ===== */
+/* 记录栏三个子区（成绩 / 挑战 / 成就）统一为同一套视觉：
+   · 每个子区是一张白色分组卡（与信息栏 .sidebar-section 一致），展开时
+     标题按钮与内容一起被包在卡片内部，而不是标题与内容分离；
+   · 区标题 = 信息栏规则的折叠按钮（浅灰胶囊 + 图标 + 标题 + 摘要 + 箭头）
+   · 成绩 / 挑战条目 = 「挑战」那套浅灰圆角卡；成就保留原有金色配色与动效；
+   默认折叠成绩与挑战，成就默认展开；三区互不互斥，可同时展开对照。 */
+.record-panel {
+    margin-bottom: 14px;
+    padding: 16px;
+    border: 1px solid rgba(22, 33, 43, .045);
+    border-radius: 22px;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(18, 38, 58, .03), 0 8px 24px rgba(18, 38, 58, .045);
+    animation: sidebarSectionIn .45s var(--rm-spring) both;
+}
+
+.record-acc-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 11px 12px;
+    border: 1px solid var(--rm-hairline);
+    border-radius: 14px;
+    background: #f7f9fc;
+    color: var(--rm-ink);
+    font-size: 13.5px;
+    font-weight: 700;
+    line-height: 1.4;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color .2s ease, border-color .2s ease;
+}
+
+.record-acc-head:hover {
+    background: #f1f5fa;
+    border-color: var(--rm-hairline-2);
+}
+
+.record-acc-head:active {
+    transform: scale(.995);
+}
+
+.record-acc-icon {
+    flex: none;
+    font-size: 16px;
+}
+
+.record-acc-title {
+    flex: 1;
+    text-align: left;
+}
+
+.record-acc-hint {
+    flex: none;
+    color: var(--rm-ink-4);
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.record-acc-arrow {
+    flex: none;
+    color: var(--rm-ink-4);
+    font-size: 18px;
+    line-height: 1;
+    transition: transform .3s var(--rm-ease);
+}
+
+.record-panel.record-acc-open .record-acc-arrow {
+    transform: rotate(90deg);
+}
+
+.record-acc-body {
+    display: none;
+    padding: 10px 2px 2px;
+    animation: sidebarSectionIn .3s var(--rm-spring) both;
+}
+
+.record-panel.record-acc-open .record-acc-body {
+    display: block;
+}
+
+/* ---- 30.1 三个列表统一为挑战卡片的布局语言 ---- */
+#achRecordList,
+#achChallengeList,
+#achList {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    padding: 0;
+}
+
+#achRecordList > .record-item,
+#achChallengeList > .challenge-item,
+#achList > .achievement-item {
+    position: relative;
+    border: none;
+    border-radius: 14px;
+    background: #f7f9fc;
+    box-shadow: none;
+    transition: background-color .22s ease, transform .22s var(--rm-spring);
+}
+
+#achRecordList > .record-item:hover,
+#achChallengeList > .challenge-item:hover,
+#achList > .achievement-item:hover {
+    background: #f1f5fa;
+    transform: translateY(-1px);
+}
+
+/* ---- 30.2 成绩条目：顶部行 = 难度 + 通关次数徽标；下一行 = 最快 / 本次 ---- */
+#achRecordList > .record-item {
+    display: block;
+    margin: 0;
+    padding: 10px 12px 11px;
+    border-left: none;
+}
+
+#achRecordList > .record-item.is-brain {
+    border-left: none;
+    background: #f7f9fc;
+}
+
+#achRecordList > .record-item.is-brain:hover {
+    background: #f1f5fa;
+}
+
+.record-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 20px;
+}
+
+.record-label {
+    margin: 0;
+    color: var(--rm-ink);
+    font-size: 12.5px;
+    font-weight: 700;
+    line-height: 1.5;
+}
+
+.record-badge {
+    flex: none;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: rgba(66, 153, 225, .12);
+    color: #2b6cb0;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.5;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.record-meta {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 8px;
+    color: var(--rm-ink-3);
+    font-size: 11.5px;
+    line-height: 1.55;
+    font-variant-numeric: tabular-nums;
+}
+
+.record-meta span {
+    white-space: nowrap;
+}
+
+.record-meta b {
+    font-weight: 700;
+}
+
+/* ---- 30.3 成就条目：同卡片、同字号、右侧锁/勾改为挑战同款徽标 ---- */
+#achList > .achievement-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 0;
+    padding: 10px 12px 11px;
+}
+
+#achList > .achievement-item + .achievement-item {
+    border-top: none;
+}
+
+#achList > .achievement-item.unlocked,
+#achList > .achievement-item.hidden-ach {
+    border-radius: 14px;
+    background: #f7f9fc;
+}
+
+#achList > .achievement-item.unlocked:hover,
+#achList > .achievement-item.hidden-ach:hover {
+    background: #f1f5fa;
+}
+
+#achList > .achievement-item .achievement-emoji {
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(18, 38, 58, .06);
+    font-size: 18px;
+    filter: none;
+}
+
+#achList > .achievement-item.unlocked .achievement-emoji {
+    background: #fff4d6;
+}
+
+#achList > .achievement-item .achievement-info {
+    padding-top: 0;
+}
+
+#achList > .achievement-item .achievement-name {
+    margin-bottom: 1px;
+    font-size: 12.5px;
+}
+
+#achList > .achievement-item .achievement-desc {
+    font-size: 11.5px;
+}
+
+#achList > .achievement-item .achievement-meta {
+    margin-top: 2px;
+    font-size: 10.5px;
+}
+
+#achList > .achievement-item .achievement-lock {
+    flex: none;
+    width: auto;
+    min-width: 0;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: rgba(160, 174, 192, .16);
+    color: #718096;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.5;
+    text-align: center;
+    opacity: 1;
+}
+
+#achList > .achievement-item.unlocked .achievement-lock {
+    background: rgba(72, 187, 120, .14);
+    color: #2f855a;
+}
+
+/* 记录栏在窄屏下的内边距与卡片保持一致 */
+@media (max-width: 700px) {
+    .record-acc-head {
+        padding: 10px 11px;
+    }
+
+    #achRecordList > .record-item,
+    #achChallengeList > .challenge-item,
+    #achList > .achievement-item {
+        padding: 9px 10px 10px;
+    }
+}
+
+/* 成就分组标题：与挑战/成绩的卡片语言统一为低调灰色小标题，不再使用橙色块 */
+.achievement-group-title {
+    margin: 12px 2px 6px;
+    color: var(--rm-ink-4);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .04em;
+}
+
+#achList > .achievement-group-title:first-child {
+    margin-top: 2px;
+}
+
+/* ---- 58.1 成就保留原有金色配色与动效（不回退为挑战卡片） ----
+   成绩 / 挑战使用挑战同款卡片；成就是玩家最在意的"战利品区"，按反馈保留
+   原有的暖金配色、emoji 悬浮旋转缩放与解锁高亮，不参与卡片统一。 */
+#achList {
+    display: block;
+    gap: 0;
+}
+
+#achList > .achievement-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 0;
+    padding: 10px 2px;
+    border: none;
+    border-radius: 12px;
+    background: transparent;
+    box-shadow: none;
+    transition: background-color .22s ease;
+}
+
+#achList > .achievement-item + .achievement-item {
+    border-top: 1px solid var(--rm-hairline);
+}
+
+#achList > .achievement-item:hover {
+    background: #f8fafc;
+    transform: none;
+    box-shadow: none;
+}
+
+#achList > .achievement-item.unlocked {
+    background: rgba(230, 163, 20, .055);
+    border-radius: 12px;
+}
+
+#achList > .achievement-item.hidden-ach {
+    background: rgba(233, 81, 78, .045);
+    border-radius: 12px;
+}
+
+#achList > .achievement-item.hidden-ach:hover {
+    background: rgba(233, 81, 78, .075);
+}
+
+/* emoji 恢复 38px 原尺寸与原悬浮动效（缩放 + 轻旋转） */
+#achList > .achievement-item .achievement-emoji {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    background: #f3f6f9;
+    box-shadow: none;
+    font-size: 22px;
+    filter: grayscale(.75);
+}
+
+#achList > .achievement-item:hover .achievement-emoji {
+    transform: scale(1.06) rotate(-4deg);
+}
+
+#achList > .achievement-item.unlocked .achievement-emoji {
+    background: #fff4d6;
+    filter: none;
+}
+
+/* 文本恢复原字号与解锁金色 */
+#achList > .achievement-item .achievement-info {
+    padding-top: 1px;
+}
+
+#achList > .achievement-item .achievement-name {
+    margin-bottom: 1px;
+    color: var(--rm-ink);
+    font-size: 13px;
+}
+
+#achList > .achievement-item.unlocked .achievement-name {
+    color: #8a6108;
+}
+
+#achList > .achievement-item .achievement-desc {
+    font-size: 11.5px;
+}
+
+#achList > .achievement-item .achievement-meta {
+    margin-top: 2px;
+    color: var(--rm-ink-4);
+    font-size: 10.5px;
+}
+
+#achList > .achievement-item.unlocked .achievement-meta {
+    color: #a3740a;
+}
+
+/* 锁图标恢复原来的纯 emoji 展示（不再做成胶囊徽标） */
+#achList > .achievement-item .achievement-lock {
+    flex-shrink: 0;
+    width: 24px;
+    min-width: 0;
+    padding: 0;
+    border-radius: 0;
+    background: none;
+    color: inherit;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 38px;
+    text-align: center;
+    opacity: .65;
+}
+
+#achList > .achievement-item.unlocked .achievement-lock {
+    background: none;
+    color: inherit;
+    opacity: .65;
+}
+
+/* 分组标题恢复原来的橙色小标题 */
+.achievement-group-title {
+    margin: 10px 0 6px 4px;
+    color: #f59e0b;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0;
+}
+
+#achList > .achievement-group-title:first-child {
+    margin-top: 2px;
+}
+
+/* #achSection 在 1.2.1 皮肤段有一条"透明容器"的 ID 规则，优先级高于
+   .record-panel；这里用 ID + class 的组合把成就区重新包成白底分组卡，
+   与成绩 / 挑战区保持一致的外层结构。 */
+#achSection.record-panel {
+    margin-bottom: 14px;
+    padding: 16px;
+    border: 1px solid rgba(22, 33, 43, .045);
+    border-radius: 22px;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(18, 38, 58, .03), 0 8px 24px rgba(18, 38, 58, .045);
+}
+
+/* ---- 58.2 更强的成就动效与更深的暖金配色（v1.3.1 反馈迭代） ----
+   目标：成就条目一眼看得到"金色战利品"的气质；emoji 常驻轻微浮动，
+   悬停有弹跳/放大，解锁卡有更深的金色底与金色光晕；折叠展开也更弹。 */
+
+/* 更弹的展开动画：内容从上方压入回弹，而不是简单的淡入下滑 */
+@keyframes recordAccBodyIn {
+    0%   { opacity: 0; transform: translateY(-14px) scale(.982); }
+    62%  { opacity: 1; transform: translateY(3px) scale(1.004); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.record-acc-body {
+    animation: recordAccBodyIn .42s cubic-bezier(.34, 1.56, .64, 1) both;
+}
+
+/* 展开时箭头"弹"一下，折叠时平滑回位 */
+@keyframes recordArrowPop {
+    0%   { transform: rotate(0deg) scale(1); }
+    55%  { transform: rotate(100deg) scale(1.28); }
+    100% { transform: rotate(90deg) scale(1); }
+}
+
+.record-panel.record-acc-open .record-acc-arrow {
+    animation: recordArrowPop .38s cubic-bezier(.34, 1.56, .64, 1) both;
+}
+
+/* 悬停标题时轻微上浮，反馈更明显 */
+.record-acc-head:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(18, 38, 58, .07);
+}
+
+/* 解锁卡片：更深的暖金底 + 内侧金边 */
+#achList > .achievement-item.unlocked {
+    background-color: rgba(245, 158, 11, .16);
+    background-image: linear-gradient(120deg, rgba(255, 255, 255, .5) 0%, rgba(255, 231, 166, .5) 100%);
+    box-shadow: inset 0 0 0 1px rgba(214, 158, 46, .22);
+}
+
+#achList > .achievement-item.unlocked:hover {
+    background-color: rgba(245, 158, 11, .24);
+    background-image: linear-gradient(120deg, rgba(255, 255, 255, .45) 0%, rgba(255, 214, 122, .8) 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 7px 20px rgba(214, 158, 46, .26), inset 0 0 0 1px rgba(214, 158, 46, .38);
+}
+
+/* 未解锁：底色略深一点，悬停上浮 */
+#achList > .achievement-item {
+    background-color: rgba(22, 33, 43, .02);
+}
+
+#achList > .achievement-item:hover {
+    background-color: rgba(22, 33, 43, .05);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(18, 38, 58, .06);
+}
+
+/* 隐藏成就：更明显的淡红底 */
+#achList > .achievement-item.hidden-ach {
+    background-color: rgba(233, 81, 78, .10);
+}
+
+#achList > .achievement-item.hidden-ach:hover {
+    background-color: rgba(233, 81, 78, .17);
+}
+
+/* 文字进一步加深，形成"深金"层级 */
+#achList > .achievement-item.unlocked .achievement-name {
+    color: #6b4a00;
+}
+
+#achList > .achievement-item.unlocked .achievement-meta {
+    color: #8a5d00;
+    font-weight: 600;
+}
+
+.achievement-group-title {
+    color: #b45309;
+    font-weight: 800;
+}
+
+/* 解锁 emoji：更深的金色渐变块 + 常驻轻微浮动 */
+@keyframes achEmojiFloat {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50%      { transform: translateY(-3px) rotate(-2.5deg); }
+}
+
+#achList > .achievement-item.unlocked .achievement-emoji {
+    background: linear-gradient(140deg, #ffe28a 0%, #f3bd45 100%);
+    box-shadow: 0 3px 10px rgba(206, 143, 20, .35);
+    animation: achEmojiFloat 3.2s ease-in-out infinite;
+}
+
+/* 悬停：弹跳放大 + 更大旋转，覆盖常驻浮动 */
+@keyframes achEmojiPop {
+    0%   { transform: scale(1) rotate(0deg); }
+    55%  { transform: scale(1.24) rotate(-11deg); }
+    100% { transform: scale(1.18) rotate(-8deg); }
+}
+
+#achList > .achievement-item:hover .achievement-emoji {
+    animation: achEmojiPop .58s cubic-bezier(.34, 1.56, .64, 1) both;
+    transform: scale(1.18) rotate(-8deg);
+}
+
+/* 解锁 ✅ 徽标在悬停时轻轻弹一下 */
+@keyframes achCheckPop {
+    0%   { transform: scale(1) rotate(0deg); }
+    50%  { transform: scale(1.42) rotate(10deg); }
+    100% { transform: scale(1) rotate(0deg); }
+}
+
+#achList > .achievement-item.unlocked:hover .achievement-lock {
+    animation: achCheckPop .5s cubic-bezier(.34, 1.56, .64, 1) both;
+}
+
+/* 尊重系统"减少动态效果"偏好 */
+@media (prefers-reduced-motion: reduce) {
+    .record-acc-body,
+    .record-panel.record-acc-open .record-acc-arrow,
+    #achList > .achievement-item.unlocked .achievement-emoji,
+    #achList > .achievement-item:hover .achievement-emoji,
+    #achList > .achievement-item.unlocked:hover .achievement-lock {
+        animation: none !important;
+    }
+
+    .record-acc-head:hover,
+    #achList > .achievement-item:hover,
+    #achList > .achievement-item.unlocked:hover {
+        transform: none;
+    }
+}
+
+/* ---- 58.3 隐藏成就：更醒目的特殊红色（v1.3.1 反馈迭代） ----
+   隐藏成就在解锁前不进入列表；解锁后整张卡使用比普通成就更深的红色基调，
+   并用极慢的红色光晕呼吸动画强调"这是隐藏款"。 */
+@keyframes achHiddenPulse {
+    0%, 100% {
+        box-shadow: inset 0 0 0 1px rgba(220, 38, 38, .30), 0 0 0 rgba(220, 38, 38, 0);
+    }
+    50% {
+        box-shadow: inset 0 0 0 1px rgba(220, 38, 38, .52), 0 0 14px rgba(220, 38, 38, .20);
+    }
+}
+
+#achList > .achievement-item.hidden-ach {
+    background-color: rgba(220, 38, 38, .16);
+    background-image: linear-gradient(120deg, rgba(255, 241, 241, .78) 0%, rgba(254, 202, 202, .58) 100%);
+    border-radius: 12px;
+    box-shadow: inset 0 0 0 1px rgba(220, 38, 38, .30);
+    animation: achHiddenPulse 3.6s ease-in-out infinite;
+}
+
+#achList > .achievement-item.hidden-ach:hover {
+    background-color: rgba(220, 38, 38, .25);
+    background-image: linear-gradient(120deg, rgba(255, 233, 233, .72) 0%, rgba(254, 172, 172, .78) 100%);
+    transform: translateY(-2px);
+    box-shadow: inset 0 0 0 1px rgba(220, 38, 38, .52), 0 7px 20px rgba(197, 48, 48, .24);
+    animation: none;
+}
+
+#achList > .achievement-item.hidden-ach .achievement-name {
+    color: #9b2c2c;
+}
+
+#achList > .achievement-item.hidden-ach.unlocked .achievement-name {
+    color: #9b2c2c;
+}
+
+#achList > .achievement-item.hidden-ach .achievement-meta {
+    color: #b91c1c;
+    font-weight: 600;
+}
+
+#achList > .achievement-item.hidden-ach .achievement-lock {
+    color: #c53030;
+    opacity: 1;
+    text-shadow: 0 0 8px rgba(197, 48, 48, .35);
+}
+
+#achList > .achievement-item.hidden-ach.unlocked .achievement-emoji {
+    background: linear-gradient(140deg, #ffd6d6 0%, #f28b8b 100%);
+    box-shadow: 0 3px 10px rgba(197, 48, 48, .32);
+}
+
+.achievement-group-title.is-hidden {
+    color: #b91c1c;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #achList > .achievement-item.hidden-ach {
+        animation: none;
+    }
+}
+
+/* ---- 58.3.1 隐藏成就再加深：更饱和红底 + 左侧红色标识条 ---- */
+#achList > .achievement-item.hidden-ach {
+    background-color: rgba(220, 38, 38, .22);
+    background-image:
+        linear-gradient(90deg, rgba(220, 38, 38, .72) 0, rgba(220, 38, 38, .72) 4px, rgba(220, 38, 38, 0) 4px),
+        linear-gradient(120deg, rgba(255, 235, 235, .60) 0%, rgba(254, 170, 170, .62) 100%);
+    box-shadow: inset 0 0 0 1px rgba(220, 38, 38, .42);
+}
+
+#achList > .achievement-item.hidden-ach:hover {
+    background-color: rgba(220, 38, 38, .32);
+    background-image:
+        linear-gradient(90deg, rgba(220, 38, 38, .85) 0, rgba(220, 38, 38, .85) 4px, rgba(220, 38, 38, 0) 4px),
+        linear-gradient(120deg, rgba(255, 225, 225, .62) 0%, rgba(254, 150, 150, .78) 100%);
+    box-shadow: inset 0 0 0 1px rgba(220, 38, 38, .65), 0 8px 22px rgba(197, 48, 48, .30);
+}
+
+/* ---- 58.4 成就条目间距加大（v1.3.1 反馈迭代） ----
+   原列表靠 border-top 分隔、行距偏紧；这里改为 flex 列 + 12px 间距，
+   让每张成就卡独立成块，已解锁 / 隐藏成就的颜色块之间也不会连在一起。 */
+#achList {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }

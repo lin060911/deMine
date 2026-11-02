@@ -22,10 +22,32 @@ var RM = window.RM || {};
 window.RM = RM;
 
 /* 程序标识串：仅随日志输出，用于问题定位，不参与任何游戏逻辑 */
-RM.VERSION = "1.2.21";
+RM.VERSION = "1.3.1";
 
-/* 存档结构号：随存档一起落盘，读取端据此判断数据结构是否匹配 */
-RM.SAVE_SCHEMA = 1;
+/* 程序英文名：页脚署名、存档导出与导入校验统一使用这一写法 */
+RM.APP_NAME = "ReverseMinesweeper";
+
+/* 存档结构号：随存档一起落盘，读取端据此判断数据结构是否匹配。
+ * v2 起存档不再是"多个可读 JSON 键"，而是单个紧凑二进制容器（见 01-storage.js）。 */
+RM.SAVE_SCHEMA = 2;
+
+/* 存档容器格式号：与数据结构号分开，便于以后单独演进压缩 / 签名容器 */
+RM.SAVE_FORMAT = 2;
+
+/* 成就 id 的规范顺序：存档层用比特位图编码"哪些成就已解锁"，位序必须与
+ * 13-achievements.js 的数据表完全一致。13 号模块启动时会做一致性校验，
+ * 增删成就时必须同时更新这里与数据表（两边顺序一致）。 */
+RM.ACH_IDS = [
+    "first_win", "red_green_light", "finish_tutorial",
+    "easy_10", "medium_10", "hard_10", "hell_first", "hell_7", "brain_first", "brain_10",
+    "basic_all_used", "unlock_special", "unlock_physics", "unlock_symmetry", "unlock_tactical",
+    "speed_easy", "speed_medium", "speed_hard", "speed_hell", "speed_brain", "speed_all",
+    "create_first", "create_mixed", "create_10", "play_shared_5", "create_max_mines",
+    "total_20", "total_50", "total_150", "total_500", "total_night",
+    "hidden_slide", "hidden_chaos", "hidden_flawless", "hidden_eco", "free_20x20",
+    "brain_slow", "bgm_adjust", "new_game_spam", "crazy_thursday", "hidden_grass",
+    "hidden_icecream", "hidden_highvalue", "hidden_lowvalue", "hidden_teatime"
+];
 
 /* 环形错误记录：只保留最近 50 条，长时间运行也不会无限增长 */
 RM.errors = [];

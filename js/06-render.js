@@ -420,6 +420,8 @@ function appendInfluenceBadge(cell, cur, tar) {
             var max = G.pool[selectedMineType] || 0;
             // 数量上限由牌池决定：已用数量达到配额后直接返回
             if (used >= max) return;
+            // 点选放置与拖拽一致：首次操作时开始计时
+            if (typeof startTiOnFirst === "function") startTiOnFirst();
             // 先改状态再重算影响值，最后统一交给 render 同步界面
             G.placed[k] = selectedMineType;
             G.lastDragType = selectedMineType;

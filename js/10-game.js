@@ -72,7 +72,6 @@ function fullReset() {
     teachPlaceList = [];
     teachPlacedTypes = {};
     teachExpectedTypes = {};
-    teachRulePending = false;
     document.getElementById("brainWinModal").style.display = "none";
     document.getElementById("presetStartCard").style.display = "none";
     // 重新显示主棋盘与道具栏，并收掉上一局的胜利层、飘落特效与脑王主题

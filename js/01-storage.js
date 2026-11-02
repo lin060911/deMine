@@ -1,37 +1,1335 @@
 /* ==========================================================================
- * 模块 01 · 存档层与系列状态（js/01-storage.js）
+ * 模块 01 · 紧凑签名存档引擎（js/01-storage.js）
  *
- * 职责：把 localStorage 封装成可失败的 Store，承载成绩、胜场、系列解锁与
- *   教学进度等持久化数据；同时提供整包导出、导入、合并与导入前快照。
- * 依赖：00-core 的 RM.warn（日志）与全局变量；window.localStorage。
- * 对外：window.Store（基础读写、guard/save、导出导入、画像合并、备份）；
- *   全局 lt / rec / wins / brainUnlockedNotified / seriesState /
- *   seriesUnlocked，以及 getSeriesState / saveSeriesState /
- *   getSeriesUnlocked / saveSeriesUnlocked。
- * 设计要点：
- *   1) 单点封装：所有读写都经过 Store，任何一次抛错（隐私模式、配额超限、
- *      被手工改坏的键）都被关在这一层里，不会让整个脚本停摆。
- *   2) 内存降级：localStorage 完全不可用时自动退回内存 Map，本局仍可玩，
- *      只是关闭页面后不再保存。
- *   3) 双份写入：重要存档每次写入前把上一份好数据备份到 <key>__bak，
- *      主档损坏时读取自动回退备份档。
- *   4) 结构校验：读出的对象必须通过校验器才采用，否则回退默认值。
- *   5) 存档结构号与迁移入口：结构演进时可在读取阶段做数据适配。
- *   6) 导出 / 导入：把全部存档打包成 JSON 文件，换设备或清缓存前可先备份。
+ * 职责：用一个 localStorage 键承载全部游戏进度，提供"极小的体积 + 强完整性
+ *   校验"的存档层。对上层仍然暴露与旧实现同名的 Store 接口（get/set/save/
+ *   guard/getJSON/setJSON/remove），因此业务模块不需要关心存档格式。
+ * 依赖：00-core 的 RM（命名空间、RM.ACH_IDS、RM.warn）；window.localStorage。
+ * 对外：window.Store（基础读写、受保护读写、导入导出、合并预览、导入前快照、
+ *   完整性校验、存档摘要与详情、下载），以及顶层的 lt / rec / wins /
+ *   seriesState / seriesUnlocked 等派生状态与系列读写函数。
+ *
+ * 存档格式（v2，详见 docs/SAVE-FORMAT.md）：
+ *   明文数据 → 位打包 / varint 编码（成就用 45 位比特位图 + 时间差编码）
+ *            → LZSS 压缩（只在更小时采用）
+ *            → SHA-256 计数器流 XOR 混淆
+ *            → HMAC-SHA256 签名
+ *            → Base64URL，写入 rmSave；上一份完好存档写入 rmSave__bak。
+ *   成就解锁时间、各难度最快用时 / 通关次数、教学与全部挑战进度都是结构化
+ *   字段，不再是一堆可读 JSON 键，体积约为旧格式的 1/3～1/4。
+ *
+ * 安全模型（务必理解边界）：
+ *   · 签名密钥是内嵌在前端代码里的常量，因此本方案能阻止"改存档文件 / 改
+ *     localStorage 数值"这类直接篡改（没有密钥就无法生成合法 HMAC），但
+ *     不能阻止拿到源码后自行构造签名（纯前端存档的固有上限）。
+ *   · 双槽（主档 + 上一份完好档）写入：主档被改坏 / 截断时自动回退备份。
+ *   · 损坏数据不会静默进入游戏：校验失败即隔离到 rmSave__bad 并标记
+ *     Store.tampered，界面上会显示"完整性异常"。
+ *   · 导入文件同样验签；验签通过后按当前密钥重新签名落盘。
+ *   · 不兼容 v1.2.x 的旧存档格式；首次启动会做一次单向的旧键迁移（只读旧键
+ *     生成新容器，随后删除旧键），之后旧格式不再被识别。
  * ========================================================================== */
 
 (function() {
     "use strict";
 
-    /* ---------- 1. 存储后端与内存降级 ---------- */
+    /* ---------- 0. 常量与全局别名 ---------- */
 
-    /* 内存镜像：localStorage 不可用时仍能读写本局数据，页面关闭后释放 */
+    var RM = window.RM || {};
+
+    /* localStorage 键：主档、上一份完好档、导入前快照、损坏隔离区 */
+    var SAVE_KEY = "rmSave";
+    var BAK_KEY = "rmSave__bak";
+    var PRE_KEY = "rmSave__pre";
+    var BAD_KEY = "rmSave__bad";
+
+    /* 容器格式与数据结构号：两者独立演进，一起写进存档便于排查 */
+    var FORMAT = 2;
+    var SCHEMA = 2;
+    var DATA_VERSION = 1;
+
+    /* 容器布局：magic(4) + format(1) + flags(1) + payloadLen(2) + nonce(8)
+     * = 16 字节头；尾部固定 32 字节 HMAC-SHA256 */
+    var MAGIC = [ 0x52, 0x4d, 0x53, 0x56 ];   // "RMSV"
+    var HEADER_LEN = 16;
+    var MAC_LEN = 32;
+
+    /* 签名 / 混淆密钥：拆成多段，避免出现一整条可直接搜索的字符串。
+     * 修改任何一段都会让旧存档验签失败（等价于一次强制换档）。 */
+    var SECRET_PARTS = [ "ReverseMinesweeper", ".sav", "e.v2.", "L1Nzy-2026-", "signed-compact" ];
+
+    /* 难度顺序：与 00-core 的 PRE、08-ui 的成绩列表保持一致 */
+    var DIFFS = [ "easy", "medium", "hard", "hell", "brain" ];
+    /* 系列顺序：与 04-mines 的 CATEGORY 保持一致 */
+    var SERIES = [ "basic", "special", "physics", "symmetry", "tactical" ];
+    var SERIES_NONBASIC = [ "special", "physics", "symmetry", "tactical" ];
+
+    /* 成就 id 顺序：存档位图的位序；缺失时退化为通用 JSON 保存（不失数据） */
+    var ACH_IDS = (RM && Array.isArray(RM.ACH_IDS)) ? RM.ACH_IDS.slice(0) : null;
+
+    /* 旧版存档键白名单：只用于一次性迁移与清理，不再作为运行时读写键 */
+    var LEGACY_KEYS = [
+        "mineLastTimes", "mineRecords", "mineWins",
+        "brainUnlockedNotified", "brainCleared",
+        "seriesState", "seriesUnlocked",
+        "tutorialStep", "tutorialCompleted",
+        "placeMode_v1", "mineInfluenceHint", "mineEffectPreview", "mineSoundSettings",
+        "teachFinished", "welcomeLastShown", "hasVisitedBefore",
+        "achievementState_v1", "rmSchemaVersion"
+    ];
+    var LEGACY_PREFIX = [ "tutorial_", "mine", "rm" ];
+
+    /* 结构化字段覆盖的键：不进入"附加杂项"，避免重复存储 */
+    var STRUCTURED_KEYS = {
+        "mineLastTimes": 1, "mineRecords": 1, "mineWins": 1,
+        "seriesState": 1, "seriesUnlocked": 1,
+        "tutorialStep": 1, "tutorialCompleted": 1,
+        "tutorial_special": 1, "tutorial_physics": 1, "tutorial_symmetry": 1, "tutorial_tactical": 1,
+        "teachFinished": 1,
+        "placeMode_v1": 1, "mineInfluenceHint": 1, "mineEffectPreview": 1, "mineSoundSettings": 1,
+        "brainUnlockedNotified": 1, "brainCleared": 1,
+        "hasVisitedBefore": 1, "welcomeLastShown": 1,
+        "achievementState_v1": 1, "rmSchemaVersion": 1
+    };
+
+    /* 成就状态里由专用字段保存的顶层成员；其余未知成员原样放进 extras */
+    var ACH_KNOWN_FIELDS = {
+        "unlocked": 1, "counters": 1, "totalWins": 1, "nightWins": 1, "sharedWins": 1,
+        "basicTypesUsed": 1, "lastCreateCats": 1, "lastCreateMaxMines": 1,
+        "bgmAdjusted": 1, "grassUnlocked": 1, "newGameSpamV2": 1,
+        "currentRunCategories": 1, "currentRunDeletes": 1, "currentRunFlawless": 1
+    };
+
+    /* ---------- 1. 通用小工具 ---------- */
+
+    function hasOwn(o, k) {
+        return Object.prototype.hasOwnProperty.call(o, k);
+    }
+
+    function isObj(v) {
+        return !!v && typeof v === "object" && !Array.isArray(v);
+    }
+
+    function clone(v) {
+        return v === undefined ? v : JSON.parse(JSON.stringify(v));
+    }
+
+    function numOr(v, d) {
+        var n = Number(v);
+        return isFinite(n) ? n : d;
+    }
+
+    function clamp(v, lo, hi) {
+        v = Number(v);
+        if (!isFinite(v)) return lo;
+        return v < lo ? lo : v > hi ? hi : v;
+    }
+
+    function parseJSON(str, fallback) {
+        if (typeof str !== "string" || str === "") return clone(fallback);
+        try {
+            var v = JSON.parse(str);
+            return v === null || v === undefined ? clone(fallback) : v;
+        } catch (e) {
+            return clone(fallback);
+        }
+    }
+
+    function stringify(v) {
+        try {
+            return JSON.stringify(v);
+        } catch (e) {
+            return "null";
+        }
+    }
+
+    /**
+     * 把任意时间表示统一换算成毫秒时间戳；无法识别时返回 0。
+     * 支持：毫秒数字、秒数字、ISO 字符串、纯日期字符串。
+     * @param {*} v 原始时间值
+     * @returns {number} 毫秒时间戳，0 表示无效
+     */
+    function parseTimeMs(v) {
+        if (typeof v === "number" && isFinite(v)) {
+            if (v > 1e11) return Math.floor(v);        // 毫秒
+            if (v > 1e8) return Math.floor(v * 1000);  // 秒
+            return 0;
+        }
+        if (typeof v === "string" && v) {
+            var t = Date.parse(v);
+            return isFinite(t) ? t : 0;
+        }
+        return 0;
+    }
+
+    /* ---------- 2. UTF-8 编解码（不依赖 TextEncoder） ---------- */
+
+    /**
+     * 把字符串编码成 UTF-8 字节数组；孤立代理项用 U+FFFD 替代。
+     * @param {string} str 输入字符串
+     * @returns {Uint8Array}
+     */
+    function utf8Encode(str) {
+        str = String(str);
+        var out = [], i, c, c2, cp;
+        for (i = 0; i < str.length; i++) {
+            c = str.charCodeAt(i);
+            if (c < 0x80) {
+                out.push(c);
+            } else if (c < 0x800) {
+                out.push(0xc0 | (c >> 6), 0x80 | (c & 0x3f));
+            } else if (c >= 0xd800 && c <= 0xdbff) {
+                c2 = i + 1 < str.length ? str.charCodeAt(i + 1) : 0;
+                if (c2 >= 0xdc00 && c2 <= 0xdfff) {
+                    cp = 0x10000 + ((c - 0xd800) << 10) + (c2 - 0xdc00);
+                    out.push(0xf0 | (cp >> 18), 0x80 | ((cp >> 12) & 0x3f),
+                        0x80 | ((cp >> 6) & 0x3f), 0x80 | (cp & 0x3f));
+                    i++;
+                } else {
+                    out.push(0xef, 0xbf, 0xbd);
+                }
+            } else if (c >= 0xdc00 && c <= 0xdfff) {
+                out.push(0xef, 0xbf, 0xbd);
+            } else {
+                out.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 0x3f), 0x80 | (c & 0x3f));
+            }
+        }
+        return new Uint8Array(out);
+    }
+
+    /**
+     * 把 UTF-8 字节数组解码成字符串；非法字节用 U+FFFD 替代。
+     * @param {Uint8Array} bytes 输入字节
+     * @returns {string}
+     */
+    function utf8Decode(bytes) {
+        var out = "", i = 0, n = bytes.length, c, c2, c3, c4, cp;
+        while (i < n) {
+            c = bytes[i++] & 0xff;
+            if (c < 0x80) {
+                out += String.fromCharCode(c);
+            } else if ((c & 0xe0) === 0xc0) {
+                c2 = bytes[i++] & 0xff;
+                out += String.fromCharCode(((c & 0x1f) << 6) | (c2 & 0x3f));
+            } else if ((c & 0xf0) === 0xe0) {
+                c2 = bytes[i++] & 0xff;
+                c3 = bytes[i++] & 0xff;
+                out += String.fromCharCode(((c & 0x0f) << 12) | ((c2 & 0x3f) << 6) | (c3 & 0x3f));
+            } else if ((c & 0xf8) === 0xf0) {
+                c2 = bytes[i++] & 0xff;
+                c3 = bytes[i++] & 0xff;
+                c4 = bytes[i++] & 0xff;
+                cp = ((c & 0x07) << 18) | ((c2 & 0x3f) << 12) |
+                    ((c3 & 0x3f) << 6) | (c4 & 0x3f);
+                cp -= 0x10000;
+                out += String.fromCharCode(0xd800 + (cp >> 10), 0xdc00 + (cp & 0x3ff));
+            } else {
+                out += "\ufffd";
+            }
+        }
+        return out;
+    }
+
+    function concatBytes(a, b) {
+        var out = new Uint8Array(a.length + b.length);
+        out.set(a, 0);
+        out.set(b, a.length);
+        return out;
+    }
+
+    function bytesEqual(a, b) {
+        if (!a || !b || a.length !== b.length) return false;
+        var diff = 0, i;
+        for (i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
+        return diff === 0;
+    }
+
+    function hexOf(bytes, maxBytes) {
+        var out = "", i, n = maxBytes ? Math.min(bytes.length, maxBytes) : bytes.length;
+        for (i = 0; i < n; i++) out += ("0" + bytes[i].toString(16)).slice(-2);
+        return out;
+    }
+
+    /* ---------- 3. SHA-256 与 HMAC-SHA256（纯 JS，同步） ---------- */
+
+    var SHA_K = new Int32Array([
+        0x428a2f98 | 0, 0x71374491 | 0, 0xb5c0fbcf | 0, 0xe9b5dba5 | 0,
+        0x3956c25b | 0, 0x59f111f1 | 0, 0x923f82a4 | 0, 0xab1c5ed5 | 0,
+        0xd807aa98 | 0, 0x12835b01 | 0, 0x243185be | 0, 0x550c7dc3 | 0,
+        0x72be5d74 | 0, 0x80deb1fe | 0, 0x9bdc06a7 | 0, 0xc19bf174 | 0,
+        0xe49b69c1 | 0, 0xefbe4786 | 0, 0x0fc19dc6 | 0, 0x240ca1cc | 0,
+        0x2de92c6f | 0, 0x4a7484aa | 0, 0x5cb0a9dc | 0, 0x76f988da | 0,
+        0x983e5152 | 0, 0xa831c66d | 0, 0xb00327c8 | 0, 0xbf597fc7 | 0,
+        0xc6e00bf3 | 0, 0xd5a79147 | 0, 0x06ca6351 | 0, 0x14292967 | 0,
+        0x27b70a85 | 0, 0x2e1b2138 | 0, 0x4d2c6dfc | 0, 0x53380d13 | 0,
+        0x650a7354 | 0, 0x766a0abb | 0, 0x81c2c92e | 0, 0x92722c85 | 0,
+        0xa2bfe8a1 | 0, 0xa81a664b | 0, 0xc24b8b70 | 0, 0xc76c51a3 | 0,
+        0xd192e819 | 0, 0xd6990624 | 0, 0xf40e3585 | 0, 0x106aa070 | 0,
+        0x19a4c116 | 0, 0x1e376c08 | 0, 0x2748774c | 0, 0x34b0bcb5 | 0,
+        0x391c0cb3 | 0, 0x4ed8aa4a | 0, 0x5b9cca4f | 0, 0x682e6ff3 | 0,
+        0x748f82ee | 0, 0x78a5636f | 0, 0x84c87814 | 0, 0x8cc70208 | 0,
+        0x90befffa | 0, 0xa4506ceb | 0, 0xbef9a3f7 | 0, 0xc67178f2 | 0
+    ]);
+
+    function rotr(x, n) {
+        return (x >>> n) | (x << (32 - n));
+    }
+
+    /**
+     * 计算 SHA-256 摘要。
+     * @param {Uint8Array} bytes 输入字节
+     * @returns {Uint8Array} 32 字节摘要
+     */
+    function sha256(bytes) {
+        var len = bytes.length;
+        var bitHi = Math.floor(len / 0x20000000);
+        var bitLo = (len << 3) >>> 0;
+        var total = ((len + 9 + 63) >> 6) << 6;
+        var buf = new Uint8Array(total);
+        buf.set(bytes, 0);
+        buf[len] = 0x80;
+        buf[total - 8] = (bitHi >>> 24) & 0xff;
+        buf[total - 7] = (bitHi >>> 16) & 0xff;
+        buf[total - 6] = (bitHi >>> 8) & 0xff;
+        buf[total - 5] = bitHi & 0xff;
+        buf[total - 4] = (bitLo >>> 24) & 0xff;
+        buf[total - 3] = (bitLo >>> 16) & 0xff;
+        buf[total - 2] = (bitLo >>> 8) & 0xff;
+        buf[total - 1] = bitLo & 0xff;
+
+        var H = new Int32Array([
+            0x6a09e667 | 0, 0xbb67ae85 | 0, 0x3c6ef372 | 0, 0xa54ff53a | 0,
+            0x510e527f | 0, 0x9b05688c | 0, 0x1f83d9ab | 0, 0x5be0cd19 | 0
+        ]);
+        var w = new Int32Array(64);
+        var off, i, s0, s1, a, b, c, d, e, f, g, h, t1, t2, ch, maj, S0, S1;
+
+        for (off = 0; off < total; off += 64) {
+            for (i = 0; i < 16; i++) {
+                w[i] = ((buf[off + i * 4] << 24) | (buf[off + i * 4 + 1] << 16) |
+                    (buf[off + i * 4 + 2] << 8) | buf[off + i * 4 + 3]) | 0;
+            }
+            for (i = 16; i < 64; i++) {
+                s0 = rotr(w[i - 15], 7) ^ rotr(w[i - 15], 18) ^ (w[i - 15] >>> 3);
+                s1 = rotr(w[i - 2], 17) ^ rotr(w[i - 2], 19) ^ (w[i - 2] >>> 10);
+                w[i] = (w[i - 16] + s0 + w[i - 7] + s1) | 0;
+            }
+            a = H[0]; b = H[1]; c = H[2]; d = H[3];
+            e = H[4]; f = H[5]; g = H[6]; h = H[7];
+            for (i = 0; i < 64; i++) {
+                S1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
+                ch = (e & f) ^ (~e & g);
+                t1 = (h + S1 + ch + SHA_K[i] + w[i]) | 0;
+                S0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
+                maj = (a & b) ^ (a & c) ^ (b & c);
+                t2 = (S0 + maj) | 0;
+                h = g; g = f; f = e; e = (d + t1) | 0;
+                d = c; c = b; b = a; a = (t1 + t2) | 0;
+            }
+            H[0] = (H[0] + a) | 0; H[1] = (H[1] + b) | 0;
+            H[2] = (H[2] + c) | 0; H[3] = (H[3] + d) | 0;
+            H[4] = (H[4] + e) | 0; H[5] = (H[5] + f) | 0;
+            H[6] = (H[6] + g) | 0; H[7] = (H[7] + h) | 0;
+        }
+
+        var out = new Uint8Array(32);
+        for (i = 0; i < 8; i++) {
+            out[i * 4] = (H[i] >>> 24) & 0xff;
+            out[i * 4 + 1] = (H[i] >>> 16) & 0xff;
+            out[i * 4 + 2] = (H[i] >>> 8) & 0xff;
+            out[i * 4 + 3] = H[i] & 0xff;
+        }
+        return out;
+    }
+
+    /**
+     * 计算 HMAC-SHA256。
+     * @param {Uint8Array} key 密钥
+     * @param {Uint8Array} msg 消息
+     * @returns {Uint8Array} 32 字节认证标签
+     */
+    function hmacSha256(key, msg) {
+        if (key.length > 64) key = sha256(key);
+        var ipad = new Uint8Array(64), opad = new Uint8Array(64), i;
+        ipad.set(key, 0);
+        opad.set(key, 0);
+        for (i = 0; i < 64; i++) {
+            ipad[i] ^= 0x36;
+            opad[i] ^= 0x5c;
+        }
+        return sha256(concatBytes(opad, sha256(concatBytes(ipad, msg))));
+    }
+
+    function secretText() {
+        return SECRET_PARTS.join("");
+    }
+
+    var _macKey = null, _maskKey = null;
+    /**
+     * 取签名子密钥（惰性计算并缓存）。
+     * @returns {Uint8Array}
+     */
+    function macKey() {
+        if (!_macKey) _macKey = sha256(utf8Encode(secretText() + "|hmac-v2"));
+        return _macKey;
+    }
+    /**
+     * 取混淆子密钥（惰性计算并缓存）。
+     * @returns {Uint8Array}
+     */
+    function maskKey() {
+        if (!_maskKey) _maskKey = sha256(utf8Encode(secretText() + "|mask-v2"));
+        return _maskKey;
+    }
+
+    /* ---------- 4. Base64URL、随机数与 XOR 流 ---------- */
+
+    var B64_STD = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    var B64_URL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+    /**
+     * Base64URL 编码（无填充），结果可直接放进 JSON / URL。
+     * @param {Uint8Array} bytes 输入字节
+     * @returns {string}
+     */
+    function b64encode(bytes) {
+        var out = "", i, b0, b1, b2;
+        for (i = 0; i < bytes.length; i += 3) {
+            b0 = bytes[i];
+            b1 = i + 1 < bytes.length ? bytes[i + 1] : 0;
+            b2 = i + 2 < bytes.length ? bytes[i + 2] : 0;
+            out += B64_URL[b0 >> 2];
+            out += B64_URL[((b0 & 0x03) << 4) | (b1 >> 4)];
+            if (i + 1 < bytes.length) out += B64_URL[((b1 & 0x0f) << 2) | (b2 >> 6)];
+            if (i + 2 < bytes.length) out += B64_URL[b2 & 0x3f];
+        }
+        return out;
+    }
+
+    /**
+     * Base64 / Base64URL 解码（容忍填充与两种字母表）。
+     * @param {string} str 编码文本
+     * @returns {Uint8Array}
+     */
+    function b64decode(str) {
+        var s = String(str).replace(/[^A-Za-z0-9\-_+/]/g, "");
+        var out = new Uint8Array(Math.floor(s.length * 3 / 4) + 3);
+        var op = 0, buf = 0, bits = 0, i, ch, idx;
+        for (i = 0; i < s.length; i++) {
+            ch = s.charAt(i);
+            idx = B64_URL.indexOf(ch);
+            if (idx < 0) idx = B64_STD.indexOf(ch);
+            if (idx < 0) continue;
+            buf = (buf << 6) | idx;
+            bits += 6;
+            if (bits >= 8) {
+                bits -= 8;
+                out[op++] = (buf >> bits) & 0xff;
+            }
+        }
+        return out.subarray(0, op);
+    }
+
+    /**
+     * 生成 8 字节随机 nonce；优先使用 crypto.getRandomValues。
+     * @returns {Uint8Array}
+     */
+    function randomNonce() {
+        var out = new Uint8Array(8), i;
+        try {
+            if (window.crypto && window.crypto.getRandomValues) {
+                window.crypto.getRandomValues(out);
+                return out;
+            }
+        } catch (e) {}
+        var t = Date.now();
+        for (i = 0; i < 8; i++) {
+            out[i] = (Math.random() * 256) & 0xff;
+            out[i] ^= (t >>> (i * 8)) & 0xff;
+        }
+        return out;
+    }
+
+    /**
+     * SHA-256 计数器流 XOR：用于让存档二进制不可直接肉眼/字符串检索修改。
+     * @param {Uint8Array} bytes 输入字节
+     * @param {Uint8Array} nonce 8 字节 nonce
+     * @returns {Uint8Array} 同长度输出
+     */
+    function xorStream(bytes, nonce) {
+        var key = maskKey();
+        var out = new Uint8Array(bytes.length);
+        var ctr = new Uint8Array(4);
+        var off, block = 0, ks, i;
+        for (off = 0; off < bytes.length; off += 32) {
+            ctr[0] = (block >>> 24) & 0xff;
+            ctr[1] = (block >>> 16) & 0xff;
+            ctr[2] = (block >>> 8) & 0xff;
+            ctr[3] = block & 0xff;
+            ks = sha256(concatBytes(concatBytes(key, nonce), ctr));
+            for (i = 0; i < 32 && off + i < bytes.length; i++) {
+                out[off + i] = bytes[off + i] ^ ks[i];
+            }
+            block++;
+        }
+        return out;
+    }
+
+    /* ---------- 5. LZSS 压缩（体积优化） ---------- */
+
+    /* 压缩侧的哈希表复用，避免每次保存都重新分配 16KB */
+    var LZ_HEAD = new Int32Array(4096);
+
+    /**
+     * LZSS 压缩：4KB 窗口、最长 18 字节匹配、8 个 token 一个控制字节。
+     * 输入很小时返回 null，由调用方决定是否采用压缩结果。
+     * @param {Uint8Array} src 原始字节
+     * @returns {?Uint8Array} 压缩字节；不划算或过小时返回 null
+     */
+    function lzCompress(src) {
+        var n = src.length;
+        if (n < 24) return null;
+        var out = new Uint8Array(n + ((n >> 3) + 2) + 8);
+        var op = 0, flagPos = 0, bit = 0;
+        var head = LZ_HEAD, prev = new Int32Array(n);
+        var i, h, p, tries, limit, bestLen, bestOff, len, off, k, h2;
+        head.fill(-1);
+
+        for (i = 0; i < n; i++) {
+            if (bit === 0) {
+                flagPos = op;
+                out[op++] = 0;
+            }
+            bestLen = 0;
+            bestOff = 0;
+            if (i + 2 < n) {
+                h = (((src[i] << 4) ^ (src[i + 1] << 2) ^ src[i + 2]) & 0xfff);
+                p = head[h];
+                tries = 0;
+                limit = Math.min(18, n - i);
+                while (p >= 0 && (i - p) <= 4096 && tries < 32) {
+                    if (src[p + bestLen] === src[i + bestLen]) {
+                        len = 0;
+                        while (len < limit && src[p + len] === src[i + len]) len++;
+                        if (len > bestLen) {
+                            bestLen = len;
+                            bestOff = i - p;
+                            if (len === limit) break;
+                        }
+                    }
+                    p = prev[p];
+                    tries++;
+                }
+                prev[i] = head[h];
+                head[h] = i;
+            }
+            if (bestLen >= 3) {
+                out[flagPos] |= (1 << (7 - bit));
+                off = bestOff - 1;
+                out[op++] = ((bestLen - 3) << 4) | ((off >> 8) & 0x0f);
+                out[op++] = off & 0xff;
+                for (k = i + 1; k < i + bestLen && k + 2 < n; k++) {
+                    h2 = (((src[k] << 4) ^ (src[k + 1] << 2) ^ src[k + 2]) & 0xfff);
+                    prev[k] = head[h2];
+                    head[h2] = k;
+                }
+                i += bestLen - 1;
+            } else {
+                out[op++] = src[i];
+            }
+            bit = (bit + 1) & 7;
+        }
+        return out.subarray(0, op);
+    }
+
+    /**
+     * LZSS 解压；输入损坏（越界 / 回溯越界）时抛错，由上层按"存档损坏"处理。
+     * @param {Uint8Array} src 压缩字节
+     * @returns {Uint8Array} 原始字节
+     */
+    function lzDecompress(src) {
+        var cap = Math.max(64, src.length * 4);
+        var buf = new Uint8Array(cap);
+        var op = 0, ip = 0, flags, b, t, t2, len, off, start, k;
+        /**
+         * 确保输出缓冲至少还能写 need 字节。
+         * @param {number} need 需要的剩余空间
+         */
+        function ensure(need) {
+            if (op + need <= buf.length) return;
+            var next = new Uint8Array(Math.max(buf.length * 2, op + need + 64));
+            next.set(buf.subarray(0, op), 0);
+            buf = next;
+        }
+        while (ip < src.length) {
+            flags = src[ip++];
+            for (b = 7; b >= 0 && ip < src.length; b--) {
+                if (flags & (1 << b)) {
+                    if (ip + 1 >= src.length) throw new Error("LZ: 数据截断");
+                    t = src[ip++];
+                    t2 = src[ip++];
+                    len = (t >> 4) + 3;
+                    off = (((t & 0x0f) << 8) | t2) + 1;
+                    start = op - off;
+                    if (start < 0) throw new Error("LZ: 回溯越界");
+                    ensure(len);
+                    for (k = 0; k < len; k++) buf[op++] = buf[start + k];
+                } else {
+                    ensure(1);
+                    buf[op++] = src[ip++];
+                }
+            }
+        }
+        return buf.subarray(0, op);
+    }
+
+    /**
+     * 压缩 payload：只有明显变小时才采用，并在容器 flags 里标记。
+     * @param {Uint8Array} raw 原始 payload
+     * @returns {{bytes:Uint8Array, compressed:boolean}}
+     */
+    function packPayload(raw) {
+        var comp = lzCompress(raw);
+        if (comp && comp.length + 4 < raw.length) return { bytes: comp, compressed: true };
+        return { bytes: raw, compressed: false };
+    }
+
+    /* ---------- 6. 二进制读写器 ---------- */
+
+    /**
+     * 写入器：自动扩容的字节缓冲，提供 u8 / u16 / u32 / varint / bytes / string。
+     * @constructor
+     */
+    function Writer() {
+        this.buf = new Uint8Array(256);
+        this.len = 0;
+    }
+    Writer.prototype.ensure = function(n) {
+        if (this.len + n <= this.buf.length) return;
+        var next = new Uint8Array(Math.max(this.buf.length * 2, this.len + n + 64));
+        next.set(this.buf.subarray(0, this.len), 0);
+        this.buf = next;
+    };
+    Writer.prototype.u8 = function(v) {
+        this.ensure(1);
+        this.buf[this.len++] = (Number(v) || 0) & 0xff;
+        return this;
+    };
+    Writer.prototype.u16 = function(v) {
+        this.ensure(2);
+        this.buf[this.len++] = (v >>> 8) & 0xff;
+        this.buf[this.len++] = v & 0xff;
+        return this;
+    };
+    Writer.prototype.u32 = function(v) {
+        this.ensure(4);
+        this.buf[this.len++] = (v >>> 24) & 0xff;
+        this.buf[this.len++] = (v >>> 16) & 0xff;
+        this.buf[this.len++] = (v >>> 8) & 0xff;
+        this.buf[this.len++] = v & 0xff;
+        return this;
+    };
+    Writer.prototype.varint = function(v) {
+        var n = Math.floor(Number(v));
+        if (!isFinite(n) || n < 0) n = 0;
+        if (n > 4294967295) n = 4294967295;
+        do {
+            var b = n % 128;
+            n = Math.floor(n / 128);
+            if (n > 0) b |= 0x80;
+            this.u8(b);
+        } while (n > 0);
+        return this;
+    };
+    Writer.prototype.bytes = function(arr) {
+        this.ensure(arr.length);
+        this.buf.set(arr, this.len);
+        this.len += arr.length;
+        return this;
+    };
+    Writer.prototype.string = function(str) {
+        var b = utf8Encode(str);
+        this.varint(b.length);
+        this.bytes(b);
+        return this;
+    };
+    Writer.prototype.result = function() {
+        return this.buf.slice(0, this.len);
+    };
+
+    /**
+     * 读取器：与 Writer 对称，任何越界都抛错（视为存档损坏）。
+     * @param {Uint8Array} bytes 输入字节
+     * @constructor
+     */
+    function Reader(bytes) {
+        this.b = bytes;
+        this.i = 0;
+    }
+    Reader.prototype.left = function() {
+        return this.b.length - this.i;
+    };
+    Reader.prototype.u8 = function() {
+        if (this.i >= this.b.length) throw new Error("codec: 数据越界");
+        return this.b[this.i++];
+    };
+    Reader.prototype.u16 = function() {
+        return (this.u8() << 8) | this.u8();
+    };
+    Reader.prototype.u32 = function() {
+        return ((this.u8() << 24) | (this.u8() << 16) | (this.u8() << 8) | this.u8()) >>> 0;
+    };
+    Reader.prototype.varint = function() {
+        var n = 0, mul = 1, b, guard = 0;
+        do {
+            b = this.u8();
+            n += (b & 0x7f) * mul;
+            mul *= 128;
+            if (++guard > 6) throw new Error("codec: varint 过长");
+        } while (b & 0x80);
+        return n;
+    };
+    Reader.prototype.bytes = function(n) {
+        if (n < 0 || this.i + n > this.b.length) throw new Error("codec: 数据越界");
+        var out = this.b.slice(this.i, this.i + n);
+        this.i += n;
+        return out;
+    };
+    Reader.prototype.string = function() {
+        var n = this.varint();
+        return utf8Decode(this.bytes(n));
+    };
+
+    /* ---------- 7. 数据结构编解码：rawMap ↔ payload ---------- */
+
+    /* rawMap：键 → 旧格式的原始字符串值（例如 "true" / "0" / JSON 文本），
+     * 与 Store.get 的返回值完全一致，业务模块无需感知二进制格式。 */
+
+    function defaultSeriesObj() {
+        return { basic: true, special: false, physics: false, symmetry: false, tactical: false };
+    }
+
+    /**
+     * 新存档的默认键集合：与旧实现首次启动时的可见状态一致。
+     * 刻意不写入 achievementState_v1 / tutorialCompleted 等"缺省即未达成"的键。
+     * @returns {Object} rawMap
+     */
+    function defaultRawMap() {
+        var m = {};
+        m.mineWins = stringify({
+            easy: 0, medium: 0, hard: 0, hell: 0, brain: 0
+        });
+        m.mineRecords = stringify({
+            easy: null, medium: null, hard: null, hell: null, brain: null
+        });
+        m.mineLastTimes = stringify({
+            easy: null, medium: null, hard: null, hell: null, brain: null
+        });
+        m.seriesState = stringify(defaultSeriesObj());
+        m.seriesUnlocked = stringify(defaultSeriesObj());
+        m.tutorialStep = "0";
+        m.tutorial_special = "0";
+        m.tutorial_physics = "0";
+        m.tutorial_symmetry = "0";
+        m.tutorial_tactical = "0";
+        m.placeMode_v1 = "drag";
+        m.mineInfluenceHint = "false";
+        m.mineEffectPreview = "false";
+        m.mineSoundSettings = stringify({ bgm: 50, sfx: 100 });
+        return m;
+    }
+
+    function readNumOr0(v) {
+        var n = numOr(v, 0);
+        return n < 0 ? 0 : Math.floor(n);
+    }
+
+    /* ----- 7.1 成绩：mineWins / mineRecords / mineLastTimes ----- */
+
+    /**
+     * 编码三组成绩数据：通关次数用 varint，用时用 varint(ms+1)（0 表示无纪录）。
+     * @param {Writer} w 写入器
+     * @param {Object} map rawMap
+     */
+    function encodeRecords(w, map) {
+        var wins = parseJSON(map.mineWins, {});
+        var rec = parseJSON(map.mineRecords, {});
+        var last = parseJSON(map.mineLastTimes, {});
+        var i, d, v;
+        for (i = 0; i < DIFFS.length; i++) w.varint(readNumOr0(wins[DIFFS[i]]));
+        for (i = 0; i < DIFFS.length; i++) {
+            d = DIFFS[i];
+            v = (rec[d] === null || rec[d] === undefined) ? null : numOr(rec[d], null);
+            w.varint(v === null || v < 0 ? 0 : Math.floor(v) + 1);
+        }
+        for (i = 0; i < DIFFS.length; i++) {
+            d = DIFFS[i];
+            v = (last[d] === null || last[d] === undefined) ? null : numOr(last[d], null);
+            w.varint(v === null || v < 0 ? 0 : Math.floor(v) + 1);
+        }
+    }
+
+    /**
+     * 解码三组成绩数据，写入 rawMap（总是补齐 5 个难度键）。
+     * @param {Reader} r 读取器
+     * @param {Object} map 目标 rawMap
+     */
+    function decodeRecords(r, map) {
+        var wins = {}, rec = {}, last = {}, i, d, v;
+        for (i = 0; i < DIFFS.length; i++) wins[DIFFS[i]] = r.varint();
+        for (i = 0; i < DIFFS.length; i++) {
+            v = r.varint();
+            rec[DIFFS[i]] = v === 0 ? null : v - 1;
+        }
+        for (i = 0; i < DIFFS.length; i++) {
+            v = r.varint();
+            last[DIFFS[i]] = v === 0 ? null : v - 1;
+        }
+        map.mineWins = stringify(wins);
+        map.mineRecords = stringify(rec);
+        map.mineLastTimes = stringify(last);
+    }
+
+    /* ----- 7.2 成就：比特位图 + 时间差 + 计数 ----- */
+
+    function achFlagSet(s, name) {
+        return !!(s && s[name]);
+    }
+
+    /**
+     * 编码成就状态：45 位解锁位图、按时间排序的解锁时间、计数器、过程标记。
+     * 无成就状态时写入 present=0。
+     * @param {Writer} w 写入器
+     * @param {Object} map rawMap
+     */
+    function encodeAchievements(w, map) {
+        var s = parseJSON(map.achievementState_v1, null);
+        if (!isObj(s)) {
+            w.u8(0);
+            return;
+        }
+        w.u8(1);
+        var flags = 0;
+        if (achFlagSet(s, "lastCreateMaxMines")) flags |= 1;
+        if (achFlagSet(s, "bgmAdjusted")) flags |= 2;
+        if (achFlagSet(s, "grassUnlocked")) flags |= 4;
+        if (achFlagSet(s, "newGameSpamV2")) flags |= 8;
+        w.u8(flags);
+
+        var cats = isObj(s.lastCreateCats) ? s.lastCreateCats : null;
+        var catMask = 0;
+        if (cats) {
+            catMask = 1;
+            if (cats.physics) catMask |= 2;
+            if (cats.symmetry) catMask |= 4;
+            if (cats.tactical) catMask |= 8;
+        }
+        w.u8(catMask);
+        w.varint(readNumOr0(s.totalWins));
+        w.varint(readNumOr0(s.nightWins));
+        w.varint(readNumOr0(s.sharedWins));
+
+        var unlocked = isObj(s.unlocked) ? s.unlocked : {};
+        var ids = ACH_IDS || [];
+        var bits = new Uint8Array(Math.ceil(ids.length / 8));
+        var entries = [];
+        var unknownUnlocked = {};
+        var i, id, ts;
+        for (i = 0; i < ids.length; i++) {
+            id = ids[i];
+            if (!hasOwn(unlocked, id)) continue;
+            bits[i >> 3] |= (1 << (i & 7));
+            ts = parseTimeMs(unlocked[id]);
+            entries.push({ i: i, ts: ts > 0 ? Math.floor(ts / 1000) : 0 });
+        }
+        for (id in unlocked) {
+            if (!hasOwn(unlocked, id)) continue;
+            if (ids.indexOf(id) < 0) unknownUnlocked[id] = unlocked[id];
+        }
+        w.bytes(bits);
+        entries.sort(function(a, b) {
+            return a.ts - b.ts || a.i - b.i;
+        });
+        w.varint(entries.length);
+        var prevTs = 0;
+        for (i = 0; i < entries.length; i++) {
+            w.varint(entries[i].i);
+            if (i === 0) w.varint(entries[i].ts);
+            else w.varint(Math.max(0, entries[i].ts - prevTs));
+            prevTs = entries[i].ts;
+        }
+
+        var counters = isObj(s.counters) ? s.counters : {};
+        var counterKeys = [];
+        var ck;
+        for (ck in counters) {
+            if (!hasOwn(counters, ck)) continue;
+            if (typeof counters[ck] !== "number" || !isFinite(counters[ck])) continue;
+            if (counters[ck] <= 0) continue;
+            counterKeys.push(ck);
+        }
+        w.varint(counterKeys.length);
+        for (i = 0; i < counterKeys.length; i++) {
+            ck = counterKeys[i];
+            var idx = ids.indexOf(ck);
+            if (idx >= 0) {
+                w.varint(idx + 1);
+            } else {
+                w.varint(0);
+                w.string(ck);
+            }
+            w.varint(Math.floor(counters[ck]));
+        }
+
+        var btu = isObj(s.basicTypesUsed) ? s.basicTypesUsed : {};
+        var usedKeys = [];
+        var bk;
+        for (bk in btu) {
+            if (hasOwn(btu, bk) && btu[bk]) usedKeys.push(bk);
+        }
+        usedKeys.sort();
+        w.varint(usedKeys.length);
+        for (i = 0; i < usedKeys.length; i++) w.string(usedKeys[i]);
+
+        var extras = {};
+        var k;
+        var unlockedExtras = {};
+        for (k in unknownUnlocked) {
+            if (hasOwn(unknownUnlocked, k)) unlockedExtras[k] = unknownUnlocked[k];
+        }
+        if (Object.keys(unlockedExtras).length) extras.unlocked = unlockedExtras;
+        for (k in s) {
+            if (!hasOwn(s, k)) continue;
+            if (ACH_KNOWN_FIELDS[k]) continue;
+            if (k === "newGameClicks") continue;
+            extras[k] = s[k];
+        }
+        w.string(stringify(extras));
+    }
+
+    /**
+     * 解码成就状态；present=0 时不写入 achievementState_v1。
+     * @param {Reader} r 读取器
+     * @param {Object} map 目标 rawMap
+     */
+    function decodeAchievements(r, map) {
+        if (r.u8() === 0) return;
+        var flags = r.u8();
+        var catMask = r.u8();
+        var totalWins = r.varint();
+        var nightWins = r.varint();
+        var sharedWins = r.varint();
+        var ids = ACH_IDS || [];
+        var nBytes = Math.ceil(ids.length / 8);
+        var bits = r.bytes(nBytes);
+        var unlocked = {}, counters = {}, basicTypesUsed = {};
+        var i, idx, ts, prevTs = 0, marker, id;
+
+        var nUnlocked = r.varint();
+        if (nUnlocked > ids.length) throw new Error("codec: 成就数量越界");
+        for (i = 0; i < nUnlocked; i++) {
+            idx = r.varint();
+            if (i === 0) {
+                ts = r.varint();
+            } else {
+                ts = prevTs + r.varint();
+            }
+            prevTs = ts;
+            if (idx >= ids.length) throw new Error("codec: 成就索引越界");
+            unlocked[ids[idx]] = new Date((ts > 0 ? ts : 0) * 1000).toISOString();
+        }
+        var nCounters = r.varint();
+        if (nCounters > 500) throw new Error("codec: 计数器数量越界");
+        for (i = 0; i < nCounters; i++) {
+            marker = r.varint();
+            if (marker === 0) {
+                id = r.string();
+            } else {
+                if (marker - 1 >= ids.length) throw new Error("codec: 计数器索引越界");
+                id = ids[marker - 1];
+            }
+            counters[id] = r.varint();
+        }
+        var nBasic = r.varint();
+        if (nBasic > 500) throw new Error("codec: 基础雷种数量越界");
+        for (i = 0; i < nBasic; i++) basicTypesUsed[r.string()] = true;
+
+        var extras = parseJSON(r.string(), {});
+        if (!isObj(extras)) extras = {};
+
+        var state = {
+            unlocked: unlocked,
+            counters: counters,
+            totalWins: totalWins,
+            nightWins: nightWins,
+            sharedWins: sharedWins,
+            basicTypesUsed: basicTypesUsed,
+            lastCreateCats: catMask === 0 ? null : {
+                physics: !!(catMask & 2),
+                symmetry: !!(catMask & 4),
+                tactical: !!(catMask & 8)
+            },
+            currentRunCategories: null,
+            currentRunDeletes: 0,
+            currentRunFlawless: true,
+            bgmAdjusted: !!(flags & 2),
+            lastCreateMaxMines: !!(flags & 1),
+            grassIdleStart: 0,
+            grassUnlocked: !!(flags & 4),
+            newGameSpamV2: !!(flags & 8)
+        };
+        var k;
+        for (k in extras) {
+            if (!hasOwn(extras, k)) continue;
+            if (k === "unlocked" && isObj(extras.unlocked)) {
+                for (var uid in extras.unlocked) {
+                    if (hasOwn(extras.unlocked, uid) && !hasOwn(state.unlocked, uid)) {
+                        state.unlocked[uid] = extras.unlocked[uid];
+                    }
+                }
+            } else {
+                state[k] = extras[k];
+            }
+        }
+        map.achievementState_v1 = stringify(state);
+    }
+
+    /* ----- 7.3 挑战 / 系列 / 设置 / 杂项 ----- */
+
+    function readStep(map, key) {
+        return clamp(parseInt(map[key], 10) || 0, 0, 5);
+    }
+
+    /**
+     * 编码挑战进度：基础 + 四个系列各 3 bit 以内的步数（用 1 字节表示 0~5）。
+     * @param {Writer} w 写入器
+     * @param {Object} map rawMap
+     */
+    function encodeChallenges(w, map) {
+        w.u8(readStep(map, "tutorialStep"));
+        var i;
+        for (i = 0; i < SERIES_NONBASIC.length; i++) {
+            w.u8(readStep(map, "tutorial_" + SERIES_NONBASIC[i]));
+        }
+        var flags = 0;
+        if (map.tutorialCompleted === "true") flags |= 1;
+        if (map.teachFinished === "true") flags |= 2;
+        w.u8(flags);
+    }
+
+    /**
+     * 解码挑战进度，写入 tutorialStep / tutorial_<系列> 与完成标记。
+     * @param {Reader} r 读取器
+     * @param {Object} map 目标 rawMap
+     */
+    function decodeChallenges(r, map) {
+        map.tutorialStep = String(clamp(r.u8(), 0, 5));
+        var i;
+        for (i = 0; i < SERIES_NONBASIC.length; i++) {
+            map["tutorial_" + SERIES_NONBASIC[i]] = String(clamp(r.u8(), 0, 5));
+        }
+        var flags = r.u8();
+        if (flags & 1) map.tutorialCompleted = "true";
+        if (flags & 2) map.teachFinished = "true";
+    }
+
+    function readSeriesBits(map, key, fallbackOnlyBasic) {
+        var o = parseJSON(map[key], null);
+        var bits = 0, i;
+        if (isObj(o)) {
+            for (i = 0; i < SERIES.length; i++) {
+                if (o[SERIES[i]]) bits |= (1 << i);
+            }
+        } else if (fallbackOnlyBasic) {
+            bits = 1;
+        }
+        /* basic 系列恒开启 / 恒解锁 */
+        bits |= 1;
+        return bits;
+    }
+
+    function seriesFromBits(bits) {
+        var o = {};
+        for (var i = 0; i < SERIES.length; i++) o[SERIES[i]] = !!(bits & (1 << i));
+        o.basic = true;
+        return o;
+    }
+
+    /**
+     * 编码系列开关与解锁状态：各用 5 bit。
+     * @param {Writer} w 写入器
+     * @param {Object} map rawMap
+     */
+    function encodeSeries(w, map) {
+        w.u8(readSeriesBits(map, "seriesState", true));
+        w.u8(readSeriesBits(map, "seriesUnlocked", true));
+    }
+
+    /**
+     * 解码系列开关与解锁状态。
+     * @param {Reader} r 读取器
+     * @param {Object} map 目标 rawMap
+     */
+    function decodeSeries(r, map) {
+        map.seriesState = stringify(seriesFromBits(r.u8()));
+        map.seriesUnlocked = stringify(seriesFromBits(r.u8()));
+    }
+
+    /**
+     * 编码设置：放置模式 + 两个开关 + 两个音量。
+     * @param {Writer} w 写入器
+     * @param {Object} map rawMap
+     */
+    function encodeSettings(w, map) {
+        var flags = 0;
+        if (map.placeMode_v1 === "click") flags |= 1;
+        if (map.mineInfluenceHint === "true") flags |= 2;
+        if (map.mineEffectPreview === "true") flags |= 4;
+        w.u8(flags);
+        var snd = parseJSON(map.mineSoundSettings, {});
+        w.u8(clamp(numOr(snd.bgm, 50), 0, 100));
+        w.u8(clamp(numOr(snd.sfx, 100), 0, 100));
+    }
+
+    /**
+     * 解码设置。
+     * @param {Reader} r 读取器
+     * @param {Object} map 目标 rawMap
+     */
+    function decodeSettings(r, map) {
+        var flags = r.u8();
+        var bgm = clamp(r.u8(), 0, 100);
+        var sfx = clamp(r.u8(), 0, 100);
+        map.placeMode_v1 = (flags & 1) ? "click" : "drag";
+        map.mineInfluenceHint = (flags & 2) ? "true" : "false";
+        map.mineEffectPreview = (flags & 4) ? "true" : "false";
+        map.mineSoundSettings = stringify({ bgm: bgm, sfx: sfx });
+    }
+
+    /**
+     * 编码杂项标记与欢迎日期。
+     * @param {Writer} w 写入器
+     * @param {Object} map rawMap
+     */
+    function encodeMisc(w, map) {
+        var flags = 0;
+        if (map.brainUnlockedNotified === "true") flags |= 1;
+        if (map.brainCleared === "true") flags |= 2;
+        if (map.hasVisitedBefore === "true") flags |= 4;
+        w.u8(flags);
+        w.string(typeof map.welcomeLastShown === "string" ? map.welcomeLastShown.slice(0, 64) : "");
+    }
+
+    /**
+     * 解码杂项标记与欢迎日期。
+     * @param {Reader} r 读取器
+     * @param {Object} map 目标 rawMap
+     */
+    function decodeMisc(r, map) {
+        var flags = r.u8();
+        if (flags & 1) map.brainUnlockedNotified = "true";
+        if (flags & 2) map.brainCleared = "true";
+        if (flags & 4) map.hasVisitedBefore = "true";
+        var day = r.string();
+        if (day) map.welcomeLastShown = day;
+    }
+
+    /* ----- 7.4 附加杂项：主线 / 外观 / 引导已读 / 未来未知键 ----- */
+
+    function isAuxKey(k) {
+        if (!k) return false;
+        if (k === "rmPreImportAt" || k === "rmPreImportISO") return true;
+        return /__(bak|sig|pre)$/.test(k) || k === SAVE_KEY || k === BAK_KEY || k === PRE_KEY || k === BAD_KEY;
+    }
+
+    function isManagedKey(k) {
+        if (!k || isAuxKey(k)) return false;
+        if (STRUCTURED_KEYS[k]) return true;
+        if (LEGACY_KEYS.indexOf(k) >= 0) return true;
+        for (var i = 0; i < LEGACY_PREFIX.length; i++) {
+            if (k.indexOf(LEGACY_PREFIX[i]) === 0) return true;
+        }
+        return false;
+    }
+
+    /**
+     * 收集未结构化键（主线、外观、引导已读等），原样以 JSON 保存。
+     * @param {Object} map rawMap
+     * @returns {string} 序列化后的附加数据
+     */
+    function encodeExtras(map) {
+        var extras = {};
+        var k;
+        for (k in map) {
+            if (!hasOwn(map, k)) continue;
+            if (STRUCTURED_KEYS[k]) continue;
+            if (!isManagedKey(k)) continue;
+            if (typeof map[k] === "string") extras[k] = map[k];
+        }
+        return stringify(extras);
+    }
+
+    /**
+     * 解码附加数据：只写入受管键，且不覆盖结构化字段。
+     * @param {string} text JSON 文本
+     * @param {Object} map 目标 rawMap
+     */
+    function decodeExtras(text, map) {
+        var extras = parseJSON(text, {});
+        if (!isObj(extras)) return;
+        var k;
+        for (k in extras) {
+            if (!hasOwn(extras, k)) continue;
+            if (!isManagedKey(k) || STRUCTURED_KEYS[k]) continue;
+            if (typeof extras[k] !== "string") continue;
+            if (extras[k].length > 200000) continue;
+            map[k] = extras[k];
+        }
+    }
+
+    /* ----- 7.5 payload 总装 ----- */
+
+    /**
+     * 把 rawMap 编码成二进制 payload。
+     * @param {Object} map rawMap
+     * @param {number} savedAtSec 保存时间（秒）
+     * @returns {Uint8Array} payload
+     */
+    function encodeRawMap(map, savedAtSec) {
+        var w = new Writer();
+        w.u8(DATA_VERSION);
+        w.u8(SCHEMA);
+        w.u32(savedAtSec >>> 0);
+        encodeRecords(w, map);
+        encodeAchievements(w, map);
+        encodeChallenges(w, map);
+        encodeSeries(w, map);
+        encodeSettings(w, map);
+        encodeMisc(w, map);
+        w.string(encodeExtras(map));
+        return w.result();
+    }
+
+    /**
+     * 把二进制 payload 解码成 rawMap。
+     * @param {Uint8Array} payload payload
+     * @returns {{rawMap:Object, savedAtSec:number}}
+     */
+    function decodePayload(payload) {
+        var r = new Reader(payload);
+        var dataVersion = r.u8();
+        if (dataVersion !== DATA_VERSION) {
+            throw new Error("数据结构版本不兼容（v" + dataVersion + "）");
+        }
+        var schema = r.u8();
+        if (schema > SCHEMA) {
+            throw new Error("存档结构(" + schema + ")高于当前程序(" + SCHEMA + ")");
+        }
+        var savedAtSec = r.u32();
+        var map = {};
+        decodeRecords(r, map);
+        decodeAchievements(r, map);
+        decodeChallenges(r, map);
+        decodeSeries(r, map);
+        decodeSettings(r, map);
+        decodeMisc(r, map);
+        decodeExtras(r.string(), map);
+        if (r.left() !== 0) {
+            /* 多出来的字节通常意味着格式版本演进或数据损坏，直接拒绝更安全 */
+            throw new Error("存档尾部存在未知数据");
+        }
+        map.rmSchemaVersion = String(SCHEMA);
+        return { rawMap: map, savedAtSec: savedAtSec };
+    }
+
+    /* ---------- 8. 容器封装：压缩 + 混淆 + 签名 ---------- */
+
+    /**
+     * 把 payload 封装成 Base64URL 存档字符串。
+     * @param {Uint8Array} payload 原始 payload
+     * @param {number} savedAtSec 保存时间（秒）
+     * @returns {{text:string, bytes:number, payloadBytes:number, compressed:boolean}}
+     */
+    function sealPayload(payload, savedAtSec) {
+        var packed = packPayload(payload);
+        if (packed.bytes.length > 60000) throw new Error("存档体积超出容器上限");
+        var nonce = randomNonce();
+        var total = HEADER_LEN + packed.bytes.length + MAC_LEN;
+        var env = new Uint8Array(total);
+        env[0] = MAGIC[0]; env[1] = MAGIC[1]; env[2] = MAGIC[2]; env[3] = MAGIC[3];
+        env[4] = FORMAT;
+        env[5] = packed.compressed ? 1 : 0;
+        env[6] = (packed.bytes.length >>> 8) & 0xff;
+        env[7] = packed.bytes.length & 0xff;
+        env.set(nonce, 8);
+        var cipher = xorStream(packed.bytes, nonce);
+        env.set(cipher, HEADER_LEN);
+        var mac = hmacSha256(macKey(), env.subarray(0, HEADER_LEN + packed.bytes.length));
+        env.set(mac, HEADER_LEN + packed.bytes.length);
+        return {
+            text: b64encode(env),
+            bytes: total,
+            payloadBytes: payload.length,
+            compressed: packed.compressed,
+            savedAtSec: savedAtSec
+        };
+    }
+
+    /**
+     * 校验并打开一个存档字符串。
+     * @param {string} text Base64URL 存档
+     * @returns {{ok:boolean, rawMap?:Object, savedAt?:number, code?:string,
+     *   reason?:string, payloadBytes?:number, envBytes?:number, compressed?:boolean}}
+     */
+    function openEnvelope(text) {
+        try {
+            if (typeof text !== "string" || !text) {
+                return { ok: false, code: "empty", reason: "没有存档数据" };
+            }
+            var env = b64decode(text);
+            if (env.length < HEADER_LEN + MAC_LEN) {
+                return { ok: false, code: "corrupt", reason: "存档长度不足（可能被截断）" };
+            }
+            if (env[0] !== MAGIC[0] || env[1] !== MAGIC[1] || env[2] !== MAGIC[2] || env[3] !== MAGIC[3]) {
+                return { ok: false, code: "format", reason: "不是本引擎生成的存档文件" };
+            }
+            if (env[4] !== FORMAT) {
+                return { ok: false, code: "format", reason: "存档容器版本不兼容（v" + env[4] + "）" };
+            }
+            var payloadLen = (env[6] << 8) | env[7];
+            if (env.length !== HEADER_LEN + payloadLen + MAC_LEN) {
+                return { ok: false, code: "corrupt", reason: "存档长度与头部不一致（可能被修改）" };
+            }
+            var expect = hmacSha256(macKey(), env.subarray(0, HEADER_LEN + payloadLen));
+            var actual = env.subarray(HEADER_LEN + payloadLen);
+            if (!bytesEqual(expect, actual)) {
+                return { ok: false, code: "signature", reason: "存档签名校验失败（数据被修改或损坏）" };
+            }
+            var cipher = env.slice(HEADER_LEN, HEADER_LEN + payloadLen);
+            var payload = xorStream(cipher, env.slice(8, 16));
+            var compressed = !!(env[5] & 1);
+            if (compressed) payload = lzDecompress(payload);
+            var decoded = decodePayload(payload);
+            return {
+                ok: true,
+                rawMap: decoded.rawMap,
+                savedAt: decoded.savedAtSec,
+                payloadBytes: payload.length,
+                envBytes: env.length,
+                compressed: compressed,
+                digest: hexOf(sha256(payload), 8)
+            };
+        } catch (e) {
+            return { ok: false, code: "corrupt", reason: e && e.message ? e.message : String(e) };
+        }
+    }
+
+    /* ---------- 9. 存储后端 ---------- */
+
     var mem = Object.create(null);
     var backend = null;
     var backendName = "memory";
 
-    /* 启动探测：真实写入一次再删除，才能发现"存在但不可写"的情况
-     * （隐私模式、策略限制等）。探测失败即退回内存后端。 */
     try {
         var probe = "__rm_probe__" + Math.random().toString(36).slice(2);
         window.localStorage.setItem(probe, "1");
@@ -43,11 +1341,6 @@
         backendName = "memory";
     }
 
-    /**
-     * 读取一个键的原始字符串；后端抛错时退回内存镜像。
-     * @param {string} k 存档键
-     * @returns {string|null} 原始值，不存在时为 null
-     */
     function rawGet(k) {
         if (backend) {
             try {
@@ -59,12 +1352,6 @@
         return mem[k] === undefined ? null : mem[k];
     }
 
-    /**
-     * 写入一个键：先写内存镜像再写后端，后端失败也不丢本局数据。
-     * @param {string} k 存档键
-     * @param {string} v 已序列化的值
-     * @returns {boolean} 是否成功持久化
-     */
     function rawSet(k, v) {
         mem[k] = v;
         if (backend) {
@@ -78,10 +1365,6 @@
         return true;
     }
 
-    /**
-     * 同时从内存镜像与后端删除一个键；后端异常忽略。
-     * @param {string} k 存档键
-     */
     function rawRemove(k) {
         delete mem[k];
         if (backend) {
@@ -91,13 +1374,8 @@
         }
     }
 
-    /**
-     * 列出后端与内存镜像中出现过的全部键，去重后返回。
-     * @returns {string[]} 键名列表
-     */
     function rawKeys() {
-        var out = [];
-        var i, k;
+        var out = [], i, k;
         if (backend) {
             try {
                 for (i = 0; i < backend.length; i++) {
@@ -107,138 +1385,252 @@
             } catch (e) {}
         }
         for (k in mem) {
-            if (Object.prototype.hasOwnProperty.call(mem, k) && out.indexOf(k) < 0) out.push(k);
+            if (hasOwn(mem, k) && out.indexOf(k) < 0) out.push(k);
         }
         return out;
     }
 
-    /* 值工具：isObj 把"对象"收紧为普通对象，clone 用 JSON 做深拷贝，
-     * 保证调用方拿到的是独立副本，改不到内部数据。 */
-    function isObj(v) {
-        return !!v && typeof v === "object" && !Array.isArray(v);
-    }
+    /* ---------- 10. 运行期状态与 load / persist ---------- */
 
-    function clone(v) {
-        return v === undefined ? v : JSON.parse(JSON.stringify(v));
-    }
+    /* rawMap 是唯一的内存数据源：业务模块的所有读写都先落在它上面，
+     * 再按需整体封装成签名容器写回后端。 */
+    var rawMap = defaultRawMap();
+    var lastSavedAt = 0;
+    var lastEnvelope = null;
 
-    /* ---------- 2. 键规则与校验和 ---------- */
-
-    /* 已知存档键白名单（导出用）；教学进度键按前缀识别，不在此列出 */
-    var KEY_WHITELIST = [
-        "mineLastTimes", "mineRecords", "mineWins",
-        "brainUnlockedNotified", "brainCleared",
-        "seriesState", "seriesUnlocked",
-        "tutorialStep", "tutorialCompleted",
-        "placeMode_v1", "mineInfluenceHint", "mineEffectPreview", "mineSoundSettings",
-        "teachFinished",
-        "welcomeLastShown", "hasVisitedBefore",
-        "achievementState_v1", "rmSchemaVersion"
-    ];
-    /* 允许参与导入导出的键前缀，覆盖按前缀批量生成的动态键 */
-    var KEY_PREFIX = ["tutorial_", "mine", "rm"];
-    /* 键名后缀：__bak 备份、__pre 导入前快照、__sig 校验和 */
-    var BAK_SUFFIX = "__bak";
-    var PRE_SUFFIX = "__pre";      // 导入前的自动快照
-    var SIG_SUFFIX = "__sig";
+    /* 会话内是否已经发生过写入（用于区分"全新存档"与"被清空"） */
+    var dirty = false;
 
     /**
-     * 判断字符串是否以指定后缀结尾；要求键长严格大于后缀长。
-     * @param {string} k 待检查的键
-     * @param {string} s 后缀
-     * @returns {boolean}
+     * 把内存 rawMap 封装并写回后端：先写主档，上一份完好的主档转入备份位。
+     * @returns {boolean} 是否成功（后端不可用时仍视为成功，只是不持久）
      */
-    function endsWith(k, s) {
-        return k.length > s.length && k.indexOf(s) === k.length - s.length;
+    function persist() {
+        try {
+            var savedAt = Math.floor(Date.now() / 1000);
+            var payload = encodeRawMap(rawMap, savedAt);
+            var sealed = sealPayload(payload, savedAt);
+            var prev = rawGet(SAVE_KEY);
+            if (prev) {
+                var chk = openEnvelope(prev);
+                if (chk.ok) rawSet(BAK_KEY, prev);
+            }
+            rawSet(SAVE_KEY, sealed.text);
+            lastEnvelope = sealed;
+            lastSavedAt = savedAt;
+            dirty = true;
+            Store.lastError = null;
+            // 首次成功落盘后，"fresh" 状态应升级为 ok；迁移过的会话保留 migrated 供界面提示
+            if (Store.integrity === "fresh") Store.integrity = "ok";
+            return true;
+        } catch (e) {
+            Store.lastError = e && e.message ? e.message : String(e);
+            if (RM && RM.warn) RM.warn("storage:persist", e);
+            return false;
+        }
     }
 
-    /* 辅助键：备份 / 校验和 / 导入前快照，属于实现细节。
-     * 它们不参与导出，也不在覆盖导入时被清空。 */
-    function isAuxKey(k) {
+    /**
+     * 把损坏的主档隔离保存，方便事后排查 / 手动恢复；只保留最近一份。
+     * @param {string} raw 原始存档字符串
+     * @param {string} reason 校验失败原因
+     */
+    function quarantine(raw, reason) {
+        try {
+            rawSet(BAD_KEY, stringify({
+                at: Date.now(),
+                iso: new Date().toISOString(),
+                reason: reason || "",
+                raw: String(raw).slice(0, 200000)
+            }));
+        } catch (e) {}
+    }
+
+    /**
+     * 读取后端存档：主档 → 备份档 → 默认值，并记录完整性状态。
+     * @returns {string} "ok" / "backup" / "corrupt" / "fresh"
+     */
+    function load() {
+        var primary = rawGet(SAVE_KEY);
+        var backup = rawGet(BAK_KEY);
+        var state = "fresh";
+        var decoded = null;
+        var reason = "";
+
+        if (primary) {
+            var a = openEnvelope(primary);
+            if (a.ok) {
+                decoded = a;
+                state = "ok";
+            } else {
+                reason = a.reason || "主档校验失败";
+                quarantine(primary, reason);
+            }
+        }
+        if (!decoded && backup) {
+            var b = openEnvelope(backup);
+            if (b.ok) {
+                decoded = b;
+                state = "backup";
+            } else if (!reason) {
+                reason = b.reason || "备份档校验失败";
+            }
+        }
+        if (!decoded && (primary || backup)) {
+            state = "corrupt";
+        }
+
+        rawMap = decoded ? decoded.rawMap : defaultRawMap();
+        lastSavedAt = decoded && decoded.savedAt ? decoded.savedAt : 0;
+        lastEnvelope = decoded ? {
+            text: "",
+            bytes: decoded.envBytes,
+            payloadBytes: decoded.payloadBytes,
+            compressed: decoded.compressed,
+            savedAtSec: decoded.savedAt
+        } : null;
+
+        Store.tampered = state === "backup" || state === "corrupt";
+        Store.integrity = state;
+        if (reason) {
+            if (RM && RM.warn) RM.warn("storage:load", reason);
+        }
+        return state;
+    }
+
+    /**
+     * 旧版（v1.2.x）存档键的一次性收集：只在新容器尚不存在时调用。
+     * @returns {?Object} 旧 rawMap；没有旧数据时返回 null
+     */
+    function collectLegacy() {
+        var keys = rawKeys();
+        var found = false;
+        var out = {};
+        var i, k;
+        for (i = 0; i < keys.length; i++) {
+            k = keys[i];
+            if (!legacyKey(k)) continue;
+            var v = rawGet(k);
+            if (v === null || v === undefined) continue;
+            if (k === "rmSchemaVersion" || k === "rmPreImportAt" || k === "rmPreImportISO") continue;
+            out[k] = String(v);
+            found = true;
+        }
+        return found ? out : null;
+    }
+
+    function legacyKey(k) {
         if (!k) return false;
+        if (k === SAVE_KEY || k === BAK_KEY || k === PRE_KEY || k === BAD_KEY) return false;
         if (k === "rmPreImportAt" || k === "rmPreImportISO") return true;
-        return endsWith(k, BAK_SUFFIX) || endsWith(k, SIG_SUFFIX) || endsWith(k, PRE_SUFFIX);
+        if (/__(bak|sig|pre)$/.test(k)) {
+            /* 旧版辅助键：只要基键属于旧白名单 / 前缀就一起清理 */
+            var base = k.replace(/__(bak|sig|pre)$/, "");
+            return LEGACY_KEYS.indexOf(base) >= 0 || legacyPrefixMatch(base);
+        }
+        if (LEGACY_KEYS.indexOf(k) >= 0) return true;
+        return legacyPrefixMatch(k);
     }
 
-    /**
-     * 判断一个键是否属于本游戏管理的存档项（白名单键或已知前缀）。
-     * @param {string} k 存档键
-     * @returns {boolean}
-     */
-    function isManagedKey(k) {
-        if (!k) return false;
-        if (endsWith(k, BAK_SUFFIX) || endsWith(k, PRE_SUFFIX)) return true;
-        if (KEY_WHITELIST.indexOf(k) >= 0) return true;
-        for (var i = 0; i < KEY_PREFIX.length; i++) {
-            if (k.indexOf(KEY_PREFIX[i]) === 0) return true;
+    function legacyPrefixMatch(k) {
+        for (var i = 0; i < LEGACY_PREFIX.length; i++) {
+            if (k.indexOf(LEGACY_PREFIX[i]) === 0) return true;
         }
         return false;
     }
 
-    /* 简易校验和（djb2 变体）：只用于发现数据被手工改动，不承担安全职责 */
-    function sum(str) {
-        var h = 5381, i;
-        str = String(str);
-        for (i = 0; i < str.length; i++) {
-            h = ((h << 5) + h + str.charCodeAt(i)) | 0;
+    /**
+     * 把旧键集合规范化成新 rawMap：以默认值为底，覆盖旧值。
+     * @param {Object} legacy 旧键 → 原始字符串
+     * @returns {Object} rawMap
+     */
+    function normalizeLegacy(legacy) {
+        var map = defaultRawMap();
+        var k;
+        for (k in legacy) {
+            if (!hasOwn(legacy, k)) continue;
+            if (!legacyKeyRaw(k, legacy[k])) continue;
+            map[k] = String(legacy[k]);
         }
-        return (h >>> 0).toString(36);
+        return map;
     }
 
-    /* ---------- 3. Store 基础读写 ---------- */
+    function legacyKeyRaw(k, v) {
+        if (typeof v !== "string" || v.length > 200000) return false;
+        if (k === "rmSchemaVersion") return false;
+        if (LEGACY_KEYS.indexOf(k) >= 0) return true;
+        return legacyPrefixMatch(k);
+    }
 
     /**
-     * 存档门面：向上层提供永不抛出的读写接口。
-     * backend 记录实际使用的后端名，available 表示是否真正持久化，
-     * tampered 标记是否发现过数据被改动，schema 为当前存档结构号。
+     * 启动初始化：优先"旧键 → 新容器"的一次性迁移，然后正常读取，最后清理旧键。
+     * @returns {boolean} 是否发生了迁移
      */
+    function initFromStorage() {
+        var migrated = false;
+        if (!rawGet(SAVE_KEY)) {
+            var legacy = collectLegacy();
+            if (legacy) {
+                rawMap = normalizeLegacy(legacy);
+                migrated = true;
+                persist();
+                if (RM && RM.warn) RM.warn("storage:migrate", "已把 v1.2.x 旧存档迁移为新版签名容器");
+            }
+        }
+        if (!migrated) load();
+        /* 旧键无论是否迁移成功都清掉：新版本不再读取它们，留着只会占空间 */
+        var keys = rawKeys();
+        for (var i = 0; i < keys.length; i++) {
+            if (legacyKey(keys[i])) rawRemove(keys[i]);
+        }
+        if (migrated) {
+            Store.integrity = "migrated";
+            Store.migrated = true;
+        }
+        return migrated;
+    }
+
+    /* ---------- 11. Store 门面 ---------- */
+
     var Store = {
         backend: backendName,
         available: !!backend,
         tampered: false,
-        schema: 1,
+        integrity: "fresh",
+        migrated: false,
+        lastError: null,
+        schema: SCHEMA,
+        format: FORMAT,
+        saveKey: SAVE_KEY,
+        backupKey: BAK_KEY,
 
-        /**
-         * 读取原始字符串。
-         * @param {string} k 存档键
-         * @returns {string|null} 原始值；任何异常都返回 null
-         */
+        /* ----- 11.1 基础读写（与旧实现同名同语义） ----- */
+
         get: function(k) {
             try {
-                return rawGet(k);
+                if (typeof k !== "string" || !hasOwn(rawMap, k)) return null;
+                return rawMap[k];
             } catch (e) {
                 return null;
             }
         },
-        /**
-         * 写入原始字符串。
-         * @param {string} k 存档键
-         * @param {*} v 值，写入前统一转成字符串
-         * @returns {boolean} 是否写入成功
-         */
         set: function(k, v) {
             try {
-                return rawSet(k, String(v));
+                if (typeof k !== "string" || !isManagedKey(k)) return false;
+                rawMap[k] = String(v);
+                return persist();
             } catch (e) {
+                Store.lastError = e && e.message ? e.message : String(e);
                 return false;
             }
         },
-        /**
-         * 删除一个键；异常静默忽略。
-         * @param {string} k 存档键
-         */
         remove: function(k) {
             try {
-                rawRemove(k);
+                if (typeof k !== "string") return;
+                delete rawMap[k];
+                persist();
             } catch (e) {}
         },
-
-        /**
-         * 读取并解析 JSON；键缺失、空串或解析失败时返回 fallback 的深拷贝。
-         * @param {string} k 存档键
-         * @param {*} fallback 默认值
-         * @returns {*} 解析结果或默认值
-         */
         getJSON: function(k, fallback) {
             var raw = Store.get(k);
             if (raw === null || raw === undefined || raw === "") return clone(fallback);
@@ -249,141 +1641,150 @@
                 return clone(fallback);
             }
         },
-        /**
-         * 把值序列化为 JSON 后写入。
-         * @param {string} k 存档键
-         * @param {*} v 任意可序列化的值
-         * @returns {boolean} 是否写入成功
-         */
         setJSON: function(k, v) {
             try {
-                return rawSet(k, JSON.stringify(v));
+                return Store.set(k, stringify(v));
             } catch (e) {
                 return false;
             }
         },
 
-        /* ---------- 4. 受保护读写：主档损坏时自动回退备份 ---------- */
+        /* ----- 11.2 受保护读写 ----- */
 
         /**
-         * 读取一个受保护存档项：解析、结构校验、校验和比对全部通过才采用。
-         * 主档不可用时回退到 <key>__bak；两者都不可用则返回 fallback。
+         * 读取一个受保护存档项：解析 + 结构校验；失败时置 tampered 并回退默认值。
+         * 完整性由整个容器签名保证，这里主要防御运行期注入与逻辑错误。
          * @param {string} k 存档键
          * @param {*} fallback 默认值
          * @param {function(*):boolean} [validate] 结构校验器，默认要求普通对象
          * @returns {*} 可用的存档值
-         * @sideeffect 发现数据被改动时置 Store.tampered
          */
         guard: function(k, fallback, validate) {
-            var check = validate || isObj;
             var raw = Store.get(k);
-            var parsed = null, bad = false;
-            if (raw !== null && raw !== undefined && raw !== "") {
-                try {
-                    parsed = JSON.parse(raw);
-                } catch (e) {
-                    parsed = null;
-                }
+            if (raw === null || raw === undefined || raw === "") return clone(fallback);
+            var parsed = null;
+            try {
+                parsed = JSON.parse(raw);
+            } catch (e) {
+                parsed = null;
             }
-            if (parsed !== null && parsed !== undefined && check(parsed)) {
-                // 校验和不吻合：标记数据被改动过，但仍然采用（单人游戏不惩罚玩家）
-                var sig = Store.get(k + "__sig");
-                if (sig && sig !== sum(raw)) Store.tampered = true;
-                return parsed;
+            var check = validate || isObj;
+            var ok = false;
+            try {
+                ok = parsed !== null && parsed !== undefined && check(parsed);
+            } catch (e) {
+                ok = false;
             }
-            if (raw !== null && raw !== undefined && raw !== "") bad = true;
-            var bak = Store.getJSON(k + BAK_SUFFIX, null);
-            if (bak !== null && bak !== undefined && check(bak)) {
-                if (bad) Store.tampered = true;
-                if (window.RM) RM.warn("storage:guard", k + " 主档不可用，已回退备份档");
-                return bak;
-            }
-            if (bad) Store.tampered = true;
+            if (ok) return parsed;
+            Store.tampered = true;
+            if (RM && RM.warn) RM.warn("storage:guard", k + " 结构校验失败，已回退默认值");
             return clone(fallback);
         },
-
         /**
-         * 保存一个受保护存档项：先把当前好数据转入备份位，再写新值与校验和。
+         * 保存一个受保护存档项：与 setJSON 等价，保留旧接口名。
          * @param {string} k 存档键
-         * @param {*} v 待保存的值
-         * @returns {boolean} 总是返回 true，写入结果由底层降级逻辑保证
+         * @param {*} v 待保存值
+         * @returns {boolean}
          */
         save: function(k, v) {
-            // 顺序很重要：先备份上一份好数据，再写新值，中途失败也能回退
-            var prev = Store.get(k);
-            if (prev !== null && prev !== undefined && prev !== "") {
-                try {
-                    JSON.parse(prev);
-                    Store.set(k + BAK_SUFFIX, prev);
-                } catch (e) {}
-            }
-            var str = JSON.stringify(v);
-            Store.set(k, str);
-            Store.set(k + "__sig", sum(str));
-            return true;
+            return Store.setJSON(k, v);
         },
 
-        /* ---------- 5. 导出与导入 ---------- */
+        /* ----- 11.3 导出 / 导入 ----- */
 
         /**
-         * 收集全部受管存档项，打包成可导出的 JSON 结构。
-         * @returns {{app:string,schema:number,exportedAt:string,data:Object}}
+         * 生成可下载的存档文件对象（紧凑签名容器 + 少量可读元信息）。
+         * @returns {Object}
          */
-        exportAll: function() {
-            var data = {}, keys = rawKeys(), i, k;
-            for (i = 0; i < keys.length; i++) {
-                k = keys[i];
-                if (!isManagedKey(k) || isAuxKey(k)) continue;
-                var v = Store.get(k);
-                if (v === null || v === undefined) continue;
-                data[k] = v;
-            }
+        exportFile: function() {
+            var savedAt = Math.floor(Date.now() / 1000);
+            var payload = encodeRawMap(rawMap, savedAt);
+            var sealed = sealPayload(payload, savedAt);
             return {
-                app: "reverse-minesweeper",
-                schema: Store.schema,
+                app: RM.APP_NAME || "ReverseMinesweeper",
+                schema: SCHEMA,
+                format: FORMAT,
                 exportedAt: new Date().toISOString(),
-                data: data
+                encodedAt: new Date(savedAt * 1000).toISOString(),
+                size: sealed.text.length,
+                bytes: sealed.bytes,
+                payloadBytes: sealed.payloadBytes,
+                compressed: sealed.compressed,
+                digest: hexOf(sha256(payload), 8),
+                save: sealed.text
             };
         },
 
         /**
-         * 把一份导出结构写回本地存储。
-         * 覆盖模式先清空受管键但保留辅助键，导错时仍可回退快照；
-         * 合并模式只写入文件中的键，合并结果由调用方预先算好。
-         * @param {Object} payload 导出结构
+         * 校验并解析一个存档文件对象；不写入任何存储。
+         * @param {Object} payload 文件对象
+         * @returns {{ok:boolean, error?:string, code?:string, rawMap?:Object,
+         *   savedAt?:number, bytes?:number, payloadBytes?:number, digest?:string}}
+         */
+        parseFile: function(payload) {
+            try {
+                if (!payload || typeof payload !== "object") {
+                    return { ok: false, code: "bad-file", error: "不是有效的存档文件" };
+                }
+                if (payload.app !== (RM.APP_NAME || "ReverseMinesweeper")) {
+                    return { ok: false, code: "bad-app", error: "不是本游戏的存档文件" };
+                }
+                if (typeof payload.save !== "string" || !payload.save) {
+                    return { ok: false, code: "bad-file", error: "存档文件缺少签名数据段" };
+                }
+                if (payload.format && payload.format !== FORMAT) {
+                    return { ok: false, code: "format", error: "存档容器版本不兼容（v" + payload.format + "）" };
+                }
+                if (payload.schema && payload.schema > SCHEMA) {
+                    return { ok: false, code: "schema", error: "存档来自更新的版本（schema " + payload.schema + "）" };
+                }
+                var opened = openEnvelope(payload.save);
+                if (!opened.ok) {
+                    return { ok: false, code: opened.code || "signature", error: opened.reason || "存档校验失败" };
+                }
+                return {
+                    ok: true,
+                    rawMap: opened.rawMap,
+                    savedAt: opened.savedAt,
+                    bytes: opened.envBytes,
+                    payloadBytes: opened.payloadBytes,
+                    digest: opened.digest,
+                    compressed: opened.compressed
+                };
+            } catch (e) {
+                return { ok: false, code: "corrupt", error: e && e.message ? e.message : String(e) };
+            }
+        },
+
+        /**
+         * 把存档文件写回本地：覆盖会整体替换，合并按"只增不减"的规则取并集。
+         * @param {Object} payload 文件对象
          * @param {{merge?:boolean}} [opt] 导入选项
          * @returns {{ok:boolean,count:number,skipped:number,error:?string}}
          */
-        importAll: function(payload, opt) {
+        importFile: function(payload, opt) {
             opt = opt || {};
             var res = { ok: false, count: 0, skipped: 0, error: null };
+            var parsed = Store.parseFile(payload);
+            if (!parsed.ok) {
+                res.error = parsed.error || "存档校验失败";
+                return res;
+            }
             try {
-                if (!payload || payload.app !== "reverse-minesweeper" || !isObj(payload.data)) {
-                    res.error = "不是本游戏的存档文件";
-                    return res;
+                var next;
+                if (opt.merge) {
+                    next = mergeRawMap(rawMap, parsed.rawMap);
+                } else {
+                    next = sanitizeImported(parsed.rawMap);
                 }
-                var keys = Object.keys(payload.data);
-                var i, k, v;
-                if (!opt.merge) {
-                    var all = rawKeys();
-                    for (i = 0; i < all.length; i++) {
-                        // 清空时跳过辅助键：保住"导入前快照"和校验和，导错了还能撤
-                        if (isManagedKey(all[i]) && !isAuxKey(all[i])) rawRemove(all[i]);
-                    }
-                }
-                for (i = 0; i < keys.length; i++) {
-                    k = keys[i];
-                    v = payload.data[k];
-                    if (!isManagedKey(k) || isAuxKey(k)) {
-                        res.skipped++;
-                        continue;
-                    }
-                    if (v === null || v === undefined) continue;
-                    rawSet(k, String(v));
-                    res.count++;
-                }
-                Store.set("rmSchemaVersion", String(Store.schema));
+                rawMap = next;
+                persist();
+                // 导入的是刚验签通过的文件：当前存档已整体替换，旧的异常标记不再适用
+                Store.tampered = false;
+                Store.integrity = "ok";
                 res.ok = true;
+                res.count = Object.keys(parsed.rawMap).length;
+                res.skipped = 0;
                 return res;
             } catch (e) {
                 res.error = e && e.message ? e.message : String(e);
@@ -391,12 +1792,277 @@
             }
         },
 
+        /* ----- 11.4 兼容旧导出入口的别名（仅返回内存态，不用于文件） ----- */
+
         /**
-         * 触发浏览器下载一个文本文件，用于导出存档。
+         * 返回当前受管键的原始值副本（调试 / 对比用，不是导出文件格式）。
+         * @returns {{app:string,schema:number,exportedAt:string,data:Object}}
+         */
+        exportAll: function() {
+            var data = {};
+            for (var k in rawMap) {
+                if (hasOwn(rawMap, k) && isManagedKey(k)) data[k] = rawMap[k];
+            }
+            return {
+                app: RM.APP_NAME || "ReverseMinesweeper",
+                schema: SCHEMA,
+                exportedAt: new Date().toISOString(),
+                data: data
+            };
+        },
+
+        /* ----- 11.5 存档画像 / 摘要 / 详情 ----- */
+
+        profile: function() {
+            return profileOfRawMap(rawMap);
+        },
+        profileOfFile: function(payload) {
+            var parsed = Store.parseFile(payload);
+            if (!parsed.ok) return null;
+            return profileOfRawMap(parsed.rawMap);
+        },
+        previewMergeFile: function(payload) {
+            var parsed = Store.parseFile(payload);
+            if (!parsed.ok) return null;
+            var merged = mergeRawMap(rawMap, parsed.rawMap);
+            return { rawMap: merged, profile: profileOfRawMap(merged) };
+        },
+        buildMergedFile: function(payload) {
+            var parsed = Store.parseFile(payload);
+            if (!parsed.ok) return null;
+            var merged = mergeRawMap(rawMap, parsed.rawMap);
+            var savedAt = Math.floor(Date.now() / 1000);
+            var sealed = sealPayload(encodeRawMap(merged, savedAt), savedAt);
+            return {
+                app: RM.APP_NAME || "ReverseMinesweeper",
+                schema: SCHEMA,
+                format: FORMAT,
+                exportedAt: new Date().toISOString(),
+                size: sealed.text.length,
+                bytes: sealed.bytes,
+                payloadBytes: sealed.payloadBytes,
+                digest: hexOf(sha256(encodeRawMap(merged, savedAt)), 8),
+                save: sealed.text
+            };
+        },
+
+        /**
+         * 汇总当前存档：键数量、累计胜场、体积、后端与完整性。
+         * @returns {Object}
+         */
+        summarize: function() {
+            var p = Store.profile();
+            var status = Store.getStatus();
+            return {
+                keys: p.keys,
+                wins: p.totalWins,
+                backend: backendName,
+                tampered: Store.tampered,
+                bytes: status.size,
+                payloadBytes: status.payloadBytes,
+                schema: SCHEMA,
+                format: FORMAT,
+                integrity: Store.integrity,
+                savedAt: status.savedAt,
+                savedAtISO: status.savedAtISO
+            };
+        },
+
+        /**
+         * 读取当前存档文件状态（体积 / 保存时间 / 完整性）。
+         * @returns {Object}
+         */
+        getStatus: function() {
+            var raw = rawGet(SAVE_KEY);
+            var envBytes = 0, payloadBytes = 0, savedAt = lastSavedAt, compressed = false;
+            var encoded = "";
+            if (raw) {
+                encoded = String(raw);
+                envBytes = Math.floor(encoded.length * 3 / 4);
+                var opened = openEnvelope(raw);
+                if (opened.ok) {
+                    payloadBytes = opened.payloadBytes || 0;
+                    envBytes = opened.envBytes || envBytes;
+                    savedAt = opened.savedAt || savedAt;
+                    compressed = !!opened.compressed;
+                }
+            }
+            return {
+                ok: !!raw,
+                size: raw ? String(raw).length : 0,
+                bytes: envBytes,
+                payloadBytes: payloadBytes,
+                compressed: compressed,
+                savedAt: savedAt || 0,
+                savedAtISO: savedAt ? new Date(savedAt * 1000).toISOString() : "",
+                backend: backendName,
+                available: !!backend,
+                integrity: Store.integrity,
+                tampered: Store.tampered,
+                schema: SCHEMA,
+                format: FORMAT,
+                keys: Object.keys(rawMap).length
+            };
+        },
+
+        /**
+         * 重新从后端读取并验签当前主档，用于"存档详情"里的即时校验。
+         * @returns {{ok:boolean, code?:string, error?:string, size?:number,
+         *   savedAt?:number, savedAtISO?:string}}
+         */
+        verify: function() {
+            var raw = rawGet(SAVE_KEY);
+            if (!raw) return { ok: false, code: "missing", error: "尚未生成存档" };
+            var opened = openEnvelope(raw);
+            if (!opened.ok) return { ok: false, code: opened.code, error: opened.reason };
+            return {
+                ok: true,
+                size: String(raw).length,
+                bytes: opened.envBytes,
+                payloadBytes: opened.payloadBytes,
+                savedAt: opened.savedAt,
+                savedAtISO: opened.savedAt ? new Date(opened.savedAt * 1000).toISOString() : "",
+                compressed: opened.compressed
+            };
+        },
+
+        /**
+         * 生成"存档详情"所需的完整结构化数据（成绩 / 成就时间 / 挑战进度等）。
+         * @returns {Object}
+         */
+        inspect: function() {
+            var records = readRecords(rawMap);
+            var ach = readAchievementSummary(rawMap);
+            var ch = readChallengeSummary(rawMap);
+            var series = readSeriesSummary(rawMap);
+            var status = Store.getStatus();
+            var extras = [];
+            for (var k in rawMap) {
+                if (!hasOwn(rawMap, k)) continue;
+                if (STRUCTURED_KEYS[k]) continue;
+                extras.push(k);
+            }
+            extras.sort();
+            return {
+                meta: {
+                    schema: SCHEMA,
+                    format: FORMAT,
+                    backend: backendName,
+                    available: !!backend,
+                    integrity: Store.integrity,
+                    tampered: Store.tampered,
+                    size: status.size,
+                    bytes: status.bytes,
+                    payloadBytes: status.payloadBytes,
+                    compressed: status.compressed,
+                    savedAt: status.savedAt,
+                    savedAtISO: status.savedAtISO,
+                    keys: status.keys,
+                    migrated: Store.migrated
+                },
+                records: records.list,
+                achievements: ach,
+                challenges: ch.list,
+                teaching: { done: ch.teachingDone, total: 12 },
+                series: series,
+                settings: {
+                    placeMode: rawMap.placeMode_v1 === "click" ? "click" : "drag",
+                    influenceHint: rawMap.mineInfluenceHint === "true",
+                    effectPreview: rawMap.mineEffectPreview === "true",
+                    sound: parseJSON(rawMap.mineSoundSettings, { bgm: 50, sfx: 100 })
+                },
+                extras: extras
+            };
+        },
+
+        /* ----- 11.6 导入前快照 / 撤销 ----- */
+
+        /**
+         * 把当前存档复制一份到导入前快照位，导入后可一键回退。
+         * @returns {number} 快照覆盖的受管键数量
+         */
+        backupCurrent: function() {
+            try {
+                var raw = rawGet(SAVE_KEY);
+                if (!raw) {
+                    var payload = encodeRawMap(rawMap, Math.floor(Date.now() / 1000));
+                    raw = sealPayload(payload, Math.floor(Date.now() / 1000)).text;
+                }
+                var snapshot = {
+                    at: Date.now(),
+                    iso: new Date().toISOString(),
+                    save: raw
+                };
+                rawSet(PRE_KEY, stringify(snapshot));
+                /* 快照时间只保存在 PRE_KEY 内部；这里不再额外写辅助键，
+                 * 避免绕开受管键规则产生无意义的散键 */
+                return Object.keys(rawMap).length;
+            } catch (e) {
+                Store.lastError = e && e.message ? e.message : String(e);
+                return 0;
+            }
+        },
+        hasBackup: function() {
+            return !!rawGet(PRE_KEY);
+        },
+        backupInfo: function() {
+            var raw = rawGet(PRE_KEY);
+            if (!raw) return null;
+            var snap = parseJSON(raw, null);
+            if (!isObj(snap) || !snap.save) return null;
+            return { at: numOr(snap.at, 0), iso: typeof snap.iso === "string" ? snap.iso : "" };
+        },
+        restoreBackup: function() {
+            try {
+                var raw = rawGet(PRE_KEY);
+                if (!raw) return 0;
+                var snap = parseJSON(raw, null);
+                if (!isObj(snap) || typeof snap.save !== "string") return 0;
+                var opened = openEnvelope(snap.save);
+                if (!opened.ok) {
+                    Store.lastError = opened.reason || "快照校验失败";
+                    return 0;
+                }
+                rawMap = opened.rawMap;
+                persist();
+                // 快照本身通过验签：回退后旧主档的异常标记清空
+                Store.tampered = false;
+                Store.integrity = "ok";
+                return Object.keys(rawMap).length;
+            } catch (e) {
+                Store.lastError = e && e.message ? e.message : String(e);
+                return 0;
+            }
+        },
+        clearBackup: function() {
+            rawRemove(PRE_KEY);
+            Store.remove("rmPreImportAt");
+            Store.remove("rmPreImportISO");
+        },
+
+        /* ----- 11.7 清空 / 下载 / 调试导出 ----- */
+
+        /**
+         * 清空全部存档数据；不立即重新落盘，由调用方刷新页面。
+         */
+        clearAll: function() {
+            rawRemove(SAVE_KEY);
+            rawRemove(BAK_KEY);
+            rawRemove(PRE_KEY);
+            rawRemove(BAD_KEY);
+            rawMap = defaultRawMap();
+            lastSavedAt = 0;
+            lastEnvelope = null;
+            Store.tampered = false;
+            Store.integrity = "fresh";
+            Store.lastError = null;
+        },
+
+        /**
+         * 触发浏览器下载一个文本文件。
          * @param {string} filename 文件名
          * @param {string} text 文件内容
          * @returns {boolean} 是否成功发起下载
-         * @sideeffect 创建并移除临时 <a> 节点，延时释放 Blob URL
          */
         download: function(filename, text) {
             try {
@@ -418,416 +2084,457 @@
         },
 
         /**
-         * 汇总存档概况：受管键数量、累计胜场、后端类型与改动标记。
-         * @returns {{keys:number,wins:number,backend:string,tampered:boolean}}
+         * 返回受管键的浅拷贝（调试、导入对比与自动测试使用）。
+         * @returns {Object}
          */
-        summarize: function() {
-            var d = Store.exportAll().data;
-            var n = 0, i = 0;
-            for (var k in d) {
-                if (Object.prototype.hasOwnProperty.call(d, k) && !isAuxKey(k)) n++;
+        raw: function() {
+            var out = {};
+            for (var k in rawMap) {
+                if (hasOwn(rawMap, k)) out[k] = rawMap[k];
             }
-            var wins = Store.getJSON("mineWins", {});
-            for (var key in wins) {
-                if (Object.prototype.hasOwnProperty.call(wins, key)) i += (wins[key] || 0);
+            return out;
+        },
+
+        /* 仅测试 / 排障使用：只暴露不涉及签名密钥的编解码原语。
+         * 刻意不暴露 sealPayload：它是唯一能用内嵌密钥生成合法签名的入口，
+         * 暴露到 console 会显著降低伪造存档的门槛。 */
+        _internals: {
+            sha256: sha256,
+            hmacSha256: hmacSha256,
+            b64encode: b64encode,
+            b64decode: b64decode,
+            lzCompress: lzCompress,
+            lzDecompress: lzDecompress,
+            encodeRawMap: encodeRawMap,
+            decodePayload: decodePayload,
+            openEnvelope: openEnvelope,
+            mergeRawMap: function(a, b) {
+                return mergeRawMap(a, b);
+            },
+            profileOfRawMap: function(m) {
+                return profileOfRawMap(m);
             }
-            return { keys: n, wins: i, backend: backendName, tampered: Store.tampered };
         }
     };
 
-    /* ---------- 6. 存档画像 ---------- */
-
-    /* 把存档数据翻译成可读画像，供"导入存档"提示框做三列对比。 */
-
-    /* 参与成绩统计的难度 key，顺序与界面列表一致 */
-    var DIFFS = ["easy", "medium", "hard", "hell", "brain"];
-    /* 五个地雷系列 key，顺序与解锁顺序一致 */
-    var SERIES = ["basic", "special", "physics", "symmetry", "tactical"];
+    /* ---------- 12. 存档画像 / 合并 / 校验辅助 ---------- */
 
     /**
-     * 解析存档中的字符串值：能解析成 JSON 就返回解析结果，否则原样返回。
-     * @param {*} v 原始值
-     * @returns {*} 解析后的值
+     * 解析三组成绩数据，返回列表形式。
+     * @param {Object} map rawMap
+     * @returns {{list:Array, wins:Object, rec:Object, last:Object, total:number}}
      */
-    function parseVal(v) {
-        if (v === undefined || v === null) return undefined;
-        if (typeof v !== "string") return v;
-        try {
-            return JSON.parse(v);
-        } catch (e) {
-            return v;
+    function readRecords(map) {
+        var wins = parseJSON(map.mineWins, {});
+        var rec = parseJSON(map.mineRecords, {});
+        var last = parseJSON(map.mineLastTimes, {});
+        var list = [], total = 0, i, d, w, r, l;
+        for (i = 0; i < DIFFS.length; i++) {
+            d = DIFFS[i];
+            w = readNumOr0(wins[d]);
+            r = (rec[d] === null || rec[d] === undefined) ? null : readNumOr0(rec[d]);
+            l = (last[d] === null || last[d] === undefined) ? null : readNumOr0(last[d]);
+            total += w;
+            list.push({ key: d, wins: w, best: r, last: l });
         }
+        return { list: list, wins: wins, rec: rec, last: last, total: total };
     }
 
     /**
-     * 转为数字；非有限值回退到默认值。
-     * @param {*} v 原始值
-     * @param {number} d 默认值
-     * @returns {number}
+     * 汇总成就：解锁数量、最早 / 最晚解锁时间与逐项时间。
+     * @param {Object} map rawMap
+     * @returns {Object}
      */
-    function numOr(v, d) {
-        var n = Number(v);
-        return isFinite(n) ? n : d;
-    }
-
-    /**
-     * 判断布尔型存档值：接受真正的布尔与字符串 "true" 两种写法。
-     * @param {*} v 原始值
-     * @returns {boolean}
-     */
-    function isTrueish(v) {
-        return v === true || v === "true";
-    }
-
-    /**
-     * 返回系列解锁与开关的默认状态：仅基础系列开启。
-     * @returns {{basic:boolean,special:boolean,physics:boolean,
-     *   symmetry:boolean,tactical:boolean}}
-     */
-    function defaultSeries() {
-        return { basic: true, special: false, physics: false, symmetry: false, tactical: false };
-    }
-
-    /**
-     * 把一个"键 → 值"的存档集合翻译成可读画像，供导入对比展示。
-     * @param {Object} [data] 存档数据，值可以是字符串或已解析值
-     * @returns {Object} 画像：键数量、总胜场、各难度胜场与纪录、成就数量
-     *   与计数、系列开启数量、教学总进度、彩蛋标记
-     */
-    function profile(data) {
-        var d = data || {};
-        /* 内部取值器：只接受对象型值，缺失或类型不符时返回默认值 */
-        function get(key, fb) {
-            var v = parseVal(d[key]);
-            if (v === undefined || v === null || v === "") return fb;
-            if (typeof v === "object") return v;
-            return fb;
+    function readAchievementSummary(map) {
+        var s = parseJSON(map.achievementState_v1, null);
+        var unlocked = (isObj(s) && isObj(s.unlocked)) ? s.unlocked : {};
+        var items = [], id, at;
+        var firstAt = 0, lastAt = 0;
+        for (id in unlocked) {
+            if (!hasOwn(unlocked, id)) continue;
+            at = parseTimeMs(unlocked[id]);
+            items.push({ id: id, at: at ? new Date(at).toISOString() : "", atMs: at });
+            if (at) {
+                if (!firstAt || at < firstAt) firstAt = at;
+                if (!lastAt || at > lastAt) lastAt = at;
+            }
         }
-        var w = get("mineWins", {});
-        var r = get("mineRecords", {});
-        var su = get("seriesUnlocked", defaultSeries());
-        var ss = get("seriesState", defaultSeries());
-        var ach = get("achievementState_v1", {});
-        var unlocked = (ach && ach.unlocked) || {};
-
-        var tutMap = {};
-        var tutTotal = 0;
-        tutMap.basic = numOr(parseVal(d["tutorialStep"]), 0);
-        for (var i = 0; i < SERIES.length; i++) {
-            var s = SERIES[i];
-            if (s === "basic") continue;
-            tutMap[s] = numOr(parseVal(d["tutorial_" + s]), 0);
+        items.sort(function(a, b) {
+            return (a.atMs || 0) - (b.atMs || 0);
+        });
+        var total = ACH_IDS ? ACH_IDS.length : 45;
+        var hidden = 0, i;
+        if (ACH_IDS) {
+            for (i = 0; i < items.length; i++) {
+                /* 隐藏成就的判断由 13 号模块负责；这里只按 id 前缀/全量返回，
+                 * 具体"隐藏已解锁数量"由界面层用 Achievements.summary() 补充 */
+                if (/^hidden_|^free_20x20$|^brain_slow$|^bgm_adjust$|^new_game_spam$|^crazy_thursday$/.test(items[i].id)) hidden++;
+            }
         }
-        for (var kk in tutMap) {
-            if (Object.prototype.hasOwnProperty.call(tutMap, kk)) tutTotal += tutMap[kk];
-        }
-
-        /* 统计系列状态对象中已开启的系列数量 */
-        function countSeries(obj) {
-            var n = 0;
-            for (var i = 0; i < SERIES.length; i++) if (obj[SERIES[i]]) n++;
-            return n;
-        }
-
-        var total = 0, winsObj = {}, recObj = {};
-        for (var i2 = 0; i2 < DIFFS.length; i2++) {
-            var x = DIFFS[i2];
-            winsObj[x] = numOr(w[x], 0);
-            recObj[x] = (r[x] === null || r[x] === undefined) ? null : numOr(r[x], null);
-            total += winsObj[x];
-        }
-
-        var keysN = 0;
-        for (var k3 in d) {
-            if (Object.prototype.hasOwnProperty.call(d, k3) && !isAuxKey(k3)) keysN++;
-        }
-
         return {
-            keys: keysN,
-            totalWins: total,
-            wins: winsObj,
-            rec: recObj,
-            achCount: Object.keys(unlocked).length,
-            achCounters: (ach && ach.counters) || {},
-            seriesUnlocked: countSeries(su),
-            seriesOn: countSeries(ss),
-            tutorialTotal: tutTotal,
-            brainCleared: isTrueish(parseVal(d["brainCleared"])),
-            tutorialCompleted: isTrueish(parseVal(d["tutorialCompleted"]))
+            total: total,
+            unlocked: items.length,
+            hiddenUnlocked: hidden,
+            firstAt: firstAt ? new Date(firstAt).toISOString() : "",
+            lastAt: lastAt ? new Date(lastAt).toISOString() : "",
+            items: items
         };
     }
 
-    /* ---------- 7. 存档合并 ---------- */
-
-    /* 合并规则（保守，只增不减，反复导入不会让数据虚增）：
-     *   · 成就解锁、系列解锁、系列开关：取并集，已解锁的不会倒退
-     *   · 最快纪录：取更快的（数值更小）
-     *   · 通关次数与成就计数：取较大值
-     *   · 教学进度：取较大值
-     *   · 布尔型（脑王彩蛋等）：有一侧为真即为真
-     *   · 其余偏好设置：以当前存档为准
-     */
-
     /**
-     * 合并单个存档项：按数据含义选择取并集、取较大值、取更小值或保留当前。
-     * @param {string} k 存档键
-     * @param {*} a 当前存档中的值
-     * @param {*} b 导入文件中的值
-     * @returns {*} 合并结果
+     * 汇总挑战：基础 + 四个系列 + 教学完成状态。
+     * @param {Object} map rawMap
+     * @returns {{list:Array, teachingDone:boolean, basicDone:boolean, doneCount:number}}
      */
-    function mergeValue(k, a, b) {
-        // a = 当前存档的值，b = 导入文件的值（undefined 表示该侧缺这一项）
-        if (k === "mineWins") {
-            var o = {}, i;
-            for (i = 0; i < DIFFS.length; i++) {
-                var d = DIFFS[i];
-                o[d] = Math.max(numOr(a && a[d], 0), numOr(b && b[d], 0));
-            }
-            return o;
+    function readChallengeSummary(map) {
+        var basic = readStep(map, "tutorialStep");
+        var basicDone = map.tutorialCompleted === "true" || basic >= 5;
+        var teachingDone = map.teachFinished === "true";
+        var unlocked = parseJSON(map.seriesUnlocked, defaultSeriesObj());
+        var list = [
+            { key: "basic", step: basic, total: 5, done: basicDone, locked: false }
+        ];
+        var doneCount = basicDone ? 1 : 0;
+        for (var i = 0; i < SERIES_NONBASIC.length; i++) {
+            var c = SERIES_NONBASIC[i];
+            var step = readStep(map, "tutorial_" + c);
+            var done = step >= 5 || !!(isObj(unlocked) && unlocked[c]);
+            if (done) doneCount++;
+            list.push({
+                key: c,
+                step: step,
+                total: 5,
+                done: done,
+                locked: !basicDone
+            });
         }
-        if (k === "mineRecords") {
-            var o2 = {}, i2;
-            for (i2 = 0; i2 < DIFFS.length; i2++) {
-                var d2 = DIFFS[i2];
-                var va = (a && a[d2] === null || a && a[d2] === undefined) ? null : numOr(a && a[d2], null);
-                var vb = (b && b[d2] === null || b && b[d2] === undefined) ? null : numOr(b && b[d2], null);
-                if (va === null) o2[d2] = vb;
-                else if (vb === null) o2[d2] = va;
-                else o2[d2] = Math.min(va, vb);
-            }
-            return o2;
-        }
-        if (k === "mineLastTimes") {
-            // "本次用时"没有合并价值，以当前存档为准
-            return a !== undefined ? a : b;
-        }
-        if (k === "achievementState_v1") {
-            var A = (a && typeof a === "object") ? a : {};
-            var B = (b && typeof b === "object") ? b : {};
-            var out = {}, key;
-            var keys = {};
-            for (key in A) if (Object.prototype.hasOwnProperty.call(A, key)) keys[key] = 1;
-            for (key in B) if (Object.prototype.hasOwnProperty.call(B, key)) keys[key] = 1;
-            for (key in keys) {
-                if (!Object.prototype.hasOwnProperty.call(keys, key)) continue;
-                var va2 = A[key], vb2 = B[key];
-                if (key === "unlocked") {
-                    out.unlocked = {};
-                    var u = {};
-                    var id;
-                    for (id in va2 || {}) if (Object.prototype.hasOwnProperty.call(va2, id)) u[id] = true;
-                    for (id in vb2 || {}) if (Object.prototype.hasOwnProperty.call(vb2, id)) u[id] = true;
-                    out.unlocked = u;
-                } else if (key === "counters" || key === "basicTypesUsed") {
-                    var c = {};
-                    var cid;
-                    for (cid in va2 || {}) if (Object.prototype.hasOwnProperty.call(va2, cid)) c[cid] = numOr(va2[cid], 0);
-                    for (cid in vb2 || {}) {
-                        if (!Object.prototype.hasOwnProperty.call(vb2, cid)) continue;
-                        c[cid] = Math.max(numOr(c[cid], 0), numOr(vb2[cid], 0));
-                    }
-                    out[key] = c;
-                } else if (key === "currentRunCategories") {
-                    out[key] = null;     // Set，序列化后无意义，重置
-                } else if (typeof va2 === "boolean" || typeof vb2 === "boolean") {
-                    out[key] = !!(va2 || vb2);
-                } else if (typeof va2 === "number" || typeof vb2 === "number") {
-                    out[key] = Math.max(numOr(va2, 0), numOr(vb2, 0));
-                } else {
-                    out[key] = va2 !== undefined ? va2 : vb2;
-                }
-            }
-            out.currentRunFlawless = true;
-            out.currentRunDeletes = 0;
-            return out;
-        }
-        if (k === "seriesUnlocked" || k === "seriesState") {
-            var S1 = (a && typeof a === "object") ? a : defaultSeries();
-            var S2 = (b && typeof b === "object") ? b : defaultSeries();
-            var so = {};
-            for (var i3 = 0; i3 < SERIES.length; i3++) {
-                var s3 = SERIES[i3];
-                so[s3] = !!(S1[s3] || S2[s3]);
-            }
-            if (k === "seriesUnlocked") so.basic = true;
-            return so;
-        }
-        if (k === "tutorialStep" || k.indexOf("tutorial_") === 0) {
-            return Math.max(numOr(parseVal(a), 0), numOr(parseVal(b), 0));
-        }
-        if (k === "tutorialCompleted" || k === "brainCleared" ||
-            k === "brainUnlockedNotified" || k === "hasVisitedBefore") {
-            return (isTrueish(a) || isTrueish(b)) ? "true" : (a !== undefined ? a : b);
-        }
-        return a !== undefined ? a : b;
+        return {
+            list: list,
+            teachingDone: teachingDone,
+            basicDone: basicDone,
+            doneCount: doneCount
+        };
     }
 
     /**
-     * 把当前存档与导入数据按键合并，返回"键 → 序列化字符串"的完整结果。
-     * 辅助键不参与合并，合并后值为 undefined 的键直接丢弃。
-     * @param {Object} cur 当前存档数据
-     * @param {Object} file 导入文件数据
-     * @returns {Object} 合并后的存档数据
+     * 汇总系列解锁 / 开关状态。
+     * @param {Object} map rawMap
+     * @returns {{state:Object, unlocked:Object, unlockedCount:number, onCount:number}}
      */
-    function mergeData(cur, file) {
+    function readSeriesSummary(map) {
+        var state = parseJSON(map.seriesState, defaultSeriesObj());
+        var unlocked = parseJSON(map.seriesUnlocked, defaultSeriesObj());
+        var onCount = 0, unlockedCount = 0;
+        if (!isObj(state)) state = defaultSeriesObj();
+        if (!isObj(unlocked)) unlocked = defaultSeriesObj();
+        for (var i = 0; i < SERIES.length; i++) {
+            if (state[SERIES[i]]) onCount++;
+            if (unlocked[SERIES[i]]) unlockedCount++;
+        }
+        return { state: state, unlocked: unlocked, unlockedCount: unlockedCount, onCount: onCount };
+    }
+
+    /**
+     * 由 rawMap 生成可读画像（导入对比 / 摘要 / 测试共用）。
+     * @param {Object} map rawMap
+     * @returns {Object}
+     */
+    function profileOfRawMap(map) {
+        var rec = readRecords(map);
+        var ach = readAchievementSummary(map);
+        var ch = readChallengeSummary(map);
+        var series = readSeriesSummary(map);
+        var tutorialTotal = ch.list[0].step;
+        for (var i = 1; i < ch.list.length; i++) tutorialTotal += ch.list[i].step;
+        var keys = 0, k;
+        for (k in map) {
+            if (hasOwn(map, k) && isManagedKey(k)) keys++;
+        }
+        /* 只有当前内存态能拿到真实体积 / 完整性；文件预览不读后端，避免把
+         * "当前存档"的体积误当成"文件"的体积。 */
+        var isCurrent = (map === rawMap);
+        var status = isCurrent ? Store.getStatus() : { size: 0, payloadBytes: 0 };
+        return {
+            keys: keys,
+            schema: SCHEMA,
+            format: FORMAT,
+            bytes: status.size,
+            payloadBytes: status.payloadBytes,
+            integrity: isCurrent ? Store.integrity : "file",
+            tampered: isCurrent ? Store.tampered : false,
+            totalWins: rec.total,
+            wins: rec.wins,
+            rec: rec.rec,
+            last: rec.last,
+            records: rec.list,
+            achCount: ach.unlocked,
+            achTotal: ach.total,
+            achFirstAt: ach.firstAt,
+            achLastAt: ach.lastAt,
+            achievements: ach,
+            seriesUnlocked: series.unlockedCount,
+            seriesOn: series.onCount,
+            tutorialTotal: tutorialTotal,
+            challenges: ch.list,
+            challengesDone: ch.doneCount,
+            teachingDone: ch.teachingDone,
+            basicDone: ch.basicDone,
+            brainCleared: map.brainCleared === "true",
+            tutorialCompleted: ch.basicDone
+        };
+    }
+
+    /**
+     * 合并两份 rawMap（保守，只增不减）：
+     *   · 最快纪录取更小，通关次数 / 计数取更大
+     *   · 成就解锁取并集，同一成就保留更早的解锁时间
+     *   · 挑战进度取更大值，系列解锁 / 开关取并集，布尔值取或
+     *   · 偏好设置保持当前存档
+     * @param {Object} cur 当前 rawMap
+     * @param {Object} file 导入 rawMap
+     * @returns {Object} 合并后的 rawMap
+     */
+    function mergeRawMap(cur, file) {
+        cur = cur || {};
+        file = file || {};
         var out = {};
-        var seen = {};
-        var k;
-        for (k in cur || {}) if (Object.prototype.hasOwnProperty.call(cur, k)) seen[k] = 1;
-        for (k in file || {}) if (Object.prototype.hasOwnProperty.call(file, k)) seen[k] = 1;
-        for (k in seen) {
-            if (!Object.prototype.hasOwnProperty.call(seen, k)) continue;
-            if (isAuxKey(k)) continue;
-            var v = mergeValue(k, parseVal(cur ? cur[k] : undefined), parseVal(file ? file[k] : undefined));
-            if (v === undefined) continue;
-            out[k] = (typeof v === "string") ? v : JSON.stringify(v);
+        var i, d, k;
+        var curWins = parseJSON(cur.mineWins, {});
+        var fileWins = parseJSON(file.mineWins, {});
+        var curRec = parseJSON(cur.mineRecords, {});
+        var fileRec = parseJSON(file.mineRecords, {});
+        var curLast = parseJSON(cur.mineLastTimes, {});
+        var fileLast = parseJSON(file.mineLastTimes, {});
+        var wins = {}, rec = {}, last = {};
+        for (i = 0; i < DIFFS.length; i++) {
+            d = DIFFS[i];
+            wins[d] = Math.max(readNumOr0(curWins[d]), readNumOr0(fileWins[d]));
+            rec[d] = minTime(curRec[d], fileRec[d]);
+            last[d] = (curLast[d] === null || curLast[d] === undefined) ? fileLast[d] : curLast[d];
+            if (last[d] === undefined) last[d] = null;
+        }
+        out.mineWins = stringify(wins);
+        out.mineRecords = stringify(rec);
+        out.mineLastTimes = stringify(last);
+
+        /* 成就：返回完整状态对象，避免丢失计数器与标记 */
+        var mergedAch = mergeAchievementState(
+            parseJSON(cur.achievementState_v1, null),
+            parseJSON(file.achievementState_v1, null)
+        );
+        if (mergedAch) out.achievementState_v1 = stringify(mergedAch);
+
+        /* 挑战进度取较大值；完成标记取或 */
+        var curBasic = readStep(cur, "tutorialStep");
+        var fileBasic = readStep(file, "tutorialStep");
+        out.tutorialStep = String(Math.max(curBasic, fileBasic));
+        for (i = 0; i < SERIES_NONBASIC.length; i++) {
+            var key = "tutorial_" + SERIES_NONBASIC[i];
+            out[key] = String(Math.max(readStep(cur, key), readStep(file, key)));
+        }
+        if (cur.tutorialCompleted === "true" || file.tutorialCompleted === "true") out.tutorialCompleted = "true";
+        if (cur.teachFinished === "true" || file.teachFinished === "true") out.teachFinished = "true";
+
+        /* 系列：取并集，basic 恒开启 / 恒解锁 */
+        var curSS = parseJSON(cur.seriesState, defaultSeriesObj());
+        var fileSS = parseJSON(file.seriesState, defaultSeriesObj());
+        var curSU = parseJSON(cur.seriesUnlocked, defaultSeriesObj());
+        var fileSU = parseJSON(file.seriesUnlocked, defaultSeriesObj());
+        var ss = {}, su = {};
+        for (i = 0; i < SERIES.length; i++) {
+            var s = SERIES[i];
+            ss[s] = !!(isObj(curSS) && curSS[s]) || !!(isObj(fileSS) && fileSS[s]);
+            su[s] = !!(isObj(curSU) && curSU[s]) || !!(isObj(fileSU) && fileSU[s]);
+        }
+        ss.basic = true;
+        su.basic = true;
+        out.seriesState = stringify(ss);
+        out.seriesUnlocked = stringify(su);
+
+        /* 设置：以当前存档为准，文件只在当前缺失时补位 */
+        var keep = [ "placeMode_v1", "mineInfluenceHint", "mineEffectPreview", "mineSoundSettings" ];
+        for (i = 0; i < keep.length; i++) {
+            k = keep[i];
+            if (hasOwn(cur, k)) out[k] = cur[k];
+            else if (hasOwn(file, k)) out[k] = file[k];
+        }
+        /* 杂项布尔：有一侧为真即为真；欢迎日期保留当前值 */
+        var boolKeys = [ "brainUnlockedNotified", "brainCleared", "hasVisitedBefore" ];
+        for (i = 0; i < boolKeys.length; i++) {
+            k = boolKeys[i];
+            if (cur[k] === "true" || file[k] === "true") out[k] = "true";
+        }
+        if (hasOwn(cur, "welcomeLastShown")) out.welcomeLastShown = cur.welcomeLastShown;
+        else if (hasOwn(file, "welcomeLastShown")) out.welcomeLastShown = file.welcomeLastShown;
+
+        /* 其余受管键：当前优先，文件补缺 */
+        for (k in cur) {
+            if (!hasOwn(cur, k)) continue;
+            if (!isManagedKey(k)) continue;
+            if (hasOwn(out, k)) continue;
+            out[k] = cur[k];
+        }
+        for (k in file) {
+            if (!hasOwn(file, k)) continue;
+            if (!isManagedKey(k)) continue;
+            if (hasOwn(out, k)) continue;
+            out[k] = file[k];
         }
         return out;
     }
 
-    /* 难度与系列清单挂到 Store 上，供界面层复用同一份定义 */
-    Store.DIFFS = DIFFS;
-    Store.SERIES = SERIES;
+    /**
+     * 两个用时取更快的那个，null 表示无纪录。
+     * @param {*} a 用时 A
+     * @param {*} b 用时 B
+     * @returns {?number}
+     */
+    function minTime(a, b) {
+        var an = (a === null || a === undefined) ? null : numOr(a, null);
+        var bn = (b === null || b === undefined) ? null : numOr(b, null);
+        if (an === null) return bn;
+        if (bn === null) return an;
+        return Math.min(an, bn);
+    }
 
     /**
-     * 当前本地存档的画像。
-     * @returns {Object} 画像对象，字段见 profile()
+     * 合并两份成就状态：解锁取并集（保留更早时间），计数 / 累计取更大，标记取或。
+     * @param {?Object} a 当前成就状态
+     * @param {?Object} b 导入成就状态
+     * @returns {?Object} 合并结果；两侧都为空时返回 null
      */
-    Store.profile = function() {
-        return profile(Store.exportAll().data);
-    };
+    function mergeAchievementState(a, b) {
+        if (!isObj(a) && !isObj(b)) return null;
+        a = isObj(a) ? a : {};
+        b = isObj(b) ? b : {};
+        var out = {};
 
-    /**
-     * 某个存档文件（payload）的画像；结构不合法时返回 null。
-     * @param {Object} payload 导出结构
-     * @returns {?Object} 画像对象
-     */
-    Store.profileOf = function(payload) {
-        if (!payload || !isObj(payload.data)) return null;
-        return profile(payload.data);
-    };
+        /* 解锁：并集 + 更早时间 */
+        var ua = isObj(a.unlocked) ? a.unlocked : {};
+        var ub = isObj(b.unlocked) ? b.unlocked : {};
+        var unlocked = {};
+        var id;
+        for (id in ua) {
+            if (hasOwn(ua, id)) unlocked[id] = ua[id];
+        }
+        for (id in ub) {
+            if (!hasOwn(ub, id)) continue;
+            if (!hasOwn(unlocked, id)) {
+                unlocked[id] = ub[id];
+            } else {
+                var ta = parseTimeMs(unlocked[id]);
+                var tb = parseTimeMs(ub[id]);
+                if (ta && tb) unlocked[id] = new Date(Math.min(ta, tb)).toISOString();
+                else if (!ta && tb) unlocked[id] = ub[id];
+            }
+        }
+        out.unlocked = unlocked;
 
-    /**
-     * 按保守规则试算"合并后"的存档内容与画像，只用于预览、不落盘。
-     * @param {Object} payload 导出结构
-     * @returns {{data:Object,profile:Object}} 合并结果与对应画像
-     */
-    Store.previewMerge = function(payload) {
-        var merged = mergeData(Store.exportAll().data, (payload && payload.data) || {});
-        return { data: merged, profile: profile(merged) };
-    };
-
-    /**
-     * 生成一份"合并后"的完整导出结构，交给 importAll({merge:true}) 落盘。
-     * @param {Object} payload 导出结构
-     * @returns {Object} 带 merged 标记的导出结构
-     */
-    Store.buildMergedPayload = function(payload) {
-        var merged = mergeData(Store.exportAll().data, (payload && payload.data) || {});
-        return {
-            app: "reverse-minesweeper",
-            schema: Store.schema,
-            exportedAt: new Date().toISOString(),
-            merged: true,
-            data: merged
+        /* 计数器与基础雷种：取并集 / 最大 */
+        var pickMax = function(x, y) {
+            var o = {}, k;
+            for (k in x) {
+                if (hasOwn(x, k)) o[k] = readNumOr0(x[k]);
+            }
+            for (k in y) {
+                if (!hasOwn(y, k)) continue;
+                o[k] = Math.max(readNumOr0(o[k]), readNumOr0(y[k]));
+            }
+            return o;
         };
-    };
+        var pickUnion = function(x, y) {
+            var o = {}, k;
+            for (k in x) {
+                if (hasOwn(x, k) && x[k]) o[k] = true;
+            }
+            for (k in y) {
+                if (hasOwn(y, k) && y[k]) o[k] = true;
+            }
+            return o;
+        };
+        out.counters = pickMax(isObj(a.counters) ? a.counters : {}, isObj(b.counters) ? b.counters : {});
+        out.basicTypesUsed = pickUnion(isObj(a.basicTypesUsed) ? a.basicTypesUsed : {},
+            isObj(b.basicTypesUsed) ? b.basicTypesUsed : {});
 
-    /* ---------- 8. 导入前快照与回退 ---------- */
-
-    /**
-     * 把当前全部受管存档复制一份到 __pre 快照键，并记录快照时间。
-     * @returns {number} 写入快照的键数量
-     * @sideeffect 写 rmPreImportAt、rmPreImportISO 与各 __pre 键
-     */
-    Store.backupCurrent = function() {
-        var data = Store.exportAll().data;
-        var n = 0;
-        for (var k in data) {
-            if (!Object.prototype.hasOwnProperty.call(data, k)) continue;
-            rawSet(k + PRE_SUFFIX, String(data[k]));
-            n++;
+        var numKeys = [ "totalWins", "nightWins", "sharedWins" ];
+        for (var i = 0; i < numKeys.length; i++) {
+            var nk = numKeys[i];
+            out[nk] = Math.max(readNumOr0(a[nk]), readNumOr0(b[nk]));
         }
-        Store.set("rmPreImportAt", String(Date.now()));
-        Store.set("rmPreImportISO", new Date().toISOString());
-        return n;
-    };
+        var flagKeys = [ "lastCreateMaxMines", "bgmAdjusted", "grassUnlocked", "newGameSpamV2" ];
+        for (i = 0; i < flagKeys.length; i++) out[flagKeys[i]] = !!(a[flagKeys[i]] || b[flagKeys[i]]);
+        var ca = isObj(a.lastCreateCats) ? a.lastCreateCats : null;
+        var cb = isObj(b.lastCreateCats) ? b.lastCreateCats : null;
+        out.lastCreateCats = (ca || cb) ? {
+            physics: !!(ca && ca.physics) || !!(cb && cb.physics),
+            symmetry: !!(ca && ca.symmetry) || !!(cb && cb.symmetry),
+            tactical: !!(ca && ca.tactical) || !!(cb && cb.tactical)
+        } : null;
+        out.currentRunCategories = null;
+        out.currentRunDeletes = 0;
+        out.currentRunFlawless = true;
 
-    /**
-     * 是否存有导入前快照。
-     * @returns {boolean}
-     */
-    Store.hasBackup = function() {
-        return !!Store.get("rmPreImportAt");
-    };
-
-    /**
-     * 读取快照的时间信息，用于提示框展示。
-     * @returns {?{at:number,iso:string}} 快照时间；没有快照时为 null
-     */
-    Store.backupInfo = function() {
-        var t = Store.get("rmPreImportAt");
-        if (!t) return null;
-        return { at: parseInt(t, 10), iso: Store.get("rmPreImportISO") || "" };
-    };
-
-    /**
-     * 用快照覆盖当前存档，实现"导入后反悔"。
-     * @returns {number} 回退的键数量
-     * @sideeffect 改写受管存档键
-     */
-    Store.restoreBackup = function() {
-        var all = rawKeys();
-        var n = 0, i, k, base;
-        for (i = 0; i < all.length; i++) {
-            k = all[i];
-            if (!endsWith(k, PRE_SUFFIX)) continue;
-            base = k.slice(0, k.length - PRE_SUFFIX.length);
-            var v = Store.get(k);
-            if (v === null || v === undefined) continue;
-            Store.set(base, v);
-            n++;
+        /* 未知字段：当前优先，文件补缺 */
+        var k;
+        for (k in a) {
+            if (!hasOwn(a, k)) continue;
+            if (isKnownAchKey(k)) continue;
+            out[k] = a[k];
         }
-        return n;
-    };
+        for (k in b) {
+            if (!hasOwn(b, k)) continue;
+            if (isKnownAchKey(k)) continue;
+            if (!hasOwn(out, k)) out[k] = b[k];
+        }
+        return out;
+    }
+
+    function isKnownAchKey(k) {
+        return hasOwn(ACH_KNOWN_FIELDS, k);
+    }
 
     /**
-     * 清除全部快照键与快照时间记录。
-     * @sideeffect 删除 __pre 键与 rmPreImportAt / rmPreImportISO
+     * 把导入文件解码出的 rawMap 收敛成合法状态：只保留受管键，字符串截断。
+     * @param {Object} map 文件 rawMap
+     * @returns {Object}
      */
-    Store.clearBackup = function() {
-        var all = rawKeys();
-        var i, k;
-        for (i = 0; i < all.length; i++) {
-            k = all[i];
-            if (endsWith(k, PRE_SUFFIX)) rawRemove(k);
+    function sanitizeImported(map) {
+        var out = defaultRawMap();
+        var k;
+        for (k in map || {}) {
+            if (!hasOwn(map, k)) continue;
+            if (!isManagedKey(k)) continue;
+            if (typeof map[k] !== "string") continue;
+            if (map[k].length > 200000) continue;
+            out[k] = map[k];
         }
-        Store.remove("rmPreImportAt");
-        Store.remove("rmPreImportISO");
-    };
+        out.rmSchemaVersion = String(SCHEMA);
+        return out;
+    }
 
+    /* ---------- 13. 初始化 ---------- */
+
+    initFromStorage();
     window.Store = Store;
 
-    /* ---------- 9. 存档结构号与迁移入口 ---------- */
+    /* 跨标签页篡改检测：其它标签页改了存档键时，立即重新验签并标记异常 */
+    try {
+        window.addEventListener("storage", function(e) {
+            if (!e || (e.key !== SAVE_KEY && e.key !== BAK_KEY)) return;
+            var v = Store.verify();
+            if (!v.ok) {
+                Store.tampered = true;
+                Store.integrity = "corrupt";
+                if (RM && RM.warn) RM.warn("storage:external", "检测到外部修改了存档键：" + (v.error || ""));
+            }
+        });
+    } catch (e) {}
 
-    /* 读取已记录的结构号：缺失时按当前结构补写，为将来的结构迁移留出入口。
-     * 存档结构号高于程序支持的结构号时只记录警告，不阻断游戏。 */
-    (function() {
-        var cur = parseInt(Store.get("rmSchemaVersion"), 10);
-        if (isNaN(cur)) {
-            // 早期存档没有结构号：视为与当前结构一致，直接补写，不改动数据
-            Store.set("rmSchemaVersion", "1");
-            cur = 1;
-        }
-        if (cur > Store.schema) {
-            RM.warn("storage:schema", "存档版本(" + cur + ")高于当前程序，可能出现兼容性问题");
-        }
-    })();
 })();
 
-/* ---------- 10. 成绩与胜场 ---------- */
+/* ---------- 14. 成绩与胜场（与旧实现同名，业务模块无需改动） ---------- */
 
-/* 各难度的最近一次用时（毫秒），受保护读取：主档损坏自动回退备份 */
+/* 各难度的最近一次用时（毫秒），受保护读取：结构损坏自动回退备份 */
 let lt = Store.guard("mineLastTimes", {
     easy: null,
     medium: null,
@@ -858,7 +2565,7 @@ let wins = Store.guard("mineWins", {
 let brainUnlockedNotified = Store.get("brainUnlockedNotified") === "true";
 
 
-/* ---------- 11. 系列状态 ---------- */
+/* ---------- 15. 系列状态 ---------- */
 
 /**
  * 读取系列开启状态；存储值必须是普通对象，否则返回默认状态。
@@ -883,7 +2590,7 @@ function getSeriesState() {
 }
 
 /**
- * 保存系列开启状态（走受保护写入，同时更新备份档）。
+ * 保存系列开启状态（走受保护写入，同时更新签名容器）。
  * @param {Object} s 系列状态对象
  */
 function saveSeriesState(s) {
@@ -913,7 +2620,7 @@ function getSeriesUnlocked() {
 }
 
 /**
- * 保存系列解锁状态（走受保护写入，同时更新备份档）。
+ * 保存系列解锁状态（走受保护写入，同时更新签名容器）。
  * @param {Object} u 系列解锁对象
  */
 function saveSeriesUnlocked(u) {

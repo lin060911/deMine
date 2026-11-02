@@ -2,7 +2,8 @@
  * 模块 16 · 新手引导层（js/16-guide.js）
  *
  * 职责：用一只会动的小手 + 目标高亮环 + 一句话气泡，告诉玩家"现在该点哪 /
- *       该把地雷拖到哪"；设置与创造的介绍按"下一处"逐项讲完。
+ *       该把地雷拖到哪"；设置与创造的介绍按"下一处"逐项讲完；指引未解锁
+ *       系列的「挑战」按钮时，额外让炸弹信息里整个系列区块同步闪烁。
  * 依赖：DOM（棋盘格、雷槽、侧栏与弹窗按钮）、Store（记住已看过的引导）、
  *       TEACH_LEVELS / teachActive / teachLevelIdx（09-tutorial）、
  *       isBasicChallengeDone / seriesUnlocked 等全局状态。
@@ -13,8 +14,11 @@
  *      定位，侧栏滑入、页面滚动、棋盘重绘时都跟得上，不会"飘"。
  *   3) 全部候选按优先级即时判定，不预排时间轴：UI 状态一变，下一次 tick 就
  *      自动换目标或收起。
- *   4) 频率：教学前几关的关键操作步进入先循环 3 遍、闲置 15 秒再补 3 遍；
- *      其余引导只在闲置时出现，单步最多两轮。介绍类引导按按钮逐条推进。
+ *   4) 频率：只有教学第 4-12 关保留"闲置 4 秒后才出现"的节奏；其余引导
+ *      （含教学第 1-3 关）条件一满足就立即出现，单步最多两轮。带「下一处」
+ *      的介绍类引导按按钮逐条推进，不点按钮就不会消失。
+ *   5) 只有一个可见按钮的弹窗不再套高亮环，只保留气泡与小手，避免重复强调
+ *      唯一可点的目标。
  * ========================================================================== */
 
 (function() {
@@ -207,6 +211,27 @@
         return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, left: r.left, top: r.top, right: r.right, bottom: r.bottom };
     }
 
+    /**
+     * 目标所在的弹窗 / 提示卡里是否只剩它一个可见按钮。
+     * 只有一个按钮时不再套高亮环，避免重复强调唯一可点的目标。
+     * @param {HTMLElement} target 引导目标
+     * @returns {boolean} 只有一个可见按钮时返回 true
+     */
+    function singleButtonTarget(target) {
+        if (!target || !target.closest) return false;
+        var box = target.closest(".auto-modal, .preset-start-card, .challenge-card");
+        if (!box) return false;
+        var btns = box.querySelectorAll("button");
+        var count = 0, only = null;
+        for (var i = 0; i < btns.length; i++) {
+            if (!visible(btns[i])) continue;
+            count++;
+            only = btns[i];
+            if (count > 1) return false;
+        }
+        return count === 1 && (only === target || !!(target.contains && target.contains(only)));
+    }
+
     /* ---------- 4. 候选引导 ---------- */
 
     function tapStep(opt) {
@@ -222,7 +247,9 @@
             onDone: opt.onDone || null,
             persist: opt.persist || "",
             // hold：在玩家点击目标/按钮前，高亮与气泡一直保留
-            hold: !!opt.hold
+            hold: !!opt.hold,
+            // flashSeries：需要同步闪烁高光的系列键
+            flashSeries: opt.flashSeries || null
         };
     }
 
@@ -263,33 +290,13 @@
         if (!from) from = document.querySelector("#slot .mine-item:not(.disabled)");
         return {
             key: "teach:" + teachLevelIdx + ":" + target[0] + "," + target[1],
-            text: "拖动地雷到这里",
+            text: "把地雷放到这里",
             mode: from ? "drag" : "tap",
             target: cell,
             from: from,
             // 前三关是核心玩法接触点：进入步骤就先演一遍
             active: teachLevelIdx < 3
         };
-    }
-
-    /**
-     * 规则弹窗分页时，引导指向「下一处 / 开始教学」按钮。
-     * @returns {Object|null} 引导候选
-     */
-    function ruleCandidate() {
-        if (!shown("teachRuleModal")) return null;
-        var btn = $("teachRuleOkBtn");
-        if (!btn || !visible(btn)) return null;
-        var page = (typeof teachRulePage === "number") ? teachRulePage : 0;
-        var total = (typeof TEACH_RULE_PAGES !== "undefined") ? TEACH_RULE_PAGES.length : 1;
-        var last = page >= total - 1;
-        return tapStep({
-            key: "rule:" + page,
-            text: last ? "点这里开始教学练习" : "查看下一条",
-            target: btn,
-            active: true,
-            hold: true
-        });
     }
 
     /**
@@ -337,6 +344,7 @@
                 target: btn,
                 active: true,
                 nextLabel: "知道啦 ✅",
+                flashSeries: cat,
                 onDone: function() {
                     window._guideLockedSeries = null;
                 }
@@ -547,19 +555,17 @@
             }
             return null;
         }
-        // ② 规则弹窗：逐页读规则时指着「下一处」
-        if (shown("teachRuleModal")) return ruleCandidate();
-        // ③ 其他弹窗 / 确认框 / 通关卡打开时不打扰
+        // ② 其他弹窗 / 确认框 / 通关卡打开时不打扰
         if (confirmOpen() || overlayOpen() || shown("teachCompleteModal") || shown("presetStartCard")) return null;
-        // ④ 教学流程
+        // ③ 教学流程
         if (typeof teachActive !== "undefined" && teachActive) return teachCandidate();
         if (typeof isTutorialMode !== "undefined" && isTutorialMode) return null;
         var creating = (typeof createModeActive !== "undefined" && createModeActive);
-        // ⑤ 玩家主动触发的门槛引导优先
+        // ④ 玩家主动触发的门槛引导优先
         if (!creating && window._guideLockedSeries) return lockedSeriesCandidate();
         if (!creating && window._guideLockedDifficulty) return lockedDifficultyCandidate();
         if (creating) return null;
-        // ⑥ 侧栏介绍：设置 / 创造逐项讲完
+        // ⑤ 侧栏介绍：设置 / 创造逐项讲完
         if (sidebarOpen("settingSidebar")) return tourCandidate("setting-tour", settingTourStops);
         if (sidebarOpen("createSidebar")) return tourCandidate("create-tour", createTourStops);
         var challengeOpen = modalOpen("challengeModal");
@@ -567,9 +573,9 @@
             if (isBasicChallengeDone() && !hasSeen("difficulty-intro")) return difficultyIntroCandidate();
             return null;
         }
-        // ⑦ 基础挑战完成后的难度介绍
+        // ⑥ 基础挑战完成后的难度介绍
         if (isBasicChallengeDone() && !hasSeen("difficulty-intro")) return difficultyIntroCandidate();
-        // ⑧ 基础挑战未完成：每次打开网页都指到 信息 → 炸弹信息
+        // ⑦ 基础挑战未完成：每次打开网页都指到 信息 → 炸弹信息
         return basicChallengeCandidate();
     }
 
@@ -617,7 +623,12 @@
         var key = r.left + "|" + r.top + "|" + r.w + "|" + r.h;
         if (key === state.geomKey) return true;
         state.geomKey = key;
-        placeRing(r);
+        // 只有一个按钮时只保留气泡与小手，不再加高亮环
+        if (singleButtonTarget(cand.target)) {
+            if (ring) ring.style.display = "none";
+        } else {
+            placeRing(r);
+        }
         placeBubble(r);
         if (anchor) {
             anchor.style.display = "block";
@@ -696,12 +707,44 @@
         if (hand) hand.style.display = "none";
         if (bubble) bubble.style.display = "none";
         if (layer) layer.classList.remove("show");
+        clearSeriesFlash();
     }
 
     function stopGuide() {
         state.playing = false;
         state.cand = null;
         clearVisual();
+    }
+
+    /* ---------- 5.1 系列区块同步闪烁（引导致挑战时） ---------- */
+
+    // 当前被点亮的系列区块，用于引导结束时精确移除闪烁类
+    var flashedSeries = null;
+
+    /**
+     * 让炸弹信息里某个系列区块同步闪烁（与按钮高亮同时出现，不配手势）。
+     * @param {string} cat 系列键
+     * @sideeffect 给对应 .category-section 添加 guide-series-flash 类
+     */
+    function applySeriesFlash(cat) {
+        clearSeriesFlash();
+        if (!cat) return;
+        var el = document.querySelector('#mineInfoList .category-section[data-cat="' + cat + '"]');
+        if (!el || !el.classList) return;
+        el.classList.add("guide-series-flash");
+        flashedSeries = el;
+    }
+
+    /**
+     * 移除系列区块上的闪烁高光。
+     * @sideeffect 移除 guide-series-flash 类
+     */
+    function clearSeriesFlash() {
+        if (flashedSeries && flashedSeries.classList) flashedSeries.classList.remove("guide-series-flash");
+        flashedSeries = null;
+        // 面板重绘后旧引用可能失效，再按类名兜底清理
+        var left = document.querySelectorAll("#mineInfoList .category-section.guide-series-flash");
+        for (var i = 0; i < left.length; i++) left[i].classList.remove("guide-series-flash");
     }
 
     /**
@@ -732,6 +775,7 @@
         state.cand = cand;
         state.playedAt = Date.now();
         layer.classList.add("show");
+        if (cand.flashSeries) applySeriesFlash(cand.flashSeries); else clearSeriesFlash();
         bubbleText.textContent = cand.text || "";
         if (cand.nextLabel) {
             bubbleNext.textContent = cand.nextLabel;
@@ -813,12 +857,16 @@
             state.playedAt = 0;
         }
         if (state.playing) return;
-        var idle = idleNow();
         var canPlay = false;
-        if (state.plays === 0) {
-            canPlay = cand.active || idle;
-        } else if (state.plays < 2) {
-            canPlay = idle && now - state.playedAt >= IDLE_MS;
+        if (cand.active) {
+            canPlay = state.plays < 2;
+        } else {
+            var idle = idleNow();
+            if (state.plays === 0) {
+                canPlay = idle;
+            } else if (state.plays < 2) {
+                canPlay = idle && now - state.playedAt >= IDLE_MS;
+            }
         }
         if (canPlay) play(cand);
     }

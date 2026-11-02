@@ -24,8 +24,8 @@
     /* ---------- 1. 音频总线与全局状态 ---------- */
 
     /* 两类声音的最响电平：设置里的滑杆只在此之上做 0~1 的比例缩放 */
-    var SFX_MAX = 0.35;
-    var BGM_MAX = 0.13;
+    var SFX_MAX = 0.8;
+    var BGM_MAX = 0.5;
 
     /* 全站唯一的 AudioContext 与三条总线：master 汇总，其余两条分控音量 */
     var ctx = null;
@@ -35,7 +35,7 @@
     var reverbNode = null;
     var supported = true;
 
-    var sfxVol = 1;      // 0~1，来自设置里的"游戏音效"
+    var sfxVol = 0.5;      // 0~1，来自设置里的"游戏音效"
     var bgmVol = 0.5;    // 0~1，来自设置里的"背景音乐"
     var muted = false;   // 音效静音
     /* 悬停音效的节流时间戳，避免鼠标扫过一排按钮时连续触发 */

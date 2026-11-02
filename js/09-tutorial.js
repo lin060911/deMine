@@ -2,7 +2,7 @@
  * 模块 09 · 挑战与教学关卡（js/09-tutorial.js）
  *
  * 职责：实现基础挑战（5 关）、各系列挑战（5 关）与新手引导教学
- *       （TEACH_LEVELS 共 11 关）的全流程，包括关卡数据、棋盘生成、
+ *       （TEACH_LEVELS 共 12 关）的全流程，包括关卡数据、棋盘生成、
  *       放雷与判定、进度持久化和关卡切换。
  * 依赖：00-core 的全局状态与工具（RM、G、SR / SC）；01-storage 的 Store；
  *       02-audio 的 AudioFX；04-mines 的 M 与 CATEGORY；06-render 的通用渲染
@@ -15,6 +15,8 @@
  *   2) 挑战与教学共用同一套棋盘渲染与放置通道，用 teachActive 与
  *      currentTutorialType 区分当前处于哪一种流程。
  *   3) 挑战进度写入 Store，重新打开页面仍能从上次的关卡继续。
+ *   4) 教学不单独弹规则页：游戏目标、胜利条件、地块颜色与操作方式都写进
+ *      各关的操作前提示，每次操作前的正文不超过两句。
  * ========================================================================== */
 
 /* ---------- 1. 挑战通关推进 ---------- */
@@ -29,6 +31,8 @@ function onTutorialWin() {
     let cat = currentTutorialType;
     if (!cat) Store.set("tutorialStep", tutorialStep.toString()); else Store.set("tutorial_" + cat, tutorialStep.toString());
     updateTutorialProgress();
+    // 挑战进度已写入存档：立刻重绘记录栏的挑战完成情况面板
+    if (typeof renderChallengeList === "function") renderChallengeList();
     // 第 5 关即整个挑战的终点：先解锁对应系列，再弹出总结弹窗
     if (tutorialStep >= 5) {
         if (cat) {
@@ -236,9 +240,22 @@ function startCategoryTutorial(catKey) {
     tutorialStep = seriesUnlocked[catKey] ? parseInt(Store.get("tutorial_" + catKey)) || 0 : 0;
     document.getElementById("overlay").style.display = "none";
     setupTutorialBoard(catKey);
+    closeInfoSidebarForChallenge();
+    // 进入系列挑战不改变存档进度，但顺手刷新挑战面板，保证记录栏数据最新
+    if (typeof renderChallengeList === "function") renderChallengeList();
 }
 
-/* ---------- 3. 教学关卡数据表（一）：基础机制 10 关 ---------- */
+/**
+ * 从炸弹信息入口开始挑战后收起信息侧栏。
+ * @sideeffect 移除 #infoSidebar 的 open 类并通知引导层刷新
+ */
+function closeInfoSidebarForChallenge() {
+    var sb = document.getElementById("infoSidebar");
+    if (sb) sb.classList.remove("open");
+    if (typeof guideRefresh === "function") guideRefresh();
+}
+
+/* ---------- 3. 教学关卡数据表（一）：基础机制 11 关 ---------- */
 
 /**
  * 教学关卡表：每一关演示一类影响范围规则，玩家按提示把雷放到正确位置。
@@ -247,28 +264,60 @@ function startCategoryTutorial(catKey) {
  *   mineType(s)    本关可用的雷种及数量（单雷种用 mineType，多雷种用 mineTypes）；
  *   boardRows/Cols 本关棋盘尺寸；
  *   targetBoard    目标影响值矩阵，0 表示该格不显示数字；
- *   steps          分步提示：text 为气泡正文，hint 为底部提示，
- *                  targetCell 为需要高亮的目标格 [行, 列]。
+ *   steps          分步提示：第 0 步为关卡开场说明，可带 rule 规则高亮卡
+ *                  （icon / title / text / sub / tone）；其后各步按目标格顺序
+ *                  给出操作提示，text 为气泡正文，每次操作前最多两句；
+ *                  hint 为底部提示，targetCell 为需要高亮的目标格 [行, 列]。
  * 本表是纯数据，增删关卡只需修改它，无需改动下面的流程代码。
  */
 const TEACH_LEVELS = [ {
-    title: "① 放置地雷",
+    title: "1.放置地雷",
     icon: "💣",
+    mineType: "normal",
+    mineEmoji: "💣",
+    boardRows: 3,
+    boardCols: 3,
+    targetBoard: [ [1, 1, 1], [1, 1, 1], [1, 1, 1]],
+    steps: [ {
+        rule: {
+            icon: "🎯",
+            title: "游戏目标",
+            text: "把地雷放到棋盘，让每格数字等于周围地雷的影响值",
+            sub: "🖱️ 拖拽 / 点选放置 · 右键或长按删除",
+            tone: "blue"
+        },
+        text: "拖动/点选放置一颗💣到九宫格的中心",
+        hint: "普通雷 3×3 范围 +1"
+    }, {
+        text: "提示：放到第2行第2列，它的 3×3 范围能覆盖全部「1」",
+        hint: "右键点击已放置的地雷可删除🚫",
+        targetCell: [ 1, 1 ]
+    } ]
+},{
+    title: "2.地块颜色",
+    icon: "🟩",
     mineType: "normal",
     mineEmoji: "💣",
     boardRows: 5,
     boardCols: 5,
     targetBoard: [ [ 0, 0, 0, 0, 0 ], [ 0, 1, 1, 1, 0 ], [ 0, 1, 1, 1, 0 ], [ 0, 1, 1, 1, 0 ], [ 0, 0, 0, 0, 0 ] ],
     steps: [ {
-        text: "这是一颗 💣普通雷\n它会让周围 3×3 范围每个格子 +1\n\n棋盘中央有一块 3×3 的「1」区域 \n拖动地雷到棋盘上放置吧！",
-        hint: "普通雷 3x3 范围 +1"
+        rule: {
+            icon: "🧩",
+            title: "地块含义",
+            text: "颜色表示当前影响值与数字的关系：🟨 偏低|🟥 偏高|🟩 刚好",
+            sub: "🖱️ 拖拽 / 点选放置 · 右键或长按删除",
+            tone: "blue"
+        },
+        text: "先放一颗💣到中间「1」区域的中心",
+        hint: "普通雷 3×3 范围 +1"
     }, {
-        text: "提示：放在区域中心位置（第3行第3列）\n它的 3×3 影响范围才能刚好覆盖所有 1。",
+        text: "提示：放到第3行第3列，它的 3×3 范围才能覆盖全部「1」",
         hint: "右键点击已放置的地雷可删除🚫",
         targetCell: [ 2, 2 ]
     } ]
 }, {
-    title: "② 在边上放置地雷",
+    title: "3.在边上放置地雷",
     icon: "📏",
     mineType: "normal",
     mineEmoji: "💣",
@@ -276,15 +325,21 @@ const TEACH_LEVELS = [ {
     boardCols: 5,
     targetBoard: [ [ 0, 0, 0, 0, 0 ], [ 1, 1, 0, 0, 0 ], [ 1, 1, 0, 0, 0 ], [ 1, 1, 0, 0, 0 ], [ 0, 0, 0, 0, 0 ] ],
     steps: [ {
-        text: "当雷靠近棋盘边缘时\n它的一部分影响范围会超出棋盘。\n\n左侧有两列显示 1\n——该放哪呢？",
-        hint: "边缘放置：超出棋盘的部分不生效"
+        rule: {
+            icon: "📏",
+            title: "边缘放置",
+            text: "雷靠近边缘时，超出棋盘的影响范围不生效",
+            tone: "blue"
+        },
+        text: "左侧两列数字是 1，把💣放到棋盘左边缘试试",
+        hint: "边缘的雷影响范围会被棋盘截断"
     }, {
-        text: "提示：放在位置（第3行第1列）\n它的 3×3 范围右边两列刚好覆盖那些 1",
+        text: "提示：放到第3行第1列，3×3 范围的右边两列刚好覆盖这些 1",
         hint: "右键点击已放置的地雷可删除🚫",
         targetCell: [ 2, 0 ]
     } ]
 }, {
-    title: "③ 在角落放置地雷",
+    title: "4.在角落放置地雷",
     icon: "📐",
     mineType: "normal",
     mineEmoji: "💣",
@@ -292,15 +347,21 @@ const TEACH_LEVELS = [ {
     boardCols: 5,
     targetBoard: [ [ 0, 0, 0, 0, 0 ], [ 0, 0, 0, 0, 0 ], [ 0, 0, 0, 0, 0 ], [ 1, 1, 0, 0, 0 ], [ 1, 1, 0, 0, 0 ] ],
     steps: [ {
-        text: "角落是最极端的边界\n\n左下角有 2×2 的「1」区域\n只有角落的雷能产生这种图案",
+        rule: {
+            icon: "📐",
+            title: "角落放置",
+            text: "同理，雷在角落时，超出棋盘的影响范围不生效",
+            tone: "blue"
+        },
+        text: "左下角正好有 2×2 的「1」，雷该放哪？",
         hint: "角落放置：只有 2×2 范围在棋盘内"
     }, {
-        text: "提示：放到棋盘左下角（第5行第1列）\n它的 3×3 范围就只剩右上 2×2 在棋盘内。",
+        text: "提示：放到棋盘左下角（第5行第1列），范围就只剩右上 2×2",
         hint: "右键点击已放置的地雷可删除🚫",
         targetCell: [ 4, 0 ]
     } ]
 }, {
-    title: "④ 更大范围的地雷",
+    title: "5.不同范围的地雷",
     icon: "💣",
     mineType: "big5",
     mineEmoji: "💣",
@@ -308,15 +369,21 @@ const TEACH_LEVELS = [ {
     boardCols: 5,
     targetBoard: [ [ 1, 1, 1, 1, 0 ], [ 1, 1, 1, 1, 0 ], [ 1, 1, 1, 1, 0 ], [ 1, 1, 1, 1, 0 ], [ 0, 0, 0, 0, 0 ] ],
     steps: [ {
-        text: "💣巨型雷——它的影响范围是 5×5\n比普通雷大得多！\n\n左上角有一大块 4×4 的 1\n放在哪里能一次覆盖这么大的区域呢?",
+        rule: {
+            icon: "🤏",
+            title: "地雷范围",
+            text: "不同地雷的范围可能有所不同<br>如：巨型雷的范围是5x5",
+            tone: "blue"
+        },
+        text: "左上角有一大块 4×4 的 1，它该放哪？",
         hint: "巨型雷 5×5 范围 +1"
     }, {
-        text: "提示：4×4 的 1 区域左上角对齐棋盘边缘\n巨型雷的 5×5 中心应该尽量靠左上\n把它放到（第2行第2列）\n它的范围左上角刚好超出棋盘",
+        text: "提示：放到第2行第2列，范围左上角超出棋盘，正好留下 4×4",
         hint: "右键点击已放置的地雷可删除🚫",
         targetCell: [ 1, 1 ]
     } ]
 }, {
-    title: "⑤ 不同数值的地雷",
+    title: "6.不同数值的地雷",
     icon: "🔢",
     mineType: "high",
     mineEmoji: "💣",
@@ -324,15 +391,21 @@ const TEACH_LEVELS = [ {
     boardCols: 5,
     targetBoard: [ [ 2, 2, 2, 0, 0 ], [ 2, 2, 2, 0, 0 ], [ 2, 2, 2, 0, 0 ], [ 0, 0, 0, 0, 0 ], [ 0, 0, 0, 0, 0 ] ],
     steps: [ {
-        text: "💣高爆雷——同样是 3×3 范围\n但每个格子 +2 而不是 +1\n\n左上角 3×3 全是 2\n你需要一颗「更猛」的雷来填满。",
+        rule: {
+            icon: "🔢",
+            title: "地雷数值",
+            text: "不同地雷的数值可能有所不同<br>如：高爆雷的 3×3 范围，每格 +2",
+            tone: "blue"
+        },
+        text: "左上角 3×3 全是 2，用一颗高爆雷填满它",
         hint: "高爆雷 3×3 范围 +2"
     }, {
-        text: "提示：放在（第2行第2列）\n它的 3×3 范围才能覆盖并产生 +2 的效果。",
+        text: "提示：放到第2行第2列",
         hint: "右键点击已放置的地雷可删除🚫",
         targetCell: [ 1, 1 ]
     } ]
 }, {
-    title: "⑥ 不同形状的地雷",
+    title: "7.不同形状的地雷",
     icon: "🌶️",
     mineType: "chiliV",
     mineEmoji: "🌶️",
@@ -340,7 +413,13 @@ const TEACH_LEVELS = [ {
     boardCols: 5,
     targetBoard: [ [ 0, 0, 1, 0, 0 ], [ 0, 0, 1, 0, 0 ], [ 0, 0, 1, 0, 0 ], [ 0, 0, 1, 0, 0 ], [ 0, 0, 1, 0, 0 ] ],
     steps: [ {
-        text: "🌶️竖辣椒——它影响竖直方向的5格\n形成一条线，而不是 3×3 方块\n\n棋盘中间一列从上到下全是 1\n放下辣椒试试。",
+        rule: {
+            icon: "🌶️",
+            title: "地雷形状",
+            text: "不同地雷的形状可能有所不同<br>如：竖辣椒影响竖直方向 5 格，形成一条线",
+            tone: "blue"
+        },
+        text: "棋盘中间一列全是 1，把竖辣椒放上去试试",
         hint: "竖辣椒：竖直方向5格 +1"
     }, {
         text: "提示：放中间（第3行第3列）",
@@ -348,7 +427,7 @@ const TEACH_LEVELS = [ {
         targetCell: [ 2, 2 ]
     } ]
 }, {
-    title: "⑦ 特殊地雷遇上边界",
+    title: "8.不同地雷遇上边角",
     icon: "🌶️",
     mineType: "chiliH",
     mineEmoji: "🌶️",
@@ -356,15 +435,21 @@ const TEACH_LEVELS = [ {
     boardCols: 5,
     targetBoard: [ [ 0, 0, 0, 0, 0 ], [ 0, 0, 0, 0, 0 ], [ 1, 1, 1, 0, 0 ], [ 0, 0, 0, 0, 0 ], [ 0, 0, 0, 0, 0 ] ],
     steps: [ {
-        text: "🌶️横辣椒——和竖辣椒类似，影响水平5格\n注意：它靠近边界时，也会有超出的部分。\n\n第3行有3个 1（左边紧挨边界）\n横辣椒该放在哪？",
-        hint: "横辣椒：水平方向5格 +1，部分超出棋盘"
+        rule: {
+            icon: "📐",
+            title: "角落放置②",
+            text: "特殊范围/形状的雷在边角放置，超出棋盘的影响范围不生效",
+            tone: "blue"
+        },
+        text: "横辣椒：水平方向5格 +1，它该放哪？",
+        hint: "部分超出棋盘"
     }, {
-        text: "提示：第3行有连续3个 1，左边贴着棋盘边缘。\n横辣椒水平范围左右各延伸 2 格\n要覆盖这3个 1，中心应该放在第3行第1列",
+        text: "提示：中心放在第3行第1列，左右各延伸 2 格刚好覆盖这 3 个 1",
         hint: "右键点击已放置的地雷可删除🚫",
         targetCell: [ 2, 0 ]
     } ]
 }, {
-    title: "⑧ 负值的地雷",
+    title: "9.负值的地雷",
     icon: "💥",
     mineType: "anti",
     mineEmoji: "💥",
@@ -372,16 +457,22 @@ const TEACH_LEVELS = [ {
     boardCols: 5,
     targetBoard: [ [ -1, -1, -1, 0, 0 ], [ -1, -1, -1, 0, 0 ], [ -1, -1, -1, 0, 0 ], [ 0, 0, 0, 0, 0 ], [ 0, 0, 0, 0, 0 ] ],
     steps: [ {
-        text: "💥反物质炸弹——它在 3×3 内每格 -1\n会产生负数！\n\n左上角 3×3 全是 -1\n代表着需要负值的地雷",
+        rule: {
+            icon: "🔻",
+            title: "负值地雷",
+            text: "一些地雷的影响值可能是负的<br>如：反物质炸弹的 3×3 范围，每格 -1",
+            tone: "red"
+        },
+        text: "💥反物质炸弹每格 -1，把左上角 3×3 的红色地块拉回来",
         hint: "反物质炸弹 3×3 范围 -1"
     }, {
-        text: "提示：放到第2行第2列\n就能产生正确的负值影响。",
+        text: "提示：放到第2行第2列",
         hint: "右键点击已放置的地雷可删除🚫",
         targetCell: [ 1, 1 ]
     } ]
 }, {
     // 两颗雷的影响范围重叠时数值相加，用于演示"叠加"
-    title: "⑨ 影响叠加",
+    title: "10.影响叠加",
     icon: "💣＋💣",
     mineTypes: {
         normal: 2
@@ -390,20 +481,26 @@ const TEACH_LEVELS = [ {
     boardCols: 5,
     targetBoard: [ [ 1, 1, 1, 0, 0 ], [ 1, 2, 2, 1, 0 ], [ 1, 2, 2, 1, 0 ], [ 0, 1, 1, 1, 0 ], [ 0, 0, 0, 0, 0 ] ],
     steps: [ {
-        text: "当两颗地雷的影响范围重叠时\n重叠区域的数值会累加！\n\n中间有 2×2 的[2]区域\n说明这些格子被两颗雷同时覆盖",
+        rule: {
+            icon: "➕",
+            title: "影响叠加",
+            text: "两颗雷的影响范围重叠时，重叠区域的数值会相加",
+            tone: "blue"
+        },
+        text: "先放第一颗💣，再放第二颗，让重叠区域变成 2",
         hint: "两颗雷重叠 → 1+1=2"
     }, {
-        text: "把一颗💣放到第2行第2列\n你会看到 3×3 范围变成 1",
+        text: "把第一颗💣放到第2行第2列",
         hint: "右键点击已放置的地雷可删除🚫",
         targetCell: [ 1, 1 ]
     }, {
-        text: "再放第二颗💣到第3行第3列\n两颗雷范围叠加处 → 数值变成 2 ✅",
+        text: "再放第二颗💣到第3行第3列，重叠处就变成 2 ✅",
         hint: "右键点击已放置的地雷可删除🚫",
         targetCell: [ 2, 2 ]
     } ]
 }, {
     // 正雷与负雷重叠时数值抵消，用于演示"相加为 0"
-    title: "⑩ 正负抵消",
+    title: "11.正负相消",
     icon: "➕➖",
     mineTypes: {
         normal: 1,
@@ -413,14 +510,20 @@ const TEACH_LEVELS = [ {
     boardCols: 5,
     targetBoard: [ [ 0, 0, 0, 0, 0 ], [ 0, 1, 1, 1, 0 ], [ 0, 1, 0, 0, -1 ], [ 0, 1, 0, 0, -1 ], [ 0, 0, -1, -1, -1 ] ],
     steps: [ {
-        text: "💣普通雷 +1，💥反物质炸弹 -1\n当它们的影响范围重叠时\n重叠区域相加得0！\n\n中间有 2×2 的[0]区域\n说明这些格子被两颗雷同时覆盖",
+        rule: {
+            icon: "🟰",
+            title: "正负相消",
+            text: "同样是两颗雷的影响范围重叠，注意负值的影响",
+            tone: "red"
+        },
+        text: "先把💣放到中间，再把💥放到右下，让重叠区抵消为 0",
         hint: "正负叠加 → 1+(-1)=0"
     }, {
-        text: "把💣放到第3行第3列\n它的 3×3 范围覆盖中间区域",
+        text: "把💣放到第3行第3列，覆盖中间区域",
         hint: "右键点击已放置的地雷可删除🚫",
         targetCell: [ 2, 2 ]
     }, {
-        text: "把💥放到第4行第4列\n它的 3×3 范围覆盖右下区域\n两者重叠区域 → 1+(-1)=0 ✅",
+        text: "把💥放到第4行第4列，重叠区域正好抵消为 0 ✅",
         hint: "右键点击已放置的地雷可删除🚫",
         targetCell: [ 3, 3 ]
     } ]
@@ -428,8 +531,8 @@ const TEACH_LEVELS = [ {
     /* ---------- 4. 教学关卡数据表（二）：综合关 ---------- */
 
     // 综合关：8×8 棋盘 + 四种雷同场，提示明显减少，检验前面所有机制
-    title: "融会贯通",
-    icon: "🥳",
+    title: "胜利条件",
+    icon: "🧐",
     mineTypes: {
         big5: 1,
         anti: 1,
@@ -440,24 +543,14 @@ const TEACH_LEVELS = [ {
     boardCols: 8,
     targetBoard: [ [ 0, 1, 0, 0, 0, 0, 0, 0 ], [ 0, 1, 0, 0, -1, -1, -1, 0 ], [ 0, 2, 1, 1, 0, 0, -1, 0 ], [ 0, 2, 1, 1, 0, 0, -1, 0 ], [ 0, 2, 1, 1, 1, 1, 0, 0 ], [ 0, 1, 1, 1, 1, 1, 0, 0 ], [ 0, 1, 1, 2, 2, 2, 1, 1 ], [ 0, 0, 0, 0, 0, 0, 0, 0 ] ],
     steps: [ {
-        text: "这是为你准备的最后考题\n\n想想刚才所有的特性\n\n用这里的四个地雷，把棋盘变绿吧！",
-        hint: "正负叠加 → 1+(-1)=0"
-    }, {
-        text: "巨型雷💣轮廓最明显\n把它放在第5行第4列正好",
-        hint: "右键点击已放置的地雷可删除🚫",
-        targetCell: [ 4, 3 ]
-    }, {
-        text: "把💥放到第3行第6列\n与巨型雷的范围叠加\n两者重叠区域 → 1+(-1)=0 ✅",
-        hint: "右键点击已放置的地雷可删除🚫",
-        targetCell: [ 2, 5 ]
-    }, {
-        text: "把竖辣椒放到第3行2列\n与巨型雷的范围叠加区域\n1+1=2 ✅",
-        hint: "右键点击已放置的地雷可删除🚫",
-        targetCell: [ 2, 1 ]
-    }, {
-        text: "把横辣椒放到第7行第6列\n与巨型雷的范围叠加区域\n1+1=2 ✅",
-        hint: "右键点击已放置的地雷可删除🚫",
-        targetCell: [ 6, 5 ]
+        rule: {
+            icon: "🏁",
+            title: "胜利条件",
+            text: "放完所有地雷，并且所有格子都变成 🟩",
+            tone: "green"
+        },
+        text: "最后一关：用这里的四种雷把棋盘变绿吧！",
+        hint: "四种雷同场：巨型雷 / 反物质炸弹 / 竖辣椒 / 横辣椒"
     } ]
 } ];
 
@@ -493,118 +586,12 @@ let teachPlaceList = [];
 // 已完成的关卡记录
 let teachCompleted = [];
 
-// 规则弹窗是否处于"看明白后立即开始教学"的等待状态
-let teachRulePending = false;
-
-// 规则弹窗当前页：规则按短句拆成多页，避免一次显示一大段文字
-let teachRulePage = 0;
-
-// 规则分页数据：每页只讲一个点，一句话说清
-const TEACH_RULE_PAGES = [ {
-    icon: "🎯",
-    title: "① 游戏目标",
-    text: "把地雷槽里的各种地雷放进棋盘，让每个格子显示的数字=周围地雷对它的影响值"
-}, {
-    icon: "🏁",
-    title: "② 胜利条件",
-    text: "放完所有地雷，并且所有格子都变成 🟩"
-}, {
-    icon: "🟩",
-    title: "③ 地块颜色",
-    text: "🟨 偏低：还差影响值；🟥 偏高：雷放多了；🟩 刚好合适"
-}, {
-    icon: "🖱️",
-    title: "④ 怎么操作",
-    text: "拖拽或点选地雷；右键（触屏长按）可以删除已放的雷"
-} ];
-
-/* ---------- 6. 教学规则弹窗 ---------- */
+/* ---------- 6. 教学模式入口 ---------- */
 
 /**
- * 渲染规则弹窗的当前页：图标、标题、一句说明、页码与按钮文案。
- * @sideeffect 改写 #teachRuleModal 内的图标/标题/正文与按钮文字
- */
-function renderTeachRulePage() {
-    const modal = document.getElementById("teachRuleModal");
-    if (!modal) return;
-    const page = TEACH_RULE_PAGES[Math.max(0, Math.min(teachRulePage, TEACH_RULE_PAGES.length - 1))];
-    const iconEl = modal.querySelector(".icon");
-    const titleEl = modal.querySelector("h2");
-    if (iconEl) iconEl.textContent = page.icon;
-    if (titleEl) titleEl.textContent = page.title;
-    const body = document.getElementById("teachRuleBody");
-    if (body) {
-        body.innerHTML = '<p class="teach-rule-page">' + page.text + "</p>" +
-            '<div class="teach-rule-step">' + (teachRulePage + 1) + " / " + TEACH_RULE_PAGES.length + "</div>";
-        body.scrollTop = 0;
-    }
-    const okBtn = document.getElementById("teachRuleOkBtn");
-    if (!okBtn) return;
-    const last = teachRulePage >= TEACH_RULE_PAGES.length - 1;
-    if (!last) okBtn.textContent = "明白";
-    else okBtn.textContent = teachRulePending ? "开始教学 ▶" : "知道啦 ✌️";
-}
-
-/**
- * 打开教学规则弹窗：从第一页开始，按「下一处」逐条读规则。
- * @param {boolean} playSound 是否播放弹窗打开音效（教学自动弹出时静音）
- * @sideeffect 写入弹窗内容并显示遮罩
- */
-function openTeachRuleModal(playSound) {
-    const modal = document.getElementById("teachRuleModal");
-    if (!modal) return;
-    teachRulePage = 0;
-    renderTeachRulePage();
-    document.getElementById("overlay").style.display = "block";
-    modal.style.display = "block";
-    if (playSound) AudioFX.modalOpen();
-}
-
-/**
- * 规则弹窗的按钮入口：非最后一页翻到下一页，最后一页关闭并（若需要）开始教学。
- * @sideeffect 可能改写页码或关闭弹窗
- */
-function teachRuleNext() {
-    if (teachRulePage < TEACH_RULE_PAGES.length - 1) {
-        teachRulePage++;
-        AudioFX.pop();
-        renderTeachRulePage();
-        return;
-    }
-    closeTeachRuleModal();
-}
-window.teachRuleNext = teachRuleNext;
-
-/**
- * 隐藏教学规则弹窗；若正处于"看完即开始"的等待状态，则顺势装载第一关。
- * @sideeffect 隐藏弹窗与遮罩，可能调用 loadTeachLevel
- */
-function hideTeachRuleModal() {
-    const modal = document.getElementById("teachRuleModal");
-    if (modal) modal.style.display = "none";
-    document.getElementById("overlay").style.display = "none";
-    if (teachRulePending) {
-        teachRulePending = false;
-        // 只有仍在教学流程里才装载关卡，避免退出教学后又被拉回来
-        if (teachActive) loadTeachLevel();
-    }
-    if (typeof guideRefresh === "function") guideRefresh();
-}
-
-/**
- * 规则弹窗的关闭按钮入口：播放确认音效后统一走 hideTeachRuleModal。
- */
-function closeTeachRuleModal() {
-    AudioFX.confirm();
-    hideTeachRuleModal();
-}
-
-/* ---------- 7. 教学模式入口 ---------- */
-
-/**
- * 进入新手引导教学：清空所有教学状态，先按短句分页展示游戏规则，
- * 读完规则（最后一页的「开始教学」）再装载第 1 关。
- * @sideeffect 重置教学状态、隐藏主面板，打开规则弹窗
+ * 进入新手引导教学：清空所有教学状态，直接装载第 1 关；
+ * 游戏目标、胜利条件、地块颜色与操作方式随各关提示逐步讲解。
+ * @sideeffect 重置教学状态、隐藏主面板并初始化第一关
  */
 function openTeachMode() {
     AudioFX.confirm();
@@ -623,10 +610,7 @@ function openTeachMode() {
     updateTeachProgressBar();
     ensureTeachSlotHost(true);
     document.getElementById("board").innerHTML = "";
-    document.getElementById("slot").style.display = "none";
-    // 规则看完后由 hideTeachRuleModal 装载第一关
-    teachRulePending = true;
-    openTeachRuleModal(false);
+    loadTeachLevel();
     if (typeof guideRefresh === "function") guideRefresh();
 }
 
@@ -637,9 +621,10 @@ function openTeachMode() {
 function openPracticeMode() {
     AudioFX.confirm();
     startTutorial();
+    closeInfoSidebarForChallenge();
 }
 
-/* ---------- 8. 关卡装载与棋盘渲染 ---------- */
+/* ---------- 7. 关卡装载与棋盘渲染 ---------- */
 
 /**
  * 按 teachLevelIdx 装载当前关卡：写入目标矩阵、配比表并渲染棋盘与步骤。
@@ -753,7 +738,7 @@ function renderTeachBoard() {
     sizeCellsIn(b);
 }
 
-/* ---------- 9. 教学槽位与落子 ---------- */
+/* ---------- 8. 教学槽位与落子 ---------- */
 
 /**
  * 渲染教学关卡的地雷槽位：每个雷种显示图标、名称与"已放/应放"数量。
@@ -827,7 +812,7 @@ function clearTeachSlotHost() {
     if (s) s.classList.remove("teach-slot-host");
 }
 
-/* ---------- 10. 删除、移动与完成检查 ---------- */
+/* ---------- 9. 删除、移动与完成检查 ---------- */
 
 /**
  * 按当前放置列表重算教学关卡的影响值矩阵。
@@ -855,8 +840,8 @@ function teachBoardMatched() {
 }
 
 /**
- * 在教学关卡中放置一颗雷：登记坐标与类型，重算影响值，按操作步推进提示。
- * 放错位置时只提醒一句并自动撤回该颗雷，保证不会卡在错误局面里。
+ * 在教学关卡中放置一颗雷：登记坐标与类型，重算影响值，并把气泡切到下一个目标。
+ * 放错位置时保留该雷，玩家可右键删除后重试。
  * @param {number} r 行号
  * @param {number} c 列号
  * @param {string} forceType 指定雷种；省略时取槽位选中类型或自动挑一个
@@ -903,17 +888,13 @@ function teachDrop(r, c, forceType) {
     renderTeachSlot();
     document.getElementById("placed").textContent = String(teachPlacedCount);
     updateTeachProgressBar();
-    if (teachPlacedCount >= teachExpectedCount) {
-        // 雷已放满：逐格比对，全部匹配即过关，否则推进到提示步等玩家调整
-        if (teachBoardMatched()) {
-            showTeachStep(true);
-            setTimeout(() => teachLevelComplete(), 1200);
-            return;
-        }
+    if (teachPlacedCount >= teachExpectedCount && teachBoardMatched()) {
+        showTeachStep(true);
+        setTimeout(() => teachLevelComplete(), 1200);
+        return;
     }
-    // 每次落子都推进一条提示，最多停在最后一步
-    let steps = lvl.steps || [];
-    teachStepIdx = Math.min(teachStepIdx + 1, steps.length - 1);
+    // 每次落子后把气泡切到下一个还没放雷的目标提示，最多停在最后一步
+    teachStepIdx = teachStepForNextTarget();
     showTeachStep(false);
 }
 
@@ -937,15 +918,8 @@ function teachRemove(r, c) {
     renderTeachSlot();
     document.getElementById("placed").textContent = String(teachPlacedCount);
     updateTeachProgressBar();
-    // 删掉的是某个提示步的目标格时，气泡退回那一步，让玩家重新放回来
-    let steps = (TEACH_LEVELS[teachLevelIdx].steps || []);
-    for (let i = 0; i < steps.length; i++) {
-        let s = steps[i];
-        if (s.targetCell && s.targetCell[0] === r && s.targetCell[1] === c) {
-            teachStepIdx = i;
-            break;
-        }
-    }
+    // 删掉任意一颗雷后，气泡重新对准下一个还没放雷的目标格
+    teachStepIdx = teachStepForNextTarget();
     showTeachStep(false);
 }
 
@@ -976,6 +950,9 @@ function teachMove(fromKey, r, c) {
     renderTeachSlot();
     document.getElementById("placed").textContent = String(teachPlacedCount);
     updateTeachProgressBar();
+    // 移动后气泡重新对准下一个还没放雷的目标格；已过关则由过关流程覆盖
+    teachStepIdx = teachStepForNextTarget();
+    showTeachStep(false);
     teachCheckComplete();
 }
 
@@ -991,7 +968,22 @@ function teachCheckComplete() {
     setTimeout(() => teachLevelComplete(), 1200);
 }
 
-/* ---------- 11. 提示气泡与进度条 ---------- */
+/* ---------- 10. 提示气泡与进度条 ---------- */
+
+/**
+ * 找到下一个还没放上地雷的目标格对应的提示步；全部放好时停在最后一步。
+ * 第 0 步是关卡开场说明，没有目标格，因此从第 1 步开始找。
+ * @returns {number} 提示步下标
+ */
+function teachStepForNextTarget() {
+    let steps = (TEACH_LEVELS[teachLevelIdx].steps || []);
+    for (let i = 1; i < steps.length; i++) {
+        let tc = steps[i].targetCell;
+        if (!tc) continue;
+        if (!G.placed[tc[0] + "," + tc[1]]) return i;
+    }
+    return steps.length - 1;
+}
 
 /**
  * 取当前关卡正在显示的步骤对象。
@@ -1026,18 +1018,48 @@ function paintTeachBubble(icon, title, text, hint) {
 }
 
 /**
+ * 渲染 / 收起气泡里的规则高亮卡；rule 为空时收起卡片。
+ * @param {?Object} rule 规则数据：icon / title / text / sub / tone
+ * @sideeffect 改写 #teachRuleCard 的内容与显隐
+ */
+function paintTeachRule(rule) {
+    let card = document.getElementById("teachRuleCard");
+    if (!card) return;
+    if (!rule) {
+        card.classList.remove("show");
+        return;
+    }
+    let key = [ rule.icon, rule.title, rule.text, rule.sub || "" ].join("|");
+    if (card.dataset.ruleKey !== key) {
+        card.dataset.ruleKey = key;
+        card.className = "teach-rule-card tone-" + (rule.tone || "blue");
+        card.innerHTML = '<div class="teach-rule-icon">' + rule.icon + "</div>" +
+            '<div class="teach-rule-copy">' +
+            '<div class="teach-rule-title">' + rule.title + "</div>" +
+            '<div class="teach-rule-text">' + rule.text + "</div>" +
+            (rule.sub ? '<div class="teach-rule-sub">' + rule.sub + "</div>" : "") +
+            "</div>";
+        // 先清掉 show 再读取布局，让新规则重新播放入场动画
+        void card.offsetWidth;
+    }
+    card.classList.add("show");
+}
+
+/**
  * 刷新教学气泡：显示当前步骤的短文案、图标与目标格高亮。
  * @param {boolean} isCorrect 本次放置是否正确；true 时气泡切换为过关文案
- * @sideeffect 改写气泡文本、目标格高亮，并通知引导层刷新
+ * @sideeffect 改写气泡文本、规则卡、目标格高亮，并通知引导层刷新
  */
 function showTeachStep(isCorrect) {
     let lvl = TEACH_LEVELS[teachLevelIdx];
     let step = currentTeachStep();
     document.querySelectorAll(".cell-teach-target").forEach(el => el.classList.remove("cell-teach-target"));
     if (isCorrect) {
+        paintTeachRule(null);
         paintTeachBubble("✅", "正确!", "放对啦，这一关完成了！", "");
     } else {
         paintTeachBubble(lvl.icon, lvl.title, step.text, step.hint);
+        paintTeachRule(step.rule);
         if (step.targetCell) {
             let [tr, tc] = step.targetCell;
             let cellEl = document.querySelector(`.cell[data-r="${tr}"][data-c="${tc}"]`);
@@ -1060,7 +1082,7 @@ function updateTeachProgressBar() {
     document.getElementById("teachProgressText").textContent = teachLevelIdx + 1 + "/" + total;
 }
 
-/* ---------- 12. 关卡完成与退出 ---------- */
+/* ---------- 11. 关卡完成与退出 ---------- */
 
 /**
  * 关卡完成：按是否为最后一关切换弹窗文案与按钮（下一关 / 完成 / 去练习）。
@@ -1135,8 +1157,6 @@ function teachNextLevel() {
  */
 function teachExit() {
     AudioFX.confirm();
-    teachRulePending = false;
-    document.getElementById("teachRuleModal").style.display = "none";
     document.getElementById("teachCompleteModal").classList.remove("visible");
     document.getElementById("teachBubble").classList.remove("visible", "mines-only");
     clearTeachSlotHost();
@@ -1160,8 +1180,6 @@ function teachExit() {
  */
 function teachExitToPractice() {
     AudioFX.confirm();
-    teachRulePending = false;
-    document.getElementById("teachRuleModal").style.display = "none";
     document.getElementById("teachCompleteModal").classList.remove("visible");
     document.getElementById("teachBubble").classList.remove("visible", "mines-only");
     clearTeachSlotHost();

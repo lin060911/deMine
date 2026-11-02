@@ -8,14 +8,19 @@
  *       createCols（11-create）、Store（01-storage）、AudioFX（02-audio）、
  *       renderRecordList 与 closeSidebarsExcept（08-ui）。
  * 对外：window.checkWinAchievements（08-ui 通关时调用）、window.Achievements
- *       （unlock / incrementCounter / renderAchievements / state）。
+ *       （unlock / incrementCounter / renderAchievements / state，以及只读查询
+ *       list / byId / unlockTime / summary）。
  * 设计要点：
  *   1) 成就判定与业务逻辑分离：业务文件不知道成就系统的存在，本文件在
  *      installHooks 中包装既有全局函数，只在原有行为前后追加统计，属于
  *      可插拔的横切扩展；不加载本文件即可整体关闭成就系统。
  *   2) 数据驱动：45 个成就集中在同一张表内，新增成就只需追加数据与触发点。
- *   3) 解锁日期、计数器与本局过程数据合并成一条 localStorage 记录，读写都
+ *   3) 解锁时间以完整 ISO 时间戳（含 T、时分秒与 Z 后缀）保存，面板展示时再
+ *      换算成本地时间；旧存档里的纯日期值 / 数字时间戳在启动时统一规范化。
+ *      解锁时间、计数器与本局过程数据合并成一条 localStorage 记录，读写都
  *      做异常保护，存储不可用时退化为仅内存有效。
+ *   4) 只读查询接口（list / byId / unlockTime / summary）只读内部状态，不做
+ *      判定、不改存档，供存档详情等界面复用成就数据与解锁时间。
  * ========================================================================== */
 
 (function() {
@@ -434,7 +439,7 @@
         cat: "隐藏",
         emoji: "🌱",
         name: "长草",
-        desc: "计时器工作时，15秒不操作地雷",
+        desc: "计时器工作时，连续15秒不进行任何棋盘操作",
         tip: "别吵，我在烧烤",
         type: "once",
         hidden: true
@@ -488,21 +493,121 @@
         hidden: true
     } ];
 
+    /* ---------- 4.5 与存档编码表的一致性校验 ---------- */
+
+    /**
+     * 校验成就数据表与 00-core 的 RM.ACH_IDS 编码表是否一致。
+     * 存档位图按 RM.ACH_IDS 的数组下标编码，两者的数量或顺序不一致会让解锁
+     * 状态错位，因此这里在初始化阶段做一次校验；只记录警告，不抛错、不改数据，
+     * 旧版本没有 RM.ACH_IDS 时直接跳过。
+     * @sideeffect 不一致时写入一条 RM.warn 记录（标记 "achievements:ids"）。
+     */
+    function verifyAchievementIds() {
+        try {
+            if (!window.RM) return;
+            let canonical = window.RM.ACH_IDS;
+            if (!Array.isArray(canonical)) return;
+            let ids = ACHIEVEMENTS.map(a => a.id);
+            let same = ids.length === canonical.length && ids.every(function(id, i) {
+                return id === canonical[i];
+            });
+            if (!same) RM.warn("achievements:ids", "成就 id 顺序与存档编码表不一致");
+        } catch (e) {}
+    }
+    // 本文件在 00-core 之后加载，IIFE 初始化阶段即可完成校验
+    verifyAchievementIds();
+
     /* ---------- 5. 成就状态与持久化 ---------- */
 
-    // 存档键：解锁日期、计数器与本局过程数据合并存放在同一条记录中
+    // 存档键：解锁时间、计数器与本局过程数据合并存放在同一条记录中
     const STORE_KEY = "achievementState_v1";
+    // 旧存档的纯日期形态（如 2024-05-01）与完整 ISO 时间形态，规范化时据此区分
+    const DATE_ONLY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+    const ISO_TIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:?\d{2})$/;
+    // loadState 执行时 _achState 尚未完成赋值，而 saveState 依赖 _achState，
+    // 因此这里只记录"规范化改写过存档"，回写动作推迟到赋值完成之后
+    let _stateNormalized = false;
     // 运行期状态：启动时读取一次，之后所有判定与渲染都基于这份对象
     let _achState = loadState();
+    // 旧存档被规范化过就立即回写一次，让内存与磁盘上的时间格式保持一致
+    if (_stateNormalized) saveState();
+    /**
+     * 把解锁时间统一成完整 ISO 时间戳。
+     * 规则：纯日期字符串按浏览器本地时区当天 00:00 解释，避免被当成 UTC 造成
+     * 日期漂移；数字按时间戳处理，小于 1e12 视为秒级、否则视为毫秒；
+     * 其余无法识别的值一律返回 null，由调用方按"视为未解锁"处理。
+     * @param {*} v 存档中记录的解锁值
+     * @returns {string|null} 规范化后的 ISO 字符串；非法值返回 null
+     */
+    function toIsoUnlockTime(v) {
+        if (typeof v === "string") {
+            let m = DATE_ONLY_RE.exec(v);
+            if (m) {
+                let d = new Date(+m[1], +m[2] - 1, +m[3]);
+                // Date 会把 2024-13-01 这类非法日期自动进位，这里要求原样还原
+                if (d.getFullYear() !== +m[1] || d.getMonth() !== +m[2] - 1 || d.getDate() !== +m[3]) return null;
+                return d.toISOString();
+            }
+            // 已是完整 ISO（或带时区偏移）时先解析再统一格式，时区偏移会被折算成 Z
+            if (ISO_TIME_RE.test(v)) {
+                let ms = Date.parse(v);
+                return isNaN(ms) ? null : new Date(ms).toISOString();
+            }
+            return null;
+        }
+        // 数字时间戳：秒级常见于外部导入，统一折算为毫秒
+        if (typeof v === "number" && isFinite(v) && v > 0) {
+            let ms = v < 1e12 ? v * 1e3 : v;
+            let d = new Date(ms);
+            return isNaN(d.getTime()) ? null : d.toISOString();
+        }
+        return null;
+    }
+    /**
+     * 规范化解锁记录：把每条解锁值统一成完整 ISO 时间戳，非法值直接删除
+     * （视为从未解锁）。只改写 unlocked 内已有键的值或删除非法键，不新增键，
+     * 也不调整键顺序，因此不会影响解锁计数与面板显示顺序。
+     * @param {Object} st 成就状态对象（原地修改）
+     * @returns {boolean} 是否发生了改写
+     */
+    function normalizeAchievements(st) {
+        if (!st || typeof st !== "object" || Array.isArray(st)) return false;
+        let changed = false;
+        // 旧存档可能缺少 unlocked 字段，补一份空表避免后续读取到 undefined
+        if (!st.unlocked || typeof st.unlocked !== "object" || Array.isArray(st.unlocked)) {
+            st.unlocked = {};
+            changed = true;
+        }
+        Object.keys(st.unlocked).forEach(function(id) {
+            let iso = toIsoUnlockTime(st.unlocked[id]);
+            if (iso === null) {
+                delete st.unlocked[id];
+                changed = true;
+            } else if (iso !== st.unlocked[id]) {
+                st.unlocked[id] = iso;
+                changed = true;
+            }
+        });
+        return changed;
+    }
     /**
      * 读取成就状态；无存档或解析失败时返回一份完整的默认状态。
-     * 默认状态覆盖全部判定字段，避免后续读取到 undefined。
+     * 读到旧存档时顺带做一次规范化（纯日期 / 数字时间戳 → 完整 ISO），
+     * 规范化结果由启动阶段统一回写；默认状态覆盖全部判定字段，避免后续
+     * 读取到 undefined。
      * @returns {Object} 成就状态对象
      */
     function loadState() {
         try {
             let raw = Store.get(STORE_KEY);
-            if (raw) return JSON.parse(raw);
+            if (raw) {
+                let st = JSON.parse(raw);
+                // 结构可用时规范化解锁时间；结构不可用时按默认状态处理
+                if (st && typeof st === "object" && !Array.isArray(st)) {
+                    if (normalizeAchievements(st)) _stateNormalized = true;
+                    return st;
+                }
+            }
         } catch (e) {}
         // 字段说明：currentRun* 是本局过程数据，每局开始时重置；
         // totalWins / nightWins / sharedWins 是跨局累计值；grass* 用于挂机计时
@@ -571,17 +676,18 @@
         }, 3e3);
     }
     /**
-     * 解锁一个成就：已解锁则直接返回；否则记录解锁日期、保存并加入弹窗队列。
+     * 解锁一个成就：已解锁则直接返回；否则记录解锁时间戳、保存并加入弹窗队列。
      * @param {string} id 成就 id
      * @sideeffect 写 _achState.unlocked、存档，并重绘成就面板。
      */
     function unlock(id) {
-        // 已解锁的成就直接跳过，保证解锁日期与弹窗都只产生一次
+        // 已解锁的成就直接跳过，保证解锁时间与弹窗都只产生一次
         if (_achState.unlocked[id]) return;
         let ach = ACHIEVEMENTS.find(a => a.id === id);
         if (!ach) return;
-        // 只保留 ISO 日期字符串的日期部分，用于面板上展示解锁日
-        _achState.unlocked[id] = (new Date).toISOString().slice(0, 10);
+        // 记录完整 ISO 时间戳（含 T、时分秒与 Z），面板展示时再换算成本地时间；
+        // 存档层会把它压缩为时间戳，业务层只需保证是完整的 ISO 字符串
+        _achState.unlocked[id] = (new Date).toISOString();
         saveState();
         showPopup(ach);
         renderAchievements();
@@ -739,7 +845,35 @@
     /* ---------- 8. 成就面板渲染 ---------- */
 
     /**
-     * 按固定分组顺序重建成就面板：已解锁项展示名称、条件与解锁日期，
+     * 把 ISO 解锁时间格式化为本地时区的 "YYYY-MM-DD HH:mm"。
+     * @param {string} iso 完整 ISO 时间字符串
+     * @returns {string} 本地时间文本；非法值回退为"未知时间"
+     */
+    function fmtUnlockTime(iso) {
+        if (typeof iso !== "string" || !iso) return "未知时间";
+        let ms = Date.parse(iso);
+        if (isNaN(ms)) return "未知时间";
+        let d = new Date(ms);
+        return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()) +
+            " " + pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+    }
+    /**
+     * 两位补零，用于拼接本地时间文本。
+     * @param {number} n 0-99 的整数
+     * @returns {string} 补零后的字符串
+     */
+    function pad2(n) {
+        return n < 10 ? "0" + n : "" + n;
+    }
+    /**
+     * 面板可见的成就总数：非隐藏成就 + 已解锁的隐藏成就。
+     * @returns {number} 面板上实际展示的条目数
+     */
+    function visibleTotal() {
+        return ACHIEVEMENTS.filter(a => !a.hidden || _achState.unlocked[a.id]).length;
+    }
+    /**
+     * 按固定分组顺序重建成就面板：已解锁项展示名称、条件与本地解锁时间，
      * 未解锁项展示锁图标，隐藏成就未解锁前只显示问号。
      * @sideeffect 重建 #achList 的 innerHTML，并更新已解锁 / 总数统计。
      */
@@ -758,15 +892,16 @@
         let html = "";
         catOrder.forEach(cat => {
             if (!groups[cat]) return;
-            html += `<div style="font-size:13px;font-weight:700;color:#f59e0b;margin:10px 0 6px 4px;">${cat}</div>`;
+            // 隐藏组单独带类名，供样式使用更醒目的深红标题
+            html += `<div class="achievement-group-title${cat === "隐藏" ? " is-hidden" : ""}">${cat}</div>`;
             groups[cat].forEach(a => {
                 let unlocked = !!_achState.unlocked[a.id];
                 let cls = "achievement-item" + (unlocked ? " unlocked" : "") + (a.hidden ? " hidden-ach" : "");
                 let name = unlocked ? a.name : a.hidden ? "？？？" : "🔒 " + a.name;
                 let desc = unlocked ? a.desc : a.hidden ? "隐藏成就，达成后揭晓" : a.desc;
                 let meta = "";
-                // 已解锁显示日期；计数型成就显示当前进度
-                if (unlocked) meta = "🗓️ " + _achState.unlocked[a.id]; else if (a.type === "count") meta = `进度 ${_achState.counters[a.id] || 0}/${a.target}`;
+                // 已解锁显示本地时区的解锁时间；计数型成就显示当前进度
+                if (unlocked) meta = "🗓️ " + fmtUnlockTime(_achState.unlocked[a.id]); else if (a.type === "count") meta = `进度 ${_achState.counters[a.id] || 0}/${a.target}`;
                 // 未解锁统一显示锁图标；隐藏成就同样只显示锁，不暴露条件
                 let lockIcon = unlocked ? "✅" : a.hidden ? "🔒" : "🔒";
                 let tipText = unlocked ? a.tip || "" : a.hidden ? "隐藏成就，达成后揭晓提示" : a.tip || "";
@@ -775,12 +910,15 @@
         });
         container.innerHTML = html;
         // 可见总数 = 非隐藏成就 + 已解锁的隐藏成就，不提前暴露隐藏成就数量
-        let total = ACHIEVEMENTS.filter(a => !a.hidden || _achState.unlocked[a.id]).length;
+        let total = visibleTotal();
         let unlocked = Object.keys(_achState.unlocked).length;
         let uc = document.getElementById("achUnlockedCount");
         let tc = document.getElementById("achTotalCount");
         if (uc) uc.textContent = unlocked;
         if (tc) tc.textContent = total;
+        // 记录栏折叠标题摘要：收起时也能看到已解锁数量（与挑战/成绩标题同款位置）
+        let hint = document.getElementById("achSectionHint");
+        if (hint) hint.textContent = unlocked + " / " + total;
     }
     /* ---------- 9. 钩子装配：包装既有全局函数 ---------- */
 
@@ -827,7 +965,6 @@
                 _achState.currentRunDeletes++;
                 _achState.currentRunFlawless = false;
                 if (_achState.currentRunDeletes >= 20) unlock("hidden_slide");
-                resetGrassTimer();
                 saveState();
             }
             if (_oDel) return _oDel(r, c);
@@ -840,7 +977,6 @@
             if (!isTutorialMode) {
                 _achState.currentRunFlawless = false;
                 unlock("hidden_eco");
-                resetGrassTimer();
             }
             if (_oCA) _oCA.apply(this, arguments);
         };
@@ -865,11 +1001,17 @@
                         saveState();
                     }
                 }
-                resetGrassTimer();
             }
             return result;
         };
         if (typeof drop !== "undefined") drop = window.drop;
+        // 长草计时统一挂在 resetP 上：放置 / 删除 / 移动 / 清空都会经过这里
+        let _oResetP = typeof window.resetP === "function" ? window.resetP : NS.resetP;
+        window.resetP = function() {
+            if (ts) resetGrassTimer();
+            if (_oResetP) return _oResetP.apply(this, arguments);
+        };
+        if (typeof resetP !== "undefined") resetP = window.resetP;
         let _oGen = typeof window.generatePuzzleCode === "function" ? window.generatePuzzleCode : NS.generatePuzzleCode;
         window.generatePuzzleCode = function() {
             let result;
@@ -923,7 +1065,7 @@
         if (typeof fullReset !== "undefined") fullReset = window.fullReset;
         /* ---------- 10. 钩子装配：计时与界面类触发点 ---------- */
 
-        // 挂机检测：计时器运行中连续 15 秒没有落子 / 删雷等操作时解锁"长草"
+        // 挂机检测：计时器运行中连续 15 秒没有任何棋盘操作时解锁"长草"
         let _grassInterval = null;
         /**
          * 启动挂机检测：每秒检查一次距上次操作的间隔，达到 15 秒即解锁；
@@ -932,6 +1074,8 @@
          */
         function startGrassTimer() {
             if (_grassInterval) return;
+            // 一次性成就：已解锁或计时器不在运行时都不必再挂检测
+            if (!ts || (_achState.unlocked && _achState.unlocked.hidden_grass)) return;
             _achState.grassIdleStart = Date.now();
             _grassInterval = setInterval(function() {
                 if (!ts) {
@@ -956,11 +1100,12 @@
             }
         }
         /**
-         * 把挂机起点刷新为当前时刻：落子、删雷、清空等操作后调用。
-         * @sideeffect 改写 grassIdleStart。
+         * 废弃当前的长草倒计时，并从此刻重新开始。
+         * @sideeffect 清掉旧定时器并重新创建检测周期。
          */
         function resetGrassTimer() {
-            _achState.grassIdleStart = Date.now();
+            stopGrassTimer();
+            startGrassTimer();
         }
         // 计时器启停也是触发点：开局启动挂机检测，结束则停止检测
         let _origStartTi = startTi;
@@ -1014,7 +1159,7 @@
         }
     }
 
-    /* ---------- 11. 侧边栏开关、启动与对外接口 ---------- */
+    /* ---------- 11. 侧边栏开关与启动 ---------- */
 
     /**
      * 初始化成就侧边栏开关：展开前先收起其他侧栏，展开时刷新面板与记录表。
@@ -1048,13 +1193,75 @@
     }
     // 脚本可能晚于 DOMContentLoaded 执行，两种时机都要能完成启动
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
+
+    /* ---------- 12. 只读查询接口（供存档详情等界面使用） ---------- */
+
+    /**
+     * 返回成就数据表。只返回引用、不做深拷贝，调用方必须按只读使用：
+     * 修改数组或其中元素会影响成就判定，以及存档位图的编码顺序。
+     * @returns {Array<Object>} 45 条成就定义
+     */
+    function list() {
+        return ACHIEVEMENTS;
+    }
+    /**
+     * 按 id 查询成就定义。
+     * @param {string} id 成就 id
+     * @returns {Object|null} 成就定义；id 不存在时返回 null
+     */
+    function byId(id) {
+        return ACHIEVEMENTS.find(a => a.id === id) || null;
+    }
+    /**
+     * 查询一个成就的解锁时间。
+     * @param {string} id 成就 id
+     * @returns {number|null} 解锁时间毫秒数；未解锁或时间非法返回 null
+     */
+    function unlockTime(id) {
+        let raw = _achState.unlocked ? _achState.unlocked[id] : undefined;
+        let iso = toIsoUnlockTime(raw);
+        if (iso === null) return null;
+        let ms = Date.parse(iso);
+        return isNaN(ms) ? null : ms;
+    }
+    /**
+     * 汇总当前成就状态，供存档详情等界面直接展示。
+     * firstAt / lastAt 按解锁时间毫秒数统计，时间非法的解锁不参与首末判断。
+     * @returns {{unlocked:number,visibleTotal:number,total:number,
+     *   firstAt:(number|null),lastAt:(number|null),hiddenUnlocked:number}}
+     */
+    function summary() {
+        let unlockedMap = _achState.unlocked || {};
+        let firstAt = null, lastAt = null, hiddenUnlocked = 0;
+        ACHIEVEMENTS.forEach(function(a) {
+            if (!unlockedMap[a.id]) return;
+            if (a.hidden) hiddenUnlocked++;
+            let ms = unlockTime(a.id);
+            if (ms === null) return;
+            if (firstAt === null || ms < firstAt) firstAt = ms;
+            if (lastAt === null || ms > lastAt) lastAt = ms;
+        });
+        return {
+            unlocked: Object.keys(unlockedMap).length,
+            visibleTotal: visibleTotal(),
+            total: ACHIEVEMENTS.length,
+            firstAt: firstAt,
+            lastAt: lastAt,
+            hiddenUnlocked: hiddenUnlocked
+        };
+    }
     // 暴露给 08-ui 的通关流程调用
     window.checkWinAchievements = checkWinAchievements;
-    // 对外接口：供其他模块主动解锁成就或读取当前状态
+    // 对外接口：既有的 unlock / incrementCounter / renderAchievements / state
+    // 保持不变，新增 list / byId / unlockTime / summary 四个只读查询接口
     window.Achievements = {
         unlock: unlock,
         incrementCounter: incrementCounter,
         renderAchievements: renderAchievements,
-        state: _achState
+        state: _achState,
+        list: list,
+        byId: byId,
+        unlockTime: unlockTime,
+        summary: summary
     };
 })();

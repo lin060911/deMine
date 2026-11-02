@@ -8,7 +8,8 @@
  *       AudioFX；04-mines 的 M / CATEGORY；06-render、07-board 提供的渲染与
  *       交互。
  * 对外：window.closeAllModals、window.syncMainPanel、window.gotoSeriesChallenge、
- *       window.onLockedSeriesClick、window.openChallengeModal 等界面入口。
+ *       window.onLockedSeriesClick、window.openChallengeModal、window.renderChallengeList
+ *       等界面入口。
  * 设计要点：
  *   1) 弹窗统一"运行时构建 + 集中关闭"：closeAllModals 一次收掉遮罩与全部
  *      弹层，避免跳转后仍被没关掉的弹窗盖住。
@@ -97,6 +98,47 @@ function toggleAcc(id) {
 }
 window.toggleAcc = toggleAcc;
 
+/* ---------- 2.1 记录栏折叠部件（成绩 / 挑战 / 成就） ---------- */
+
+/**
+ * 展开 / 收起「📝记录」栏中的一个折叠区。
+ *
+ * 与信息栏的 toggleAcc 共用同一套视觉语言（标题即按钮、箭头旋转、内容区
+ * 淡入），但三个区互不互斥：玩家可以同时展开成绩与挑战进行对照，因此
+ * 这里不做手风琴式收起。默认展开状态由 index.html 的
+ * record-acc-open / record-acc-closed 类决定（成绩、挑战默认折叠）。
+ *
+ * @param {string} id 折叠区元素 id：recSection / challengeSection / achSection
+ * @sideeffect 切换 record-acc-open / record-acc-closed 类、aria-expanded 与音效；
+ *             展开时按需重绘该区内容，避免折叠期间的数据变化没有刷新
+ */
+function toggleRecordAcc(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const willOpen = !el.classList.contains("record-acc-open");
+    el.classList.toggle("record-acc-open", willOpen);
+    el.classList.toggle("record-acc-closed", !willOpen);
+    const head = el.querySelector(".record-acc-head");
+    if (head) head.setAttribute("aria-expanded", willOpen ? "true" : "false");
+    try {
+        if (window.AudioFX && AudioFX.pop) AudioFX.pop();
+    } catch (e) {}
+    if (!willOpen) return;
+    // 展开时重绘一次：折叠期间数据可能已经变化，打开后立即看到最新内容
+    try {
+        if (id === "recSection" && typeof renderRecordList === "function") {
+            renderRecordList();
+        } else if (id === "challengeSection" && typeof renderChallengeList === "function") {
+            renderChallengeList();
+        } else if (id === "achSection" && window.Achievements && Achievements.renderAchievements) {
+            window.Achievements.renderAchievements();
+        }
+    } catch (e) {
+        if (window.RM) RM.warn("toggleRecordAcc", e);
+    }
+}
+window.toggleRecordAcc = toggleRecordAcc;
+
 /* ---------- 3. 通用确认弹窗 ---------- */
 
 // 确认弹窗的运行时单例：遮罩、内容节点与当前按钮回调
@@ -166,6 +208,7 @@ function closeConfirmModal() {
     if (_rmConfirm.ov) _rmConfirm.ov.style.display = "none";
     if (_rmConfirm.el) _rmConfirm.el.style.display = "none";
     _rmConfirm.cb = null;
+    if (typeof guideRefresh === "function") guideRefresh();
 }
 window.closeConfirmModal = closeConfirmModal;
 
@@ -500,6 +543,8 @@ function unlockSeries(catKey) {
     saveSeriesUnlocked(seriesUnlocked);
     saveSeriesState(seriesState);
     renderSeriesSwitches();
+    // 系列由「未解锁」变为「已完成」：立刻刷新记录栏的挑战完成情况面板
+    renderChallengeList();
 }
 
 /**
@@ -836,13 +881,22 @@ const RECORD_META = {
 };
 
 /**
- * 渲染成就栏里的成绩列表：逐难度显示最快用时、通关次数与本次用时。
- * @sideeffect 重写 #achRecordList 的 innerHTML
+ * 渲染「📝记录」栏的成绩列表：逐难度显示最快用时、通关次数与本次用时。
+ *
+ * v1.3.1 起条目结构与「挑战」面板统一：每行一张浅灰圆角卡，顶部一行是
+ * 难度名 + 通关次数徽标，下面一行是「最快 / 本次」两项数据，不再使用
+ * 旧版的左色条 + 多行说明。列宽与字号与挑战条目一致。
+ * @sideeffect 重写 #achRecordList 的 innerHTML，并更新折叠标题右侧摘要
  */
 function renderRecordList() {
     const list = document.getElementById("achRecordList");
-    if (!list) return;
+    // 挑战面板与成绩列表同属「📝记录」栏：成绩节点缺失时也要刷新挑战面板
+    if (!list) {
+        renderChallengeList();
+        return;
+    }
     let html = "";
+    let totalWins = 0;
     RECORD_DIFFS.forEach(d => {
         // 脑王以外的难度共用默认元数据，避免新增难度时出现空图标
         const meta = RECORD_META[d] || {
@@ -850,15 +904,215 @@ function renderRecordList() {
             color: "#cbd5e0"
         };
         const label = DIFF_LABEL[d] || d;
-        html += `<div class="record-item${d === "brain" ? " is-brain" : ""}" style="border-left-color:${meta.color}">`;
-        html += `<div class="record-label">${meta.icon}${label}</div>`;
-        html += `最快用时：<span class="record-best">${fmtTime(rec[d])}</span><br>`;
-        html += `通关次数：<span class="record-count">${wins[d] || 0} 次</span><br>`;
-        html += `本次用时：<span class="record-current">${fmtTime(lt[d])}</span>`;
+        const winCount = wins[d] || 0;
+        totalWins += winCount;
+        html += `<div class="record-item${d === "brain" ? " is-brain" : ""}">`;
+        html += `<div class="record-row">`;
+        html += `<span class="record-label">${meta.icon}${label}</span>`;
+        html += `<span class="record-badge">${winCount} 次</span>`;
+        html += `</div>`;
+        html += `<div class="record-meta">`;
+        html += `<span>最快 <b class="record-best">${fmtTime(rec[d])}</b></span>`;
+        html += `<span>本次 <b class="record-current">${fmtTime(lt[d])}</b></span>`;
+        html += `</div>`;
         html += `</div>`;
     });
     list.innerHTML = html;
+    // 折叠标题摘要：收起时也能看到累计通关次数
+    const hint = document.getElementById("recSectionHint");
+    if (hint) hint.textContent = totalWins > 0 ? "累计 " + totalWins + " 次" : "暂无记录";
+    // 挑战完成情况与成绩同属「📝记录」栏，随成绩一起刷新
+    renderChallengeList();
 }
+
+/* ---------- 11.1 挑战完成情况面板（v1.3.0） ---------- */
+/*
+ * 存档升级说明：挑战完成情况直接复用现有存档键，不新增任何持久化字段——
+ *   teachFinished        新手教学是否完成（"true" / 缺失）
+ *   tutorialStep         基础挑战已通关关数 "0".."5"
+ *   tutorial_<cat>       各系列挑战已通关关数 "0".."5"
+ *   tutorialCompleted    基础挑战完成标记（兼容老存档，与 tutorialStep>=5 等价）
+ *   seriesUnlocked[cat]  系列是否解锁（内存态，基础系列恒为 true）
+ * 因此本面板只做「读取 + 渲染」，不写存档、不改动任何玩法逻辑。
+ */
+
+/**
+ * 挑战面板的展示顺序：新手教学 → 基础挑战 → 四个系列挑战。
+ * 系列行的中文名与图标优先取全局 CATEGORY，取不到时退回这里的兜底值。
+ */
+const CHALLENGE_PANEL_ROWS = [ {
+    key: "teach",
+    icon: "🧐",
+    fallbackName: "教程"
+}, {
+    key: "basic",
+    icon: "💣",
+    fallbackName: "基础挑战"
+}, {
+    key: "special",
+    icon: "✖️",
+    fallbackName: "异形系列"
+}, {
+    key: "physics",
+    icon: "☢️",
+    fallbackName: "物理律系列"
+}, {
+    key: "symmetry",
+    icon: "‼️",
+    fallbackName: "对称系列"
+}, {
+    key: "tactical",
+    icon: "🔫",
+    fallbackName: "战术系列"
+} ];
+
+// 教学总关卡数：与 09-tutorial 的 TEACH_LEVELS.length（12）一致。
+// 教学只持久化「是否完成」，没有逐关进度，因此这里仅用于展示 12/12。
+const CHALLENGE_TEACH_TOTAL = 12;
+
+/**
+ * 转义要拼进 innerHTML 的文本，作为展示层的防御性处理（数据来自固定表）。
+ * @param {*} v 待转义的值
+ * @returns {string} 已转义的文本
+ */
+function escapeChallengeHtml(v) {
+    return String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+/**
+ * 渲染「📝记录」侧栏里的挑战完成情况面板。
+ *
+ * 每行展示名称、状态徽标与进度条，状态分三档：
+ *   ✅ 已完成  教学 teachFinished；基础挑战 tutorialCompleted 或 step>=5；
+ *              系列挑战 seriesUnlocked[cat] 或 step>=5
+ *   🕹️ 进行中  未完成但 step>0，徽标带 n/5
+ *   🔒 未解锁  基础挑战未完成时四个系列统一锁定；教学未完成显示「未完成」；
+ *              门禁已开放但 step=0 的项显示「未开始 0/5」
+ *
+ * 进度条宽度用内联百分比，布局类名由 style.css 统一定义
+ * （.challenge-item / .challenge-row / .challenge-label / .challenge-state /
+ *   .challenge-bar / .challenge-fill / .challenge-done / .challenge-active /
+ *   .challenge-locked）。
+ * 容器 #achChallengeList 不存在时静默返回，便于在未升级的页面里安全调用。
+ * @sideeffect 重写 #achChallengeList 的 innerHTML
+ */
+function renderChallengeList() {
+    const box = document.getElementById("achChallengeList");
+    if (!box) return;
+
+    // 读取存档：任何一项异常都降级为「未完成 / 0 进度」，不让面板拖垮记录栏
+    let teachFinished = false;
+    let basicStep = 0;
+    let basicCompleted = false;
+    const seriesInfo = {};
+    try {
+        teachFinished = Store.get("teachFinished") === "true";
+        basicStep = parseInt(Store.get("tutorialStep"), 10) || 0;
+        // tutorialCompleted 是基础挑战完成标记，同时兼容只写了 step 的进度
+        basicCompleted = Store.get("tutorialCompleted") === "true" || basicStep >= 5;
+        [ "special", "physics", "symmetry", "tactical" ].forEach(cat => {
+            seriesInfo[cat] = {
+                step: parseInt(Store.get("tutorial_" + cat), 10) || 0,
+                unlocked: !!seriesUnlocked[cat]
+            };
+        });
+    } catch (e) {
+        if (window.RM) RM.warn("renderChallengeList", e);
+    }
+    basicStep = Math.max(0, Math.min(5, basicStep));
+
+    let html = "";
+    // 折叠标题摘要：统计除新手教学外的 5 项挑战（基础 + 四系列）完成数
+    let doneChallenges = 0;
+    CHALLENGE_PANEL_ROWS.forEach(row => {
+        let icon = row.icon;
+        let name = row.fallbackName;
+        // 系列行（teach / basic 除外）优先使用 CATEGORY 的图标与中文名
+        let cat = null;
+        if (row.key !== "teach" && row.key !== "basic") {
+            try {
+                cat = typeof CATEGORY !== "undefined" && CATEGORY[row.key] ? CATEGORY[row.key] : null;
+            } catch (e) {
+                cat = null;
+            }
+        }
+        if (cat) {
+            icon = cat.emoji || icon;
+            name = cat.name || name;
+        }
+
+        // 状态修饰类固定三选一：challenge-done / challenge-active / challenge-locked
+        let mod = "challenge-locked";
+        let badge = "未开始";
+        let progress = "";
+        let pct = 0;
+        if (row.key === "teach") {
+            if (teachFinished) {
+                mod = "challenge-done";
+                badge = "✅ 已完成";
+                progress = CHALLENGE_TEACH_TOTAL + "/" + CHALLENGE_TEACH_TOTAL;
+                pct = 100;
+            } else {
+                // 教学没有逐关存档，未完成时不猜进度，只提示「未完成」
+                badge = "🔒 未完成";
+            }
+        } else if (row.key === "basic") {
+            const step = basicCompleted ? 5 : basicStep;
+            pct = Math.round(step / 5 * 100);
+            progress = step + "/5";
+            if (basicCompleted) {
+                mod = "challenge-done";
+                badge = "✅ 已完成";
+            } else if (step > 0) {
+                mod = "challenge-active";
+                badge = "🕹️ 进行中";
+            } else {
+                badge = "未开始";
+            }
+        } else {
+            const info = seriesInfo[row.key] || {
+                step: 0,
+                unlocked: false
+            };
+            const done = info.unlocked || info.step >= 5;
+            const step = done ? 5 : Math.max(0, Math.min(5, info.step));
+            if (!basicCompleted) {
+                // 系列挑战门禁依赖基础挑战：未通关时四个系列统一显示未解锁
+                badge = "🔒 未解锁";
+                pct = 0;
+            } else if (done) {
+                mod = "challenge-done";
+                badge = "✅ 已完成";
+                progress = "5/5";
+                pct = 100;
+            } else if (step > 0) {
+                mod = "challenge-active";
+                badge = "🕹️ 进行中";
+                progress = step + "/5";
+                pct = Math.round(step / 5 * 100);
+            } else {
+                badge = "未开始";
+                progress = "0/5";
+                pct = 0;
+            }
+        }
+
+        const badgeText = progress ? badge + " " + progress : badge;
+        if (row.key !== "teach" && mod === "challenge-done") doneChallenges++;
+        html += `<div class="challenge-item">`;
+        html += `<div class="challenge-row">`;
+        html += `<span class="challenge-label">${escapeChallengeHtml(icon + " " + name)}</span>`;
+        html += `<span class="challenge-state ${mod}">${escapeChallengeHtml(badgeText)}</span>`;
+        html += `</div>`;
+        html += `<div class="challenge-bar"><div class="challenge-fill" style="width:${pct}%"></div></div>`;
+        html += `</div>`;
+    });
+    box.innerHTML = html;
+    // 折叠标题摘要：收起时也能看到「已完成 x/5」
+    const hint = document.getElementById("challengeSectionHint");
+    if (hint) hint.textContent = doneChallenges + "/5";
+}
+window.renderChallengeList = renderChallengeList;
 
 /* ---------- 12. 按钮音效委托与通关庆祝 ---------- */
 
@@ -1039,6 +1293,7 @@ function closeWelcomeModal() {
     AudioFX.confirm();
     document.getElementById("overlay").style.display = "none";
     document.getElementById("welcomeModal").style.display = "none";
+    if (typeof guideRefresh === "function") guideRefresh();
 }
 
 /**
@@ -1087,18 +1342,12 @@ function closeHellLockedModal() {
 /* ---------- 15. 遮罩点击关闭策略 ---------- */
 
 /**
- * 点击通用遮罩时的关闭策略：教学规则弹窗优先处理，其余弹窗统一收起。
- * 遮罩是多个弹窗共用的，这里需要按优先级逐个判断，避免误关教学规则。
+ * 点击通用遮罩时的关闭策略：统一收起所有依附于遮罩的弹窗。
+ * 遮罩由多个弹窗共用，点击空白处即视为关闭当前弹窗。
  * @sideeffect 隐藏遮罩及所有依附于遮罩的弹窗
  */
 document.getElementById("overlay").addEventListener("click", () => {
     AudioFX.confirm();
-    let ruleModal = document.getElementById("teachRuleModal");
-    // 教学规则弹窗独占遮罩：点遮罩只关它，不连带关闭其它弹窗
-    if (ruleModal && ruleModal.style.display === "block") {
-        hideTeachRuleModal();
-        return;
-    }
     document.getElementById("overlay").style.display = "none";
     document.getElementById("welcomeModal").style.display = "none";
     document.getElementById("tutorialPrompt").style.display = "none";

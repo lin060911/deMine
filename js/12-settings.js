@@ -38,7 +38,7 @@
     }
     // 把任意输入压回 0~100 的整数，防止被手工改过的存档把音量带到越界区间
     const clamp = v => Math.max(0, Math.min(100, parseInt(v, 10) || 0));
-    // 默认值取一组"能听见"的参数：BGM 50%、音效 100%；合法存档则沿用其值
+    // 默认值取一组"能听见但不吵"的参数：BGM 50%、音效 50%；合法存档则沿用其值
     const bgmInit = typeof saved.bgm === "number" ? clamp(saved.bgm) : 50;
     const sfxInit = typeof saved.sfx === "number" ? clamp(saved.sfx) : 50;
     /**

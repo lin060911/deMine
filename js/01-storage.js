@@ -735,7 +735,7 @@
         m.placeMode_v1 = "drag";
         m.mineInfluenceHint = "false";
         m.mineEffectPreview = "false";
-        m.mineSoundSettings = stringify({ bgm: 50, sfx: 100 });
+        m.mineSoundSettings = stringify({ bgm: 50, sfx: 50 });
         return m;
     }
 
@@ -1088,7 +1088,7 @@
         w.u8(flags);
         var snd = parseJSON(map.mineSoundSettings, {});
         w.u8(clamp(numOr(snd.bgm, 50), 0, 100));
-        w.u8(clamp(numOr(snd.sfx, 100), 0, 100));
+        w.u8(clamp(numOr(snd.sfx, 50), 0, 100));
     }
 
     /**
@@ -1969,7 +1969,7 @@
                     placeMode: rawMap.placeMode_v1 === "click" ? "click" : "drag",
                     influenceHint: rawMap.mineInfluenceHint === "true",
                     effectPreview: rawMap.mineEffectPreview === "true",
-                    sound: parseJSON(rawMap.mineSoundSettings, { bgm: 50, sfx: 100 })
+                    sound: parseJSON(rawMap.mineSoundSettings, { bgm: 50, sfx: 50 })
                 },
                 extras: extras
             };

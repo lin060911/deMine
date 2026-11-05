@@ -40,7 +40,7 @@
     const clamp = v => Math.max(0, Math.min(100, parseInt(v, 10) || 0));
     // 默认值取一组"能听见"的参数：BGM 50%、音效 100%；合法存档则沿用其值
     const bgmInit = typeof saved.bgm === "number" ? clamp(saved.bgm) : 50;
-    const sfxInit = typeof saved.sfx === "number" ? clamp(saved.sfx) : 100;
+    const sfxInit = typeof saved.sfx === "number" ? clamp(saved.sfx) : 50;
     /**
      * 把两个滑块的当前值序列化后写回 localStorage。
      * 每次拖动都会调用，因此只写音量字段，不触碰其他设置。

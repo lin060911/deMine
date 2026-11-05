@@ -1079,7 +1079,7 @@
             set.effectPreview ? "good" : "muted"));
         var snd = set.sound || {};
         parts.push(dRow("音量", "🎵 背景音乐 " + (typeof snd.bgm === "number" ? snd.bgm : 50) +
-            "% · 💥 音效 " + (typeof snd.sfx === "number" ? snd.sfx : 100) + "%"));
+            "% · 💥 音效 " + (typeof snd.sfx === "number" ? snd.sfx : 50) + "%"));
         var series = insp.series || {};
         parts.push(dRow("开启系列", (series.onCount || 0) + " / 5 · 已解锁 " +
             (series.unlockedCount || 0) + " / 5", "muted"));

@@ -639,9 +639,7 @@
            14-bgeffects     背景漂浮幽灵，只依赖 DOM，位置相对自由
            15-boot          启动自检与存档管理，必须在 10 之后执行
            16-guide         新手引导层（小手动画 / 高亮 / 提示气泡）
-           17-sage          主线任务 / 地雷仙人 / 积分商店 / 外观
-                            （当前页面未引用：缺少主线侧栏 DOM；其存档键
-                             rmMainQuest_v1 / rmLooks_v1 仍由 01-storage 托管）
+
          举例：06-render.js 在顶层就调用 Store.get 读取提示开关，如果它排在
          01-storage.js 前面，加载阶段就会因 Store 未定义而报错。 -->
     <script src="js/00-core.js"></script>

@@ -138,12 +138,12 @@ RM.onError = function(where, err) {
  * TY 为地雷类型数，SP 为特殊道具数。只允许 applyBoardParams 写入。
  * 初始值取入门档（8×8 / 4 雷），四个系列挑战全部完成后由
  * applyStandardParams 切到标准档（10×10 / 6 雷）。 */
-let S = 8, SR = 8, SC = 8, T = 4, TY = 3, SP = 2;
+let S = 8, SR = 8, SC = 8, T = 4, TY = 2, SP = 3;
 
 /* 创造模式各参数的允许区间：[最小值, 最大值] */
 const LIMIT = {
-    size: [ 8, 20 ],
-    total: [ 2, 24 ],
+    size: [ 5, 20 ],
+    total: [ 5, 24 ],
     type: [ 0, 22 ],
     spec: [ 0, 99 ]
 };
@@ -184,7 +184,7 @@ const PRE = {
         size: 10,
         total: 6,
         type: 3,
-        spec: 3
+        spec: 4
     }
 };
 
@@ -203,8 +203,8 @@ const DIFF_LABEL = {
 const STD_PARAM_INTRO = {
     size: 8,
     total: 4,
-    type: 3,
-    spec: 2
+    type: 2,
+    spec: 3
 };
 
 const STD_PARAM_FULL = {

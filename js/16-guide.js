@@ -295,7 +295,7 @@
             target: cell,
             from: from,
             // 前三关是核心玩法接触点：进入步骤就先演一遍
-            active: teachLevelIdx < 3
+            active: teachLevelIdx < 5
         };
     }
 

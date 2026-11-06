@@ -3,7 +3,8 @@
  *
  * 职责：提供自定义棋盘编辑能力：选择尺寸、放置 / 移动 / 删除地雷，并把
  *       编辑结果编码成可分享的题库码，也能从题库码还原成一道题目。
- * 依赖：M（雷种定义，04-mines）、seriesState（系列开关，01-storage）、
+ * 依赖：M（雷种定义，04-mines）、STD_PARAM_INTRO / STD_PARAM_FULL 与
+ *       allSeriesChallengesDone（标准参数档，00-core）、
  *       全局对局状态 SR / SC / S / T / G（00-core）、render 与
  *       renderRecordList（06-render / 08-ui）、applyBoardMetrics / sizeCellsIn /
  *       bindCellDrag / bindSlotItemDrag（07-board）、applyTacticalEffects
@@ -45,16 +46,13 @@ const CREATE_MAX = 20;
 const CREATE_MAX_CELLS = 400;
 
 /**
- * 收集当前已开启系列中的可用雷种键。
- * 系列被关闭后，其雷种不会出现在创造面板里。
+ * 收集创造模式可用的雷种键。
+ * v1.3.2 起创造模式不参与系列解锁限制：图鉴里的 22 种地雷全部可用，
+ * 出题人可以自由组合任意系列的影响核（主局仍受系列开关控制）。
  * @returns {string[]} 雷种键数组，顺序沿用 M 的定义顺序
  */
 function getAllMineTypes() {
-    let types = [];
-    for (let k in M) {
-        if (seriesState[M[k].category]) types.push(k);
-    }
-    return types;
+    return Object.keys(M);
 }
 
 /**
@@ -393,29 +391,53 @@ function renderCreateBoard() {
 }
 
 /**
- * 渲染雷种面板：列出当前可用雷种及各自已放数量，并绑定拖拽落子。
- * 已放数量达到上限时所有条目置灰，已选中的雷种高亮显示。
- * @sideeffect 重建 #createMineSlot 的子节点并绑定拖拽事件。
+ * 渲染雷种面板：v1.3.2 起按系列分组，一行一个系列（基础 6 种、其余系列各 4 种），
+ * 22 张卡片不再混排，作者能按影响核分组快速找雷。每张卡显示雷种图标、名称与
+ * 已放数量；总数达到上限时全部置灰。
+ * @sideeffect 重建 #createMineSlot 的子节点（系列行 + 卡片）并绑定拖拽事件。
  */
 function renderCreateMineSlot() {
     let container = document.getElementById("createMineSlot");
     container.innerHTML = "";
-    let types = getAllMineTypes();
+    // 全部 22 种雷都出现在面板里，逐个 filter 统计会白扫 22 遍，
+    // 改为一次遍历得到每种雷的已放数量
+    let used = {};
+    for (let key in createPlaced) {
+        let t = createPlaced[key];
+        used[t] = (used[t] || 0) + 1;
+    }
+    let all = getAllMineTypes();
     let totalCells = createRows * createCols;
     let maxMines = Math.floor(totalCells * .6);
     let placedCount = Object.keys(createPlaced).length;
-    types.forEach(t => {
-        // 每个雷种的已放数量：面板上直接显示配额，便于作者控制难度
-        let used = Object.values(createPlaced).filter(v => v === t).length;
-        let div = document.createElement("div");
-        // 达到上限后整块面板置灰，避免继续放置的请求被静默忽略
-        let disabled = placedCount >= maxMines;
-        div.className = "mine-item" + (disabled ? " disabled" : "") + (window._createSelectedType === t ? " selected" : "");
-        div.dataset.tip = M[t].tip;
-        div.dataset.mineType = t;
-        div.innerHTML = `<div class="emoji-drag ${M[t].cls}">${M[t].e}</div><div>${M[t].n}</div><div>${used} 已放</div>`;
-        bindSlotItemDrag(div, t, "create");
-        container.appendChild(div);
+    // 达到上限后整块面板置灰，避免继续放置的请求被静默忽略
+    let disabled = placedCount >= maxMines;
+    // 系列行按 CATEGORY.order 排序：基础 → 异形 → 物理律 → 对称 → 战术
+    Object.keys(CATEGORY).sort((a, b) => CATEGORY[a].order - CATEGORY[b].order).forEach(catKey => {
+        let types = all.filter(t => M[t].category === catKey);
+        if (!types.length) return;
+        let cat = CATEGORY[catKey];
+        let row = document.createElement("div");
+        row.className = "create-mine-row";
+        let label = document.createElement("div");
+        label.className = "create-mine-cat";
+        label.innerHTML = `<span class="cat-emoji">${cat.emoji}</span>${cat.name}`;
+        row.appendChild(label);
+        let list = document.createElement("div");
+        list.className = "create-mine-items";
+        types.forEach(t => {
+            // 每个雷种的已放数量：面板上直接显示，便于作者控制难度
+            let cnt = used[t] || 0;
+            let div = document.createElement("div");
+            div.className = "mine-item" + (disabled ? " disabled" : "") + (window._createSelectedType === t ? " selected" : "");
+            div.dataset.tip = M[t].tip;
+            div.dataset.mineType = t;
+            div.innerHTML = `<div class="emoji-drag ${M[t].cls}">${M[t].e}</div><div>${M[t].n}</div><div>${cnt} 已放</div>`;
+            bindSlotItemDrag(div, t, "create");
+            list.appendChild(div);
+        });
+        row.appendChild(list);
+        container.appendChild(row);
     });
 }
 

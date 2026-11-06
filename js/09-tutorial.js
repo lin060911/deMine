@@ -31,7 +31,7 @@ function onTutorialWin() {
     let cat = currentTutorialType;
     if (!cat) Store.set("tutorialStep", tutorialStep.toString()); else Store.set("tutorial_" + cat, tutorialStep.toString());
     updateTutorialProgress();
-    // 挑战进度已写入存档：立刻重绘记录栏的挑战完成情况面板
+    // 挑战进度已写入存档：立刻重绘「🎯挑战」弹窗的进度面板
     if (typeof renderChallengeList === "function") renderChallengeList();
     // 第 5 关即整个挑战的终点：先解锁对应系列，再弹出总结弹窗
     if (tutorialStep >= 5) {
@@ -201,7 +201,7 @@ function showBasicRequiredModal(catKey) {
         title: "先完成基础挑战",
         body: "「" + cat.emoji + " <strong>" + cat.name + "</strong>」的挑战<br>" +
             "需要先通关 <strong>基础挑战</strong>（5 关）才能解锁哦<br>" +
-            "<span style=\"font-size:12px;color:#718096\">在 💣信息 → 炸弹信息 里也能找到入口</span>",
+            "<span style=\"font-size:12px;color:#718096\">入口在主按钮「🎯挑战」里</span>",
         buttons: [ {
             label: "去完成基础挑战",
             sub: "立即开始",
@@ -240,18 +240,22 @@ function startCategoryTutorial(catKey) {
     tutorialStep = seriesUnlocked[catKey] ? parseInt(Store.get("tutorial_" + catKey)) || 0 : 0;
     document.getElementById("overlay").style.display = "none";
     setupTutorialBoard(catKey);
-    closeInfoSidebarForChallenge();
-    // 进入系列挑战不改变存档进度，但顺手刷新挑战面板，保证记录栏数据最新
+    closeChallengeEntryPanels();
+    // 进入系列挑战不改变存档进度，但顺手刷新挑战面板，保证弹窗数据最新
     if (typeof renderChallengeList === "function") renderChallengeList();
 }
 
 /**
- * 从炸弹信息入口开始挑战后收起信息侧栏。
- * @sideeffect 移除 #infoSidebar 的 open 类并通知引导层刷新
+ * 从挑战入口开始后收起相关面板（v1.3.3）：
+ * 原来只收起「信息」侧栏，现在挑战入口统一在「🎯挑战」弹窗里，
+ * 因此同时收起信息侧栏与挑战弹窗，让棋盘占满视野。
+ * @sideeffect 移除 #infoSidebar 的 open 类、隐藏 #challengeModal，并通知引导层刷新
  */
-function closeInfoSidebarForChallenge() {
+function closeChallengeEntryPanels() {
     var sb = document.getElementById("infoSidebar");
     if (sb) sb.classList.remove("open");
+    var hub = document.getElementById("challengeModal");
+    if (hub) hub.style.display = "none";
     if (typeof guideRefresh === "function") guideRefresh();
 }
 
@@ -621,7 +625,7 @@ function openTeachMode() {
 function openPracticeMode() {
     AudioFX.confirm();
     startTutorial();
-    closeInfoSidebarForChallenge();
+    closeChallengeEntryPanels();
 }
 
 /* ---------- 7. 关卡装载与棋盘渲染 ---------- */
@@ -760,9 +764,11 @@ function renderTeachSlot() {
             minesBox.id = "teachBubbleMines";
             bubble.appendChild(minesBox);
         }
-        // 除气泡外清空容器，槽位条目每次重新生成
+        // 除气泡与槽位底部的清空条外清空容器，槽位条目每次重新生成
+        // （清空条是静态入口，保留节点以免丢失 clearAll 绑定，教学模式下由 CSS 隐藏）
         Array.prototype.slice.call(s.children).forEach(function(ch) {
-            if (ch !== bubble) s.removeChild(ch);
+            if (ch === bubble || ch.id === "slotClearBar") return;
+            s.removeChild(ch);
         });
         minesBox.innerHTML = "";
     }

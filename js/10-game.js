@@ -153,8 +153,8 @@ function clearAll() {
 // 「新游戏」按钮：13-achievements 安装钩子时会包装此处理器，用于统计连点
 document.getElementById("reset").onclick = newGame;
 
-// 「清空放置」按钮：同样属于可被钩子替换的入口，用于统计清空次数
-document.getElementById("clear").onclick = clearAll;
+// 「清空放置」按钮（v1.3.3 起位于地雷槽底部）：同样属于可被钩子替换的入口
+document.getElementById("slotClearBtn").onclick = clearAll;
 
 /**
  * 首屏启动：渲染记录表、雷种信息与系列开关，发放脑王解锁提示，

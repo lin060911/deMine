@@ -8,7 +8,7 @@
  *       AudioFX；04-mines 的 M / CATEGORY；06-render、07-board 提供的渲染与
  *       交互。
  * 对外：window.closeAllModals、window.syncMainPanel、window.gotoSeriesChallenge、
- *       window.onLockedSeriesClick、window.openChallengeModal、window.renderChallengeList
+ *       window.onLockedSeriesClick、window.openDifficultyModal、window.renderChallengeList
  *       等界面入口。
  * 设计要点：
  *   1) 弹窗统一"运行时构建 + 集中关闭"：closeAllModals 一次收掉遮罩与全部
@@ -63,7 +63,7 @@ document.getElementById("toggleCreateSidebar").onclick = () => {
 
 /* ---------- 2. 信息栏折叠部件 ---------- */
 
-// 常驻展开的折叠项：炸弹信息是进入系列挑战的唯一入口，任何情况下都不收起
+// 常驻展开的折叠项：炸弹信息用于查看雷种与解锁状态，任何情况下都不收起
 const ACC_ALWAYS_OPEN = ["accMine"];
 
 /**
@@ -98,17 +98,19 @@ function toggleAcc(id) {
 }
 window.toggleAcc = toggleAcc;
 
-/* ---------- 2.1 记录栏折叠部件（成绩 / 挑战 / 成就） ---------- */
+/* ---------- 2.1 记录栏折叠部件（成绩 / 成就） ---------- */
 
 /**
  * 展开 / 收起「📝记录」栏中的一个折叠区。
  *
  * 与信息栏的 toggleAcc 共用同一套视觉语言（标题即按钮、箭头旋转、内容区
- * 淡入），但三个区互不互斥：玩家可以同时展开成绩与挑战进行对照，因此
+ * 淡入），但各区互不互斥：玩家可以同时展开成绩与成就进行对照，因此
  * 这里不做手风琴式收起。默认展开状态由 index.html 的
- * record-acc-open / record-acc-closed 类决定（成绩、挑战默认折叠）。
+ * record-acc-open / record-acc-closed 类决定（成绩默认折叠、成就默认展开）。
+ * v1.3.3 起「挑战」区已移到主按钮「🎯挑战」打开的弹窗，本函数只处理
+ * recSection / achSection 两个折叠区。
  *
- * @param {string} id 折叠区元素 id：recSection / challengeSection / achSection
+ * @param {string} id 折叠区元素 id：recSection / achSection
  * @sideeffect 切换 record-acc-open / record-acc-closed 类、aria-expanded 与音效；
  *             展开时按需重绘该区内容，避免折叠期间的数据变化没有刷新
  */
@@ -128,8 +130,6 @@ function toggleRecordAcc(id) {
     try {
         if (id === "recSection" && typeof renderRecordList === "function") {
             renderRecordList();
-        } else if (id === "challengeSection" && typeof renderChallengeList === "function") {
-            renderChallengeList();
         } else if (id === "achSection" && window.Achievements && Achievements.renderAchievements) {
             window.Achievements.renderAchievements();
         }
@@ -228,10 +228,10 @@ function closeAllModals() {
             m.style.display = "none";
         });
         // 难度弹窗（独立容器，不属于 .auto-modal）
-        var cm = document.getElementById("challengeModal");
+        var cm = document.getElementById("difficultyModal");
         if (cm) cm.style.display = "none";
-        // 脑王通关框 / 教学完成框 / 胜利框
-        [ "brainWinModal", "teachCompleteModal", "win" ].forEach(function(id) {
+        // 挑战弹窗 / 脑王通关框 / 教学完成框 / 胜利框
+        [ "challengeModal", "brainWinModal", "teachCompleteModal", "win" ].forEach(function(id) {
             var el = document.getElementById(id);
             if (!el) return;
             el.style.display = "none";
@@ -280,51 +280,32 @@ window.isBasicChallengeDone = isBasicChallengeDone;
 /* ---------- 6. 系列挑战入口 ---------- */
 
 /**
- * 把玩家送到炸弹信息里的指定系列：打开侧边栏、滚到对应分区，
- * 再由引导层用统一的高亮框指着该系列的「挑战」按钮。
+ * 把玩家引向「🎯挑战」里的指定系列（v1.3.3）：
+ * **不直接打开挑战弹窗**，而是先设置引导标记、收起弹层，让引导层把高亮环
+ * 放到主按钮「🎯挑战」上；玩家自己点开弹窗后，引导会自动改为指向该系列行
+ * 右侧的「挑战 / 练习」按钮。每次调用都会重置引导状态，所以重复点「前往挑战」
+ * 每次都会重新触发这套两步指引。
  * @param {string} catKey 系列键（special / physics / symmetry / tactical 等）
- * @sideeffect 打开 infoSidebar、修改滚动位置，并激活该系列的引导
+ * @sideeffect 收起弹层与侧栏、写入系列引导标记、刷新引导
  */
 function gotoSeriesChallenge(catKey) {
-    var sb = document.getElementById("infoSidebar");
-    if (!sb) return;
-    // 保留/重设该系列标记：导航完成后由引导层指向「挑战」按钮
+    // 记录来源系列：引导第一步指「🎯挑战」，第二步指该系列行按钮
     window._guideLockedSeries = catKey;
     window._guideLockedDifficulty = null;
-    // 先收掉所有弹窗，避免难度弹窗或确认框挡住目标分区
+    // 先收掉所有弹层与侧栏，避免确认框 / 难度弹窗挡住主按钮
     closeAllModals();
-    closeSidebarsExcept("infoSidebar");
-    sb.classList.add("open");
-    // 炸弹信息是常驻展开项，这里再确保一次展开状态
-    var acc = document.getElementById("accMine");
-    if (acc) {
-        acc.classList.add("rm-acc-open");
-        acc.classList.remove("rm-acc-closed");
+    closeSidebarsExcept(null);
+    if (typeof guideRefresh === "function") {
+        guideRefresh();
+        // 确认框刚关闭时布局会跳一下，稍后再刷一次保证高亮贴在按钮上
+        setTimeout(guideRefresh, 120);
     }
-    var box = document.getElementById("mineInfoList");
-    var target = box ? box.querySelector('.category-section[data-cat="' + catKey + '"]') : null;
-    if (!target) {
-        if (typeof guideRefresh === "function") guideRefresh();
-        return;
-    }
-    // 先把分区滚进视口，再让引导层用与其它高亮一致的样式指向「挑战」按钮
-    try {
-        if (typeof target.scrollIntoView === "function") {
-            target.scrollIntoView({ behavior: "smooth", block: "center" });
-        } else if (sb.scrollTop !== undefined && target.offsetTop !== undefined) {
-            // 不支持 scrollIntoView 选项的浏览器退回手算滚动位置
-            sb.scrollTop = Math.max(0, target.offsetTop - 40);
-        }
-    } catch (e) {}
-    if (typeof guideRefresh === "function") guideRefresh();
-    setTimeout(function() {
-        if (typeof guideRefresh === "function") guideRefresh();
-    }, 350);
 }
 window.gotoSeriesChallenge = gotoSeriesChallenge;
 
 /**
  * 点击未解锁的系列开关时的引导：询问是否立刻前往该系列挑战。
+ * 确认后不直接打开挑战弹窗，而是走 gotoSeriesChallenge 的两步指引。
  * @param {string} catKey 系列键
  * @sideeffect 播放锁定音效并打开确认弹窗
  */
@@ -339,7 +320,7 @@ function onLockedSeriesClick(catKey) {
             "解锁后就能在 🎯难度 里开启这个系列开关 ✅",
         buttons: [ {
             label: "前往挑战",
-            sub: "打开炸弹信息",
+            sub: "先点主按钮「🎯挑战」",
             cls: "rm-btn-primary",
             act: "go"
         }, {
@@ -350,13 +331,13 @@ function onLockedSeriesClick(catKey) {
         onAction: function(act) {
             if (act === "go") {
                 closeAllModals();
+                // 每次点「前往挑战」都重新触发两步指引：主按钮 → 系列行按钮
                 gotoSeriesChallenge(catKey);
             }
         }
     });
-    // 记下来源系列：确认框关掉后，引导会先指信息栏、再指该系列的挑战入口
-    window._guideLockedSeries = catKey;
-    // 玩家已经开始处理系列开关，难度门槛路线让位给这条更具体的引导
+    // 玩家已经开始处理系列开关，难度门槛路线让位给这条更具体的引导；
+    // 系列引导标记在点「前往挑战」时才写入，取消不会留下指引
     window._guideLockedDifficulty = null;
     if (typeof guideRefresh === "function") guideRefresh();
 }
@@ -366,20 +347,64 @@ window.onLockedSeriesClick = onLockedSeriesClick;
 
 /**
  * 打开难度弹窗：先收起所有侧边栏，再刷新系列开关与预设按钮状态。
- * @sideeffect 播放音效、收起侧边栏、显示 challengeModal
+ * @sideeffect 播放音效、收起侧边栏、显示 difficultyModal
  */
-function openChallengeModal() {
+function openDifficultyModal() {
     AudioFX.confirm();
     closeSidebarsExcept(null);
     renderSeriesSwitches();
     updatePresetButtons();
-    const m = document.getElementById("challengeModal");
+    const m = document.getElementById("difficultyModal");
     if (m) m.style.display = "block";
     if (typeof guideRefresh === "function") guideRefresh();
 }
 
 /**
  * 关闭难度弹窗。
+ * @sideeffect 隐藏 difficultyModal
+ */
+function closeDifficultyModal() {
+    const m = document.getElementById("difficultyModal");
+    if (m) m.style.display = "none";
+    if (typeof guideRefresh === "function") guideRefresh();
+}
+
+window.openDifficultyModal = openDifficultyModal;
+window.closeDifficultyModal = closeDifficultyModal;
+
+/* ---------- 7.1 挑战弹窗（v1.3.3） ---------- */
+
+/**
+ * 打开「🎯挑战」弹窗：集中展示教学 / 基础挑战 / 四个系列挑战的进度，
+ * 每行右侧是练习 / 挑战入口（原「炸弹信息」里的按钮）。
+ * 与难度弹窗互斥，打开前先收起所有侧栏与难度弹窗，并刷新一次进度。
+ * @sideeffect 播放音效、收起侧栏、显示 challengeModal
+ */
+function openChallengeModal() {
+    AudioFX.confirm();
+    // 与难度弹窗互斥：同时打开会互相遮挡
+    var diffModal = document.getElementById("difficultyModal");
+    if (diffModal) diffModal.style.display = "none";
+    closeSidebarsExcept(null);
+    renderChallengeList();
+    const m = document.getElementById("challengeModal");
+    if (m) m.style.display = "block";
+    // 如果引导标记了某个未解锁系列，打开后把该系列行滚进视野，
+    // 保证第二步的高亮（该行右侧的挑战 / 练习按钮）可见
+    var guideCat = window._guideLockedSeries;
+    if (guideCat) {
+        var row = document.querySelector('#challengeList .challenge-item[data-key="' + guideCat + '"]');
+        if (row && typeof row.scrollIntoView === "function") {
+            try {
+                row.scrollIntoView({ behavior: "smooth", block: "center" });
+            } catch (e) {}
+        }
+    }
+    if (typeof guideRefresh === "function") guideRefresh();
+}
+
+/**
+ * 关闭「🎯挑战」弹窗。
  * @sideeffect 隐藏 challengeModal
  */
 function closeChallengeModal() {
@@ -387,7 +412,6 @@ function closeChallengeModal() {
     if (m) m.style.display = "none";
     if (typeof guideRefresh === "function") guideRefresh();
 }
-
 window.openChallengeModal = openChallengeModal;
 window.closeChallengeModal = closeChallengeModal;
 
@@ -443,12 +467,16 @@ window.ensureBarToggle = ensureBarToggle;
  */
 document.addEventListener("click", e => {
     const modeLink = e.target && e.target.closest ? e.target.closest(".rule-mode-link") : null;
+    // v1.3.2：难度弹窗里的「📝记录」跳转按钮会在本次 click 里打开记录侧栏，
+    // 必须把它排除在外，否则同一次点击的冒泡会立刻把刚打开的侧栏收回去，
+    // 引导也会因为侧栏被关而落到别的按钮上
+    const recordJump = e.target && e.target.closest ? e.target.closest("#recordJumpBtn") : null;
     [ [ "infoSidebar", "toggleInfoSidebar" ], [ "achSidebar", "toggleAchSidebar" ], [ "createSidebar", "toggleCreateSidebar" ], [ "settingSidebar", "toggleSettingSidebar" ] ].forEach(([ id, btnId ]) => {
         const sb = document.getElementById(id);
         if (!sb || !sb.classList.contains("open")) return;
         const btn = document.getElementById(btnId);
-        // 点在侧边栏内部、开关按钮上或模式跳转链接上时都不收起
-        if (!sb.contains(e.target) && e.target !== btn && !modeLink) sb.classList.remove("open");
+        // 点在侧边栏内部、开关按钮上、模式跳转链接或记录跳转按钮上时都不收起
+        if (!sb.contains(e.target) && e.target !== btn && !modeLink && !recordJump) sb.classList.remove("open");
     });
 });
 
@@ -456,20 +484,34 @@ document.addEventListener("click", e => {
  * 全局委托：点击难度弹窗外部时关闭弹窗。
  * 点遮罩本身，或点卡片之外的空白都算"外部"；点开弹窗的入口按钮除外，
  * 否则同一次点击会先把紧接着打开的弹窗关掉。
+ * @sideeffect 关闭 difficultyModal
+ */
+document.addEventListener("click", function(e) {
+    const m = document.getElementById("difficultyModal");
+    if (!m || m.style.display !== "block") return;
+    const card = m.querySelector(".game-modal-card");
+    if (e.target === m) closeDifficultyModal();
+    else if (card && !card.contains(e.target) && e.target.closest && !e.target.closest("#difficultyBtn")) closeDifficultyModal();
+});
+/**
+ * 全局委托：点击「🎯挑战」弹窗外部时关闭它（与难度弹窗同一套策略）。
  * @sideeffect 关闭 challengeModal
  */
 document.addEventListener("click", function(e) {
     const m = document.getElementById("challengeModal");
     if (!m || m.style.display !== "block") return;
-    const card = m.querySelector(".challenge-card");
+    const card = m.querySelector(".game-modal-card");
     if (e.target === m) closeChallengeModal();
     else if (card && !card.contains(e.target) && e.target.closest && !e.target.closest("#challengeBtn")) closeChallengeModal();
 });
 /**
- * 键盘委托：Esc 关闭难度弹窗，作为鼠标关闭路径的键盘等价操作。
+ * 键盘委托：Esc 关闭难度弹窗 / 挑战弹窗，作为鼠标关闭路径的键盘等价操作。
  */
 document.addEventListener("keydown", function(e) {
-    if (e.key === "Escape") closeChallengeModal();
+    if (e.key === "Escape") {
+        closeDifficultyModal();
+        closeChallengeModal();
+    }
 });
 
 /* ---------- 9. 系列开关 ---------- */
@@ -543,7 +585,7 @@ function unlockSeries(catKey) {
     saveSeriesUnlocked(seriesUnlocked);
     saveSeriesState(seriesState);
     renderSeriesSwitches();
-    // 系列由「未解锁」变为「已完成」：立刻刷新记录栏的挑战完成情况面板
+    // 系列由「未解锁」变为「已完成」：立刻刷新「🎯挑战」弹窗的进度面板
     renderChallengeList();
 }
 
@@ -674,7 +716,7 @@ function isPresetDifficulty(d) {
  */
 function setPre(d) {
     // 自由模式要留在弹窗里调参数，其它难度选完即关
-    if (d !== "free") closeChallengeModal();
+    if (d !== "free") closeDifficultyModal();
     fullReset();
     if (d === "free") {
         isFreeMode = true;
@@ -726,10 +768,10 @@ function enterPresetPending(d) {
     board.innerHTML = "";
     board.style.display = "none";
     var slot = document.getElementById("slot");
-    var teachBubble = document.getElementById("teachBubble");
-    slot.innerHTML = "";
-    // 教学气泡常驻在 slot 容器里，清空容器后要把它放回去
-    if (teachBubble) slot.appendChild(teachBubble);
+    // 只清掉已生成的雷卡，保留教学气泡与槽内底部的清空条
+    Array.prototype.slice.call(slot.querySelectorAll(".mine-item")).forEach(function(el) {
+        if (el.parentNode) el.parentNode.removeChild(el);
+    });
     slot.style.display = "none";
     document.getElementById("timer").style.display = "none";
     document.getElementById("placed").textContent = "0";
@@ -792,7 +834,7 @@ function setVal(key, dir) {
  */
 function applySet() {
     AudioFX.confirm();
-    closeChallengeModal();
+    closeDifficultyModal();
     SP = Math.min(SP, T);
     TY = Math.min(TY, SP);
     if (isFreeMode) {
@@ -980,24 +1022,28 @@ function escapeChallengeHtml(v) {
 }
 
 /**
- * 渲染「📝记录」侧栏里的挑战完成情况面板。
+ * 渲染「🎯挑战」弹窗里的挑战完成情况面板（v1.3.3 从「📝记录」侧栏移入）。
  *
- * 每行展示名称、状态徽标与进度条，状态分三档：
+ * 每行展示名称、状态徽标、进度条与右侧的练习 / 挑战入口，状态分三档：
  *   ✅ 已完成  教学 teachFinished；基础挑战 tutorialCompleted 或 step>=5；
  *              系列挑战 seriesUnlocked[cat] 或 step>=5
  *   🕹️ 进行中  未完成但 step>0，徽标带 n/5
  *   🔒 未解锁  基础挑战未完成时四个系列统一锁定；教学未完成显示「未完成」；
  *              门禁已开放但 step=0 的项显示「未开始 0/5」
  *
+ * 右侧按钮完全复用原「炸弹信息」里的入口行为：基础挑战行 未完成显示
+ * 「基础挑战」/ 完成显示「练习」；系列行 未解锁显示「挑战」/ 解锁后显示
+ * 「练习」。教学行没有对应入口，只展示进度。
+ *
  * 进度条宽度用内联百分比，布局类名由 style.css 统一定义
  * （.challenge-item / .challenge-row / .challenge-label / .challenge-state /
  *   .challenge-bar / .challenge-fill / .challenge-done / .challenge-active /
- *   .challenge-locked）。
- * 容器 #achChallengeList 不存在时静默返回，便于在未升级的页面里安全调用。
- * @sideeffect 重写 #achChallengeList 的 innerHTML
+ *   .challenge-locked / .challenge-entry-btn）。
+ * 容器 #challengeList 不存在时静默返回；每行带 data-key 供引导层定位。
+ * @sideeffect 重写 #challengeList 的 innerHTML
  */
 function renderChallengeList() {
-    const box = document.getElementById("achChallengeList");
+    const box = document.getElementById("challengeList");
     if (!box) return;
 
     // 读取存档：任何一项异常都降级为「未完成 / 0 进度」，不让面板拖垮记录栏
@@ -1022,8 +1068,6 @@ function renderChallengeList() {
     basicStep = Math.max(0, Math.min(5, basicStep));
 
     let html = "";
-    // 折叠标题摘要：统计除新手教学外的 5 项挑战（基础 + 四系列）完成数
-    let doneChallenges = 0;
     CHALLENGE_PANEL_ROWS.forEach(row => {
         let icon = row.icon;
         let name = row.fallbackName;
@@ -1097,20 +1141,26 @@ function renderChallengeList() {
             }
         }
 
+        // v1.3.3：每行右侧的练习 / 挑战入口（教学行没有对应入口，不放按钮）
+        let action = "";
+        if (row.key === "basic") {
+            action = `<button class="challenge-entry-btn ${basicCompleted ? "is-practice" : "is-challenge"}" onclick="openPracticeMode()">${basicCompleted ? "练习" : "基础挑战"}</button>`;
+        } else if (row.key !== "teach") {
+            const sInfo = seriesInfo[row.key] || { step: 0, unlocked: false };
+            const sUnlocked = sInfo.unlocked || sInfo.step >= 5;
+            action = `<button class="challenge-entry-btn ${sUnlocked ? "is-practice" : "is-challenge"}" onclick="startCategoryTutorial('${row.key}')">${sUnlocked ? "练习" : "挑战"}</button>`;
+        }
         const badgeText = progress ? badge + " " + progress : badge;
-        if (row.key !== "teach" && mod === "challenge-done") doneChallenges++;
-        html += `<div class="challenge-item">`;
+        html += `<div class="challenge-item" data-key="${row.key}">`;
         html += `<div class="challenge-row">`;
         html += `<span class="challenge-label">${escapeChallengeHtml(icon + " " + name)}</span>`;
         html += `<span class="challenge-state ${mod}">${escapeChallengeHtml(badgeText)}</span>`;
+        html += action;
         html += `</div>`;
         html += `<div class="challenge-bar"><div class="challenge-fill" style="width:${pct}%"></div></div>`;
         html += `</div>`;
     });
     box.innerHTML = html;
-    // 折叠标题摘要：收起时也能看到「已完成 x/5」
-    const hint = document.getElementById("challengeSectionHint");
-    if (hint) hint.textContent = doneChallenges + "/5";
 }
 window.renderChallengeList = renderChallengeList;
 
@@ -1124,7 +1174,7 @@ document.addEventListener("mouseover", e => {
     let el = e.target;
     // 系列开关有自己的专属音效，这里跳过以免重复播放
     if (el.closest(".switch-toggle") || el.closest(".switch-row")) return;
-    if (el.matches && el.matches("button, .preset-btn, .num-btn, .apply-btn, .game-sidebar-toggle, .setting-sidebar-toggle, .achievement-sidebar-toggle, .info-sidebar-toggle, .rule-sidebar-toggle, .tutorial-btn-inline, .mine-item, .win button, .auto-modal button")) {
+    if (el.matches && el.matches("button, .preset-btn, .num-btn, .apply-btn, .game-sidebar-toggle, .setting-sidebar-toggle, .achievement-sidebar-toggle, .info-sidebar-toggle, .rule-sidebar-toggle, .challenge-entry-btn, .mine-item, .win button, .auto-modal button")) {
         if (el.classList.contains("disabled") || el.classList.contains("locked") || el.classList.contains("locked-row")) return;
         AudioFX.pop();
     }
@@ -1258,6 +1308,10 @@ function checkWin() {
         document.getElementById("win").style.display = "flex";
     }
     checkWinAchievements();
+    // v1.3.2：题库码题目没有难度标记（diff 为空），通关后把四项关卡参数恢复成
+    // 当前进度的标准档，避免下一局沿用分享题目的棋盘大小与雷数。放在成就判定
+    // 之后执行：成就侧仍要用本局的 SR / SC 扫描题面数值。
+    if (!diff && !isFreeMode) applyStandardParams();
 }
 
 /* ---------- 14. 各类弹窗的关闭函数 ---------- */
@@ -1359,3 +1413,162 @@ document.getElementById("overlay").addEventListener("click", () => {
     document.getElementById("brainLockedModal").style.display = "none";
     if (typeof guideRefresh === "function") guideRefresh();
 });
+
+/* ---------- 16. 全屏切换（v1.3.2） ---------- */
+
+/**
+ * 取当前处于全屏的元素：优先标准属性，缺失时回退 WebKit / 旧 Edge 前缀。
+ * @returns {Element|null} 全屏中的元素，未全屏时为 null
+ */
+function currentFullscreenElement() {
+    return document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.msFullscreenElement || null;
+}
+
+/**
+ * 取元素上的"进入全屏"方法：标准 API → WebKit → 旧 Edge 前缀。
+ * @param {Element} el 目标元素
+ * @returns {Function|null} 可用方法，不支持时返回 null
+ */
+function fullscreenRequestFn(el) {
+    return el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen || null;
+}
+
+/**
+ * 取文档上的"退出全屏"方法，同样按标准 → 前缀回退。
+ * @returns {Function|null} 可用方法，不支持时返回 null
+ */
+function fullscreenExitFn() {
+    return document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen || null;
+}
+
+/**
+ * 同步右上角全屏按钮的图标 / 文案 / aria 状态，供全屏事件与启动时调用。
+ * @sideeffect 改写 #fullscreenBtn 的内容与属性
+ */
+function syncFullscreenBtn() {
+    var btn = document.getElementById("fullscreenBtn");
+    if (!btn) return;
+    var on = !!currentFullscreenElement();
+    var icon = btn.querySelector(".rm-fs-icon");
+    var label = btn.querySelector(".rm-fs-label");
+    btn.classList.toggle("is-fullscreen", on);
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+    btn.setAttribute("aria-label", on ? "退出全屏" : "进入全屏");
+    btn.title = on ? "退出全屏" : "进入全屏";
+    // 进入全屏后用"重叠方框"表示退出，避免与普通状态混淆
+    if (icon) icon.textContent = on ? "🗗" : "⛶";
+    if (label) label.textContent = on ? "退出全屏" : "全屏";
+}
+
+/**
+ * 点击右上角按钮：在「全屏 / 退出全屏」之间切换。
+ * 浏览器不支持全屏（如 iPhone Safari）或拒绝请求时只做 toast 提示，
+ * 不抛出异常、不影响游戏流程。
+ * @sideeffect 请求或退出全屏，成功后由 fullscreenchange 事件同步按钮状态
+ */
+function toggleFullscreen() {
+    var on = !!currentFullscreenElement();
+    if (on) {
+        var ex = fullscreenExitFn();
+        if (!ex) return;
+        try {
+            var pr = ex.call(document);
+            if (pr && typeof pr.catch === "function") pr.catch(function() {});
+        } catch (e) {}
+        return;
+    }
+    var req = fullscreenRequestFn(document.documentElement);
+    if (!req) {
+        if (window.RM && RM.toast) RM.toast("当前浏览器不支持全屏");
+        try {
+            AudioFX.locked();
+        } catch (e) {}
+        return;
+    }
+    try {
+        var ret = req.call(document.documentElement);
+        if (ret && typeof ret.catch === "function") {
+            ret.catch(function() {
+                if (window.RM && RM.toast) RM.toast("全屏被浏览器拒绝");
+            });
+        }
+    } catch (e2) {
+        if (window.RM && RM.toast) RM.toast("当前浏览器不支持全屏");
+        return;
+    }
+    try {
+        AudioFX.confirm();
+    } catch (e3) {}
+}
+window.toggleFullscreen = toggleFullscreen;
+
+// 全屏状态可能由 Esc / F11 / 系统手势改变，统一监听各厂商事件后同步按钮
+[ "fullscreenchange", "webkitfullscreenchange", "MSFullscreenChange" ].forEach(function(ev) {
+    document.addEventListener(ev, syncFullscreenBtn);
+});
+syncFullscreenBtn();
+
+/* ---------- 17. 记录栏成绩跳转（v1.3.2） ---------- */
+
+/**
+ * 从「难度🕹️」弹窗底部的成绩提示跳到「📝记录」栏的成绩区。
+ * 依次完成：收起弹层 → 打开记录侧栏 → 展开默认折叠的成绩分区 → 滚进视野，
+ * 最后写入引导标记，由 16-guide.js 用统一的高亮框 + 小手指出成绩位置。
+ * @sideeffect 关闭弹窗、切换侧栏 open 类、展开 recSection、写入引导标记
+ */
+function gotoRecordScores() {
+    try {
+        AudioFX.confirm();
+    } catch (e) {}
+    // 难度弹窗与其它弹层先收起，避免挡住记录侧栏
+    if (typeof closeAllModals === "function") closeAllModals();
+    closeSidebarsExcept("achSidebar");
+    var sb = document.getElementById("achSidebar");
+    if (sb) sb.classList.add("open");
+    // 成绩区默认折叠：跳过来时自动展开一次，让玩家直接看到成绩
+    var rec = document.getElementById("recSection");
+    if (rec && !rec.classList.contains("record-acc-open") && typeof toggleRecordAcc === "function") {
+        toggleRecordAcc("recSection");
+    }
+    // 标记本次跳转来源：引导层据此把高亮环与小手放到成绩区
+    window._guideRecordScores = true;
+    // 玩家已经在看成绩，门槛类引导让位给这条更具体的引导
+    window._guideLockedSeries = null;
+    window._guideLockedDifficulty = null;
+    try {
+        if (typeof renderRecordList === "function") renderRecordList();
+    } catch (e2) {}
+    // 等侧栏滑入动画开始后再滚动，避免滚动位置被动画重置
+    setTimeout(function() {
+        try {
+            if (rec && rec.scrollIntoView) rec.scrollIntoView({ behavior: "smooth", block: "center" });
+        } catch (e3) {}
+    }, 80);
+    if (typeof guideRefresh === "function") {
+        guideRefresh();
+        setTimeout(guideRefresh, 320);
+    }
+}
+window.gotoRecordScores = gotoRecordScores;
+
+/* ---------- 18. 自由模式恢复默认参数（v1.3.2） ---------- */
+
+/**
+ * 自由模式参数面板的「恢复默认」：按当前进度恢复四项标准参数
+ * （四系列挑战全解锁前 8×8/4/2/3，全解锁后 10×10/6/3/4），
+ * 与退出教学 / 创造后回到的标准档保持一致。
+ * @sideeffect 改写 S/SR/SC/T/TY/SP 与四个参数显示，并脱离预设难度
+ */
+function resetCustomParams() {
+    applyStandardParams();
+    // 与 setVal 一致：参数被手动改动后不再属于任何预设难度
+    diff = null;
+    updatePresetButtons();
+    try {
+        AudioFX.confirm();
+    } catch (e) {}
+    if (window.RM && RM.toast) RM.toast("已恢复默认参数");
+}
+window.resetCustomParams = resetCustomParams;

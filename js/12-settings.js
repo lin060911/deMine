@@ -139,3 +139,13 @@ window._gameNS = {
     generatePuzzleCode: generatePuzzleCode,
     applyPuzzleCode: applyPuzzleCode
 };
+
+/* ---------- 4. 关于板块的版本号（v1.3.3） ---------- */
+/* 「⚙️设置 → ℹ️关于」里的版本号统一从 RM.VERSION 读取，
+ * 避免发布时漏改页脚以外的第二处版本号。 */
+(function syncAboutVersion() {
+    try {
+        var el = document.getElementById("aboutVersion");
+        if (el && window.RM && RM.VERSION) el.textContent = "v" + RM.VERSION;
+    } catch (e) {}
+})();

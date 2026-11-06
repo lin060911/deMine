@@ -739,6 +739,12 @@ function appendInfluenceBadge(cell, cur, tar) {
 })();
 
 /* ---------- 12. 渲染总入口与地雷槽 ---------- */
+
+/* 计数文本与元素引用缓存（v1.3.2 性能优化）：每次落子都会走 render()，
+ * 元素引用只查一次，文本未变化时不写 DOM。 */
+var _placedEl = null;
+var _maxEl = null;
+
 /**
  * 渲染总入口：教学模式走独立的教学棋盘，否则交给差量引擎；随后同步已放 /
  * 目标计数文本、重建地雷槽，并执行胜利判定。
@@ -759,10 +765,16 @@ function render() {
     }
     // 计数、槽位与胜利判定属于渲染后的联动，单独保护
     try {
-        var pe = document.getElementById("placed");
-        if (pe) pe.textContent = Object.keys(G.placed).length;
-        var me = document.getElementById("max");
-        if (me) me.textContent = G.max;
+        var pe = _placedEl || (_placedEl = document.getElementById("placed"));
+        if (pe) {
+            var pText = String(Object.keys(G.placed).length);
+            if (pe.textContent !== pText) pe.textContent = pText;
+        }
+        var me = _maxEl || (_maxEl = document.getElementById("max"));
+        if (me) {
+            var mText = String(G.max);
+            if (me.textContent !== mText) me.textContent = mText;
+        }
         renderSlot();
         checkWin();
     } catch (e2) {
@@ -770,10 +782,24 @@ function render() {
     }
 }
 
+/* ---------- 12.1 地雷槽缓存（v1.3.2 性能优化） ----------
+ * renderSlot() 在每次落子 / 删雷后都会被调用；旧实现每次 innerHTML 重建整块
+ * 槽位并重新绑定拖拽。这里缓存「牌池结构 + 卡片节点」：结构不变时只更新
+ * disabled / selected 与计数文本，仅结构变化（开局、换牌池、教学切换）才重建。 */
+var _slotCache = {
+    host: null,
+    types: [],
+    nodes: []
+};
+
+/* ---------- 12.2 地雷槽「清空放置」（v1.3.3） ----------
+ * 按钮从主按钮条移到地雷槽外侧的下一行（静态 DOM，不参与 #slot 的内部布局），
+ * 因此地雷槽高度不会因为它而变大；renderSlot 只负责同步「已放数量」与禁用态，
+ * 不再在槽位重建时搬运该节点。 */
 
 /**
  * 重建右侧地雷槽：按牌池为每种雷生成一张可拖拽卡片，并标出已用 / 配额与选中态。
- * @sideeffect 覆盖 #slot 的内容（保留教学气泡节点）
+ * @sideeffect 只清理并重建 #slot 内的雷卡，保留教学气泡与槽内底部的清空条
  */
 function renderSlot() {
     // 教学模式的槽位由 09-tutorial 单独渲染
@@ -782,25 +808,76 @@ function renderSlot() {
         return;
     }
     let s = document.getElementById("slot");
-    let teachBubble = document.getElementById("teachBubble");
-    s.innerHTML = "";
-    // 教学气泡节点常驻：重建槽位前先摘出来，再挂回新内容
-    if (teachBubble) s.appendChild(teachBubble);
-    for (let t in G.pool) {
-        let max = G.pool[t];
-        // 牌池中没有的雷型不显示
-        if (max <= 0) continue;
-        // 已用数量按 G.placed 实时统计
-        let use = Object.values(G.placed).filter(x => x === t).length;
-        let div = document.createElement("div");
-        // 配额用尽置灰；选中态用于提示当前放置的雷型
-        div.className = "mine-item" + (use >= max ? " disabled" : "") + (selectedMineType === t ? " selected" : "");
-        // 悬浮提示复用图鉴里的一句话说明
-        div.dataset.tip = M[t].tip;
-        div.dataset.mineType = t;
-        // 卡片结构简单，用模板字符串一次生成
-        div.innerHTML = `<div class="emoji-drag ${M[t].cls}">${M[t].e}</div><div>${M[t].n}</div><div>${use}/${max}</div>`;
-        bindSlotItemDrag(div, t, "main");
-        s.appendChild(div);
+    if (!s) return;
+    // 已用数量一次遍历统计，避免每个雷种各扫一遍 G.placed
+    let used = {};
+    for (let k in G.placed) {
+        let t = G.placed[k];
+        used[t] = (used[t] || 0) + 1;
     }
+    let types = [];
+    for (let t in G.pool) {
+        if (G.pool[t] > 0 && M[t]) types.push(t);
+    }
+    let cache = _slotCache;
+    // 结构判定：牌池顺序一致、缓存节点仍挂在当前容器下才走增量更新
+    let reusable = cache.host === s && cache.types.length === types.length &&
+        cache.nodes.length === types.length;
+    if (reusable) {
+        for (let i = 0; i < types.length; i++) {
+            if (cache.types[i] !== types[i] || !cache.nodes[i] || cache.nodes[i].parentNode !== s) {
+                reusable = false;
+                break;
+            }
+        }
+    }
+    if (!reusable) {
+        // 结构变化：只重建雷卡，保留教学气泡与槽内底部的清空条
+        // （教学气泡里的雷卡可能挂在气泡内部，统一交给各自的 parentNode 移除）
+        Array.prototype.slice.call(s.querySelectorAll(".mine-item")).forEach(function(el) {
+            if (el.parentNode) el.parentNode.removeChild(el);
+        });
+        let nodes = [];
+        for (let i = 0; i < types.length; i++) {
+            let t = types[i];
+            let div = document.createElement("div");
+            div.className = "mine-item";
+            // 悬浮提示复用图鉴里的一句话说明
+            div.dataset.tip = M[t].tip;
+            div.dataset.mineType = t;
+            // 卡片结构简单，用模板字符串一次生成
+            div.innerHTML = `<div class="emoji-drag ${M[t].cls}">${M[t].e}</div><div>${M[t].n}</div><div>0/0</div>`;
+            bindSlotItemDrag(div, t, "main");
+            s.appendChild(div);
+            nodes.push(div);
+        }
+        cache.host = s;
+        cache.types = types;
+        cache.nodes = nodes;
+    }
+    // 状态与计数：只写发生变化的部分，避免反复触发样式重算
+    for (let i = 0; i < types.length; i++) {
+        let t = types[i];
+        let max = G.pool[t] || 0;
+        let use = used[t] || 0;
+        let node = cache.nodes[i];
+        let disabled = use >= max;
+        // 配额用尽置灰；选中态用于提示当前放置的雷型
+        if (node.classList.contains("disabled") !== disabled) node.classList.toggle("disabled", disabled);
+        let selected = selectedMineType === t;
+        if (node.classList.contains("selected") !== selected) node.classList.toggle("selected", selected);
+        let countEl = node.children[2];
+        let text = use + "/" + max;
+        if (countEl && countEl.textContent !== text) countEl.textContent = text;
+    }
+    /* 同步槽位外侧清空按钮：0 颗时置灰禁用，有雷时可一键清空。
+       按钮不在地雷槽内部，槽位高度与它的显隐 / 数量无关。 */
+    let placedTotal = Object.keys(G.placed).length;
+    let clearBtn = document.getElementById("slotClearBtn");
+    if (clearBtn) {
+        let shouldDisable = placedTotal === 0;
+        if (clearBtn.disabled !== shouldDisable) clearBtn.disabled = shouldDisable;
+    }
+    let clearCount = document.getElementById("slotClearCount");
+    if (clearCount && clearCount.textContent !== String(placedTotal)) clearCount.textContent = String(placedTotal);
 }

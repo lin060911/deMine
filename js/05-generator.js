@@ -247,7 +247,8 @@ function genPreHtml(mk) {
 
 /**
  * 重建"地雷图鉴"面板：按固定系列顺序输出各系列卡片，并根据 seriesUnlocked
- * 决定显示"练习 / 挑战 / 已解锁 / 始终开启"入口，同时为每种雷挂上预览图。
+ * 显示"已解锁 / 始终开启 / 挑战完成解锁"状态（v1.3.3 起练习 / 挑战入口统一
+ * 移到「🎯挑战」弹窗），同时为每种雷挂上预览图。
  * @sideeffect 覆盖 #mineInfoList 的 innerHTML
  */
 function renderMineInfo() {
@@ -263,23 +264,14 @@ function renderMineInfo() {
         if (bombs.length === 0) return;
         html += `<div class="category-section" data-cat="${catKey}">`;
         html += `<div class="category-header"><strong>${cat.emoji} ${cat.name}</strong>`;
-        // 基础系列默认开启：只提供基础挑战入口，不显示解锁按钮
+        /* v1.3.3：练习 / 挑战入口已统一移到主按钮「🎯挑战」打开的弹窗里，
+           炸弹信息只保留解锁状态说明，避免同一动作出现两个入口 */
         if (catKey === "basic") {
             html += `<span style="margin-left:auto;font-size:12px;color:#38a169;">✅始终开启</span>`;
-            // 基础挑战：未完成显示红色「基础挑战」，完成后变绿色「练习」
-            if (typeof isBasicChallengeDone === "function" && isBasicChallengeDone()) {
-                html += `<button class="tutorial-btn-inline tutorial-btn-practice" onclick="openPracticeMode()">练习</button>`;
-            } else {
-                html += `<button class="tutorial-btn-inline tutorial-btn-challenge" onclick="openPracticeMode()">基础挑战</button>`;
-            }
         } else if (unlocked) {
-            // 已通关的系列：绿色「练习」
-            html += `<button class="tutorial-btn-inline tutorial-btn-practice" onclick="startCategoryTutorial('${catKey}')">练习</button>`;
-            html += `<span style="margin-left:8px;font-size:12px;color:#38a169;">🔓已解锁</span>`;
+            html += `<span style="margin-left:auto;font-size:12px;color:#38a169;">🔓已解锁</span>`;
         } else {
-            // 未通关的系列：红色「挑战」
-            html += `<button class="tutorial-btn-inline tutorial-btn-challenge" onclick="startCategoryTutorial('${catKey}')">挑战</button>`;
-            html += `<span style="margin-left:8px;font-size:12px;color:#a0aec0;">🔒 挑战完成解锁</span>`;
+            html += `<span style="margin-left:auto;font-size:12px;color:#a0aec0;">🔒 挑战完成解锁</span>`;
         }
         html += `</div>`;
         bombs.forEach(key => {

@@ -494,16 +494,6 @@ body.brain-golden .bg-mine-ghost {
 }
 
 /* 次要操作：橙 = 清空，绿 = 教学 / 创造，紫 = 挑战，四色实心按钮按功能区分 */
-#clear {
-    background: linear-gradient(180deg, #ffb057 0%, #f79332 55%, #e67a16 100%);
-    box-shadow: 0 6px 16px rgba(239, 138, 44, .30), inset 0 1px 0 rgba(255, 255, 255, .28);
-}
-
-#clear:hover {
-    filter: brightness(1.06) saturate(1.02);
-    box-shadow: 0 9px 22px rgba(239, 138, 44, .38), inset 0 1px 0 rgba(255, 255, 255, .3);
-}
-
 #tutorialBtn,
 #createBtn {
     background: linear-gradient(180deg, #4fd9a5 0%, #2fbf87 55%, #16a273 100%);
@@ -516,12 +506,12 @@ body.brain-golden .bg-mine-ghost {
     box-shadow: 0 9px 22px rgba(26, 184, 131, .38), inset 0 1px 0 rgba(255, 255, 255, .3);
 }
 
-#challengeBtn {
+#difficultyBtn {
     background: linear-gradient(180deg, #8b97ef 0%, #6474dc 55%, #4a5cc5 100%);
     box-shadow: 0 6px 16px rgba(90, 108, 213, .30), inset 0 1px 0 rgba(255, 255, 255, .28);
 }
 
-#challengeBtn:hover {
+#difficultyBtn:hover {
     filter: brightness(1.06) saturate(1.02);
     box-shadow: 0 9px 22px rgba(90, 108, 213, .4), inset 0 1px 0 rgba(255, 255, 255, .3);
 }
@@ -2130,7 +2120,7 @@ body:has(.info-sidebar.open, .achievement-sidebar.open, .rule-sidebar.open,
     font-variant-numeric: tabular-nums;
 }
 
-.record-tip {
+.tip-note {
     margin-bottom: 0;
     padding: 9px 12px;
     border-radius: 12px;
@@ -3070,7 +3060,7 @@ input[type="range"] {
 
 /* ===== 29. 难度弹窗 ===== */
 /* 难度弹窗：整层可滚动，卡片宽 580px、纵向 7vh 留白，避免小屏被裁切 */
-.challenge-modal {
+.game-modal {
     display: none;
     position: fixed;
     inset: 0;
@@ -3083,7 +3073,7 @@ input[type="range"] {
     animation: overlayFadeIn .3s ease both;
 }
 
-.challenge-card {
+.game-modal-card {
     width: min(100%, 580px);
     margin: 7vh auto;
     overflow: hidden;
@@ -3093,15 +3083,15 @@ input[type="range"] {
     -webkit-backdrop-filter: blur(30px) saturate(180%);
     backdrop-filter: blur(30px) saturate(180%);
     box-shadow: var(--rm-shadow-lg);
-    animation: chCardIn .38s var(--rm-spring) both;
+    animation: gameModalCardIn .38s var(--rm-spring) both;
 }
 
-@keyframes chCardIn {
+@keyframes gameModalCardIn {
     from { opacity: 0; transform: translateY(14px) scale(.97); }
     to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-.challenge-head {
+.game-modal-head {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -3110,12 +3100,12 @@ input[type="range"] {
     background: transparent;
 }
 
-.challenge-head .challenge-icon {
+.game-modal-head .game-modal-icon {
     font-size: 24px;
     line-height: 1;
 }
 
-.challenge-head h2 {
+.game-modal-head h2 {
     flex: 1;
     margin: 0;
     color: var(--rm-ink);
@@ -3124,7 +3114,7 @@ input[type="range"] {
     letter-spacing: -.01em;
 }
 
-.challenge-close {
+.game-modal-close {
     flex: none;
     width: 32px;
     height: 32px;
@@ -3140,20 +3130,20 @@ input[type="range"] {
     transition: background-color .2s ease, transform .2s ease, color .2s ease;
 }
 
-.challenge-close:hover {
+.game-modal-close:hover {
     background: #e6ebf2;
     color: var(--rm-ink);
     transform: scale(1.05);
 }
 
-.challenge-body {
+.game-modal-body {
     max-height: calc(84vh - 76px);
     padding: 16px 20px 20px;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
 }
 
-.challenge-body .sidebar-section {
+.game-modal-body .sidebar-section {
     margin-bottom: 18px;
     padding: 0;
     border: none;
@@ -3163,20 +3153,20 @@ input[type="range"] {
     animation: none;
 }
 
-.challenge-body .sidebar-section:last-child {
+.game-modal-body .sidebar-section:last-child {
     margin-bottom: 0;
 }
 
-.challenge-body .sidebar-title {
+.game-modal-body .sidebar-title {
     margin-bottom: 10px;
     font-size: 14px;
 }
 
-.challenge-body .record-tip {
+.game-modal-body .tip-note {
     margin-top: 2px;
 }
 
-.challenge-body .custom-panel {
+.game-modal-body .custom-panel {
     margin-top: 10px;
 }
 
@@ -3536,15 +3526,6 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
 .back-btn:active {
     transform: scale(.97);
     transition-duration: .09s;
-}
-
-.generate-code-area {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    margin-top: 12px;
 }
 
 .code-output {
@@ -4080,8 +4061,7 @@ body.drag-mode .cell.mine-here {
     letter-spacing: .01em;
 }
 
-.tutorial-btn-inline {
-    margin-left: auto;
+.challenge-entry-btn {
     padding: 5px 12px;
     border: 1px solid rgba(124, 92, 214, .2);
     border-radius: 9px;
@@ -4094,44 +4074,36 @@ body.drag-mode .cell.mine-here {
     transition: background-color .2s ease, transform .2s var(--rm-spring), box-shadow .2s ease;
 }
 
-.tutorial-btn-inline:hover:not(.locked) {
+.challenge-entry-btn:hover {
     background: rgba(124, 92, 214, .2);
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(124, 92, 214, .14);
 }
 
-.tutorial-btn-inline:active:not(.locked) {
+.challenge-entry-btn:active {
     transform: scale(.97);
 }
 
-.tutorial-btn-inline.locked {
-    opacity: .45;
-    cursor: not-allowed;
-    border-color: var(--rm-hairline);
-    background: #f2f4f7;
-    color: var(--rm-ink-4);
-}
-
 /* 挑战按钮：还没通关时用红色，提示"去挑战" */
-.tutorial-btn-inline.tutorial-btn-challenge {
+.challenge-entry-btn.is-challenge {
     border-color: rgba(229, 62, 62, .28);
     background: rgba(229, 62, 62, .1);
     color: #c53030;
 }
 
-.tutorial-btn-inline.tutorial-btn-challenge:hover:not(.locked) {
+.challenge-entry-btn.is-challenge:hover {
     background: rgba(229, 62, 62, .18);
     box-shadow: 0 4px 12px rgba(229, 62, 62, .16);
 }
 
 /* 练习按钮：已通关时用绿色，提示"再练一次" */
-.tutorial-btn-inline.tutorial-btn-practice {
+.challenge-entry-btn.is-practice {
     border-color: rgba(56, 161, 105, .28);
     background: rgba(56, 161, 105, .12);
     color: #2f855a;
 }
 
-.tutorial-btn-inline.tutorial-btn-practice:hover:not(.locked) {
+.challenge-entry-btn.is-practice:hover {
     background: rgba(56, 161, 105, .2);
     box-shadow: 0 4px 12px rgba(56, 161, 105, .16);
 }
@@ -4477,22 +4449,22 @@ body.drag-mode .cell.mine-here {
     .brain-win-modal p { font-size: 13.5px; }
 
     /* 难度弹窗：窄屏压缩上下留白，内容区改为 86vh 内滚动 */
-    .challenge-modal {
+    .game-modal {
         padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px));
     }
 
-    .challenge-card {
+    .game-modal-card {
         width: 100%;
         margin: 5vh auto;
         border-radius: 24px;
     }
 
-    .challenge-head {
+    .game-modal-head {
         padding: 14px 16px 12px;
     }
 
-    .challenge-head h2 { font-size: 17px; }
-    .challenge-body { padding: 14px 16px 16px; max-height: calc(86vh - 70px); }
+    .game-modal-head h2 { font-size: 17px; }
+    .game-modal-body { padding: 14px 16px 16px; max-height: calc(86vh - 70px); }
 
     /* 创造模式：窄屏各面板改为整宽，按钮与输入框同步缩小 */
     .create-mode-panel,
@@ -4519,8 +4491,7 @@ body.drag-mode .cell.mine-here {
     .share-btn,
     .back-btn { height: 40px; padding: 0 16px; font-size: 12.5px; }
 
-    .generate-code-area { gap: 8px; }
-    .code-output { max-width: 100%; width: 100%; font-size: 11px; }
+        .code-output { max-width: 100%; width: 100%; font-size: 11px; }
 
     /* 底部工具栏收起钮：窄屏固定在右下角，收起时整体下移并旋转箭头 */
     .rm-bar-toggle {
@@ -4852,34 +4823,18 @@ body > footer.sidebar-version {
     filter: none;
 }
 
-#clear {
-    background: linear-gradient(180deg, #ffa048, #f08020);
-    border-color: #ffb84d;
-}
-
-#clear:hover {
-    background: linear-gradient(180deg, #ff8c30, #e0701a);
-    border-color: #ffc752;
-    box-shadow: 0 10px 28px rgba(240, 128, 32, .4), inset 0 1px 0 rgba(255, 255, 255, .15);
-}
-
-#clear:active {
-    transform: scale(1.02);
-    filter: none;
-}
-
-#challengeBtn {
+#difficultyBtn {
     background: linear-gradient(180deg, #6a7ce5, #4a5cc5);
     border-color: #8ab8f0;
 }
 
-#challengeBtn:hover {
+#difficultyBtn:hover {
     background: linear-gradient(180deg, #5b6ed8, #4255b8);
     border-color: #9ec8ff;
     box-shadow: 0 10px 28px rgba(90, 108, 213, .4), inset 0 1px 0 rgba(255, 255, 255, .15);
 }
 
-#challengeBtn:active {
+#difficultyBtn:active {
     transform: scale(1.02);
     filter: none;
 }
@@ -5576,11 +5531,6 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     color: #e53e3e;
     font-size: 13px;
     font-weight: 600;
-}
-
-.generate-code-area {
-    gap: 12px;
-    margin-top: 14px;
 }
 
 .code-output {
@@ -6742,19 +6692,6 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     transform: scale(.94);
 }
 
-.category-section.guide-series-flash {
-    margin: -6px -6px 8px;
-    padding: 6px;
-    border-radius: 14px;
-    outline: 2px solid rgba(47, 127, 235, .55);
-    outline-offset: 6px;
-    animation: guideSeriesFlash 1.2s ease-in-out infinite;
-}
-
-.category-section.guide-series-flash:last-child {
-    margin-bottom: -6px;
-}
-
 @keyframes guideSeriesFlash {
     0%, 100% {
         background-color: rgba(47, 127, 235, .025);
@@ -6778,13 +6715,7 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
         animation: none;
     }
 
-    .category-section.guide-series-flash {
-        animation: none;
-        background-color: rgba(47, 127, 235, .1);
-        outline-color: rgba(47, 127, 235, .85);
-        box-shadow: 0 0 0 8px rgba(47, 127, 235, .16), 0 0 34px 12px rgba(47, 127, 235, .4);
     }
-}
 
 /* ==========================================================================
  * 57. v1.3.0 存档升级：挑战面板 + 存档详情 / 完整性状态
@@ -6794,7 +6725,7 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
  * ========================================================================== */
 
 /* ----- 57.1 📝记录 → 挑战完成情况面板（08-ui.js renderChallengeList） ----- */
-#achChallengeList {
+#challengeList {
     display: flex;
     flex-direction: column;
     gap: 9px;
@@ -7266,7 +7197,7 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
 
 /* ---- 30.1 三个列表统一为挑战卡片的布局语言 ---- */
 #achRecordList,
-#achChallengeList,
+#challengeList,
 #achList {
     display: flex;
     flex-direction: column;
@@ -7275,7 +7206,7 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
 }
 
 #achRecordList > .record-item,
-#achChallengeList > .challenge-item,
+#challengeList > .challenge-item,
 #achList > .achievement-item {
     position: relative;
     border: none;
@@ -7286,7 +7217,7 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
 }
 
 #achRecordList > .record-item:hover,
-#achChallengeList > .challenge-item:hover,
+#challengeList > .challenge-item:hover,
 #achList > .achievement-item:hover {
     background: #f1f5fa;
     transform: translateY(-1px);
@@ -7441,7 +7372,7 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     }
 
     #achRecordList > .record-item,
-    #achChallengeList > .challenge-item,
+    #challengeList > .challenge-item,
     #achList > .achievement-item {
         padding: 9px 10px 10px;
     }
@@ -7820,4 +7751,640 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     display: flex;
     flex-direction: column;
     gap: 12px;
+}
+
+/* ==========================================================================
+ * 59. v1.3.2：全屏按钮 / 创造模式新布局 / 记录跳转 / 移动端背景减负
+ * --------------------------------------------------------------------------
+ * 本段只新增类与移动端覆盖规则，不改动前面任何既有选择器的桌面端表现：
+ *   59.1 右上角固定全屏按钮（图标 + 文案，随全屏状态切换）
+ *   59.2 创造模式「地雷槽 | 题库码」并排：雷种按系列分行、题库码卡片重排
+ *   59.3 难度弹窗底部的「📝记录」文字跳转
+ *   59.4 自由模式参数面板的「恢复默认」（与应用设置同排）
+ *   59.5 手机端背景减负（去固定背景 / 噪点层 / 扫描光带 / 漂浮幽灵）
+ * ========================================================================== */
+
+/* ---- 59.1 右上角全屏按钮 ---- */
+.rm-fullscreen-btn {
+    position: fixed;
+    top: max(12px, env(safe-area-inset-top, 0px));
+    right: max(12px, env(safe-area-inset-right, 0px));
+    z-index: 997;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 13px;
+    border: 1px solid rgba(255, 255, 255, .7);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .62);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    backdrop-filter: blur(14px) saturate(160%);
+    box-shadow: 0 4px 14px rgba(18, 38, 58, .14), inset 0 1px 0 rgba(255, 255, 255, .5);
+    color: var(--rm-ink-2);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .02em;
+    line-height: 1;
+    cursor: pointer;
+    transition:
+        transform .24s var(--rm-spring),
+        background-color .24s ease,
+        box-shadow .24s ease,
+        border-color .24s ease,
+        color .24s ease;
+}
+
+.rm-fullscreen-btn:hover {
+    background: rgba(255, 255, 255, .84);
+    color: var(--rm-blue-deep);
+    transform: translateY(-1px) scale(1.03);
+    box-shadow: 0 8px 20px rgba(18, 38, 58, .18), inset 0 1px 0 rgba(255, 255, 255, .6);
+}
+
+.rm-fullscreen-btn:active {
+    transform: scale(.96);
+    transition-duration: .1s;
+}
+
+.rm-fullscreen-btn .rm-fs-icon {
+    font-size: 15px;
+    line-height: 1;
+}
+
+/* 已处于全屏：换成蓝底白字，提示再点一次即可退出 */
+.rm-fullscreen-btn.is-fullscreen {
+    border-color: rgba(47, 127, 235, .5);
+    background: rgba(236, 246, 255, .88);
+    color: var(--rm-blue-deep);
+    box-shadow: 0 6px 18px rgba(47, 127, 235, .22), inset 0 1px 0 rgba(255, 255, 255, .6);
+}
+
+/* ---- 59.2 创造模式编辑区：地雷槽在左、题库码卡片在右 ---- */
+.create-edit-row {
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    gap: 14px;
+    width: 100%;
+    max-width: 900px;
+}
+
+/* 左侧地雷槽：一行一个系列（基础 6 种、其余系列各 4 种），行内是紧凑雷卡；
+   虚线托盘 + 细分隔线，让"按系列挑雷"的层级一眼可见 */
+.create-edit-row > #createMineSlot {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    justify-content: flex-start;
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    margin: 0 0 14px;
+    padding: 10px 14px;
+    gap: 2px;
+    border: 2px dashed #d7e3ee;
+    border-radius: 18px;
+    background: linear-gradient(180deg, #ffffff, #f7fafc);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .04);
+}
+
+.create-mine-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 6px 2px;
+}
+
+.create-mine-row + .create-mine-row {
+    border-top: 1px dashed rgba(22, 33, 43, .09);
+}
+
+.create-mine-cat {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex: 0 0 88px;
+    color: var(--rm-ink-3);
+    font-size: 11.5px;
+    font-weight: 700;
+    line-height: 1.25;
+    white-space: nowrap;
+}
+
+.create-mine-cat .cat-emoji {
+    font-size: 13px;
+}
+
+.create-mine-items {
+    display: flex;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 6px;
+    min-width: 0;
+}
+
+.create-edit-row > #createMineSlot .mine-item {
+    width: 58px;
+    height: 68px;
+    padding: 5px 2px 4px;
+    border-radius: 12px;
+    font-size: 10px;
+    line-height: 1.15;
+}
+
+.create-edit-row > #createMineSlot .mine-item .emoji-drag {
+    font-size: 17px;
+}
+
+.create-edit-row > #createMineSlot .mine-item > div:nth-child(2) {
+    max-width: 54px;
+    overflow: hidden;
+    font-size: 9.5px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.create-edit-row > #createMineSlot .mine-item > div:nth-child(3) {
+    color: var(--rm-ink-4);
+    font-size: 9px;
+}
+
+/* 右侧题库码卡片：标题（带一句说明）→ 全宽码框 → 生成 / 分享按钮同排 */
+.create-edit-row > .create-card {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 330px;
+    width: 330px;
+    max-width: 330px;
+    margin: 0 0 14px;
+    padding: 18px;
+}
+
+.create-edit-row > .create-card .create-card-title {
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.create-card-sub {
+    color: var(--rm-ink-4);
+    font-size: 10.5px;
+    font-weight: 500;
+}
+
+.create-edit-row #createCodeCard .code-output {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    width: 100%;
+    max-width: none;
+    min-height: 96px;
+    margin: 12px 0;
+    padding: 12px 14px;
+    overflow-wrap: anywhere;
+    word-break: break-all;
+    border: 2px dashed #9cc9f0;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #f0f9ff, #e6f4ff);
+    color: #2b6cb0;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.create-code-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.create-code-actions .create-btn-primary {
+    flex: 1 1 auto;
+    padding: 10px 14px;
+    font-size: 13px;
+}
+
+.create-code-actions .share-btn {
+    flex: 0 0 auto;
+    padding: 10px 16px;
+    font-size: 13px;
+}
+
+/* 码框吃掉卡片剩余高度，底部固定三行使用提示，避免右侧出现大片空白 */
+.create-edit-row #createCodeCard .code-output {
+    flex: 1 1 auto;
+}
+
+.create-code-hint {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: auto;
+    padding-top: 12px;
+    border-top: 1px dashed rgba(22, 33, 43, .1);
+    color: var(--rm-ink-4);
+    font-size: 10.5px;
+    line-height: 1.5;
+}
+
+/* ---- 59.3 难度弹窗底部：只有「📝记录」三个字是跳转入口 ---- */
+.tip-note-link {
+    display: inline;
+    margin: 0;
+    padding: 0 2px;
+    border: 0;
+    border-radius: 4px;
+    background: none;
+    color: var(--rm-blue-deep);
+    font: inherit;
+    font-weight: 700;
+    line-height: inherit;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    transition: color .2s ease, background-color .2s ease;
+}
+
+.tip-note-link:hover {
+    background: rgba(47, 127, 235, .12);
+    color: #1a5fb0;
+}
+
+.tip-note-link:active {
+    background: rgba(47, 127, 235, .2);
+}
+
+.tip-note-link:focus-visible {
+    outline: 2px solid rgba(47, 127, 235, .5);
+    outline-offset: 2px;
+}
+
+/* ---- 59.4 自由模式「应用设置 + 恢复默认」同排 ---- */
+.custom-btn-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.custom-btn-row .apply-btn {
+    flex: 1 1 auto;
+    width: auto;
+    height: 42px;
+    margin-top: 0;
+}
+
+.reset-params-btn {
+    flex: 0 0 auto;
+    width: auto;
+    height: 42px;
+    margin-top: 0;
+    padding: 0 16px;
+    border: 1px dashed var(--rm-hairline-2);
+    border-radius: 14px;
+    background: #ffffff;
+    color: var(--rm-ink-3);
+    font-size: 12.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+        color .2s ease,
+        border-color .2s ease,
+        background-color .2s ease,
+        transform .24s var(--rm-spring);
+}
+
+.reset-params-btn:hover {
+    border-color: rgba(47, 127, 235, .6);
+    background: #f5faff;
+    color: var(--rm-blue-deep);
+    transform: translateY(-1px);
+}
+
+.reset-params-btn:active {
+    transform: scale(.98);
+}
+
+/* ---- 59.5 手机端背景减负 ----
+   窄屏设备上去掉昂贵的固定背景（background-attachment: fixed 每帧重绘）、
+   全屏噪点 SVG 滤镜层与两条扫描光带动画；漂浮幽灵由 14-bgeffects.js 同步
+   停止生成，这里再隐藏容器兜底。省下的绘制预算留给棋盘与拖拽。 */
+@media (max-width: 700px) {
+    body {
+        background-attachment: scroll;
+        background-image:
+            radial-gradient(900px 560px at 10% -10%, rgba(198, 236, 96, .8), transparent 62%),
+            linear-gradient(180deg, #c2e286 0%, #b1e4b3 50%, #e8f4f8 100%);
+        background-size: auto, auto;
+        background-repeat: no-repeat, no-repeat;
+    }
+
+    body::before {
+        display: none;
+    }
+
+    #bgEffects {
+        display: none;
+    }
+
+    .rm-fullscreen-btn {
+        top: max(8px, env(safe-area-inset-top, 0px));
+        right: max(8px, env(safe-area-inset-right, 0px));
+        height: 32px;
+        padding: 0 10px;
+        font-size: 11px;
+    }
+
+    /* 创造模式编辑区窄屏改为上下堆叠：先地雷槽，再题库码卡片 */
+    .create-edit-row {
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .create-edit-row > #createMineSlot {
+        flex: 1 1 auto;
+        width: 100%;
+        max-width: 100%;
+        margin-bottom: 12px;
+    }
+
+    /* 窄屏下系列名换到卡片上方，卡片缩小到 48×58 以便一行放完 6 张 */
+    .create-mine-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+    }
+
+    .create-mine-cat {
+        flex: none;
+        font-size: 11px;
+    }
+
+    .create-edit-row > #createMineSlot .mine-item {
+        width: 48px;
+        height: 58px;
+        padding: 4px 1px 3px;
+        border-radius: 10px;
+    }
+
+    .create-edit-row > #createMineSlot .mine-item .emoji-drag {
+        font-size: 15px;
+    }
+
+    .create-edit-row > #createMineSlot .mine-item > div:nth-child(2) {
+        max-width: 44px;
+        font-size: 8.5px;
+    }
+
+    .create-edit-row > #createMineSlot .mine-item > div:nth-child(3) {
+        font-size: 8px;
+    }
+
+    .create-edit-row > .create-card {
+        flex: 1 1 auto;
+        width: 100%;
+        max-width: 100%;
+        margin-bottom: 12px;
+    }
+
+    .create-edit-row #createCodeCard .code-output {
+        min-height: 84px;
+    }
+
+    /* 应用设置 + 恢复默认保持同一行，按钮文字不换行 */
+    .custom-btn-row {
+        gap: 8px;
+    }
+
+    .reset-params-btn {
+        padding: 0 12px;
+        font-size: 12px;
+    }
+}
+
+/* 系统开启"减少动效"时同样关闭背景动画层，只保留静态渐变 */
+@media (prefers-reduced-motion: reduce) {
+    #bgEffects {
+        display: none;
+    }
+}
+
+/* ==========================================================================
+ * 60. v1.3.3：地雷槽底部清空放置 / 🎯挑战弹窗 / 设置关于
+ * --------------------------------------------------------------------------
+ *   60.1 地雷槽底部「🧹 清空放置」（从主按钮条移入，显示已放数量）
+ *   60.2 🎯挑战弹窗：进度行右侧的练习 / 挑战入口与系列行高光
+ *   60.3 设置栏「ℹ️ 关于」：版本号 + 更新公告
+ * ========================================================================== */
+
+/* ---- 60.1 地雷槽内部的清空放置 ----
+   按钮绝对定位在槽位底部，给槽位预留同高的底部内边距：
+   它不参与槽位的宽度计算，所以雷种少时白色区域也不会被撑宽；
+   地雷槽隐藏 / 教学气泡接管时随槽位一起隐藏。 */
+#slot {
+    position: relative;
+    padding-bottom: 46px;
+}
+
+#slot .slot-clear-bar {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+#slot.teach-slot-host .slot-clear-bar {
+    display: none;
+}
+
+/* 清空按钮：与「挑战 / 练习」按钮同款的圆角矩形 + 黄色主题 */
+.slot-clear-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 13px;
+    border: 1px solid rgba(230, 163, 20, .48);
+    border-radius: 9px;
+    background: rgba(230, 163, 20, .12);
+    color: #8a5a00;
+    font-size: 11.5px;
+    font-weight: 600;
+    line-height: 1.4;
+    cursor: pointer;
+    transition:
+        background-color .2s ease,
+        border-color .2s ease,
+        box-shadow .2s ease,
+        transform .2s var(--rm-spring);
+}
+
+.slot-clear-btn:hover:not(:disabled) {
+    border-color: rgba(230, 163, 20, .78);
+    background: rgba(230, 163, 20, .22);
+    box-shadow: 0 4px 12px rgba(230, 163, 20, .18);
+    transform: translateY(-1px);
+}
+
+.slot-clear-btn:active:not(:disabled) {
+    transform: scale(.97);
+}
+
+.slot-clear-btn:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+.slot-clear-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 6px;
+    background: rgba(230, 163, 20, .2);
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+}
+
+.slot-clear-btn:disabled .slot-clear-count {
+    background: rgba(22, 33, 43, .08);
+}
+
+/* ---- 60.4 主按钮「🎯挑战」：取旧版与“过淡版”的中间值 ----
+   旧版（v1.3.2 #clear）饱和偏橙，第一次调淡过头，这里取两者中间并略偏黄：
+   背景 #ffb051 → #f29621、3px 描边 #ffce7c；hover 背景 #ffa046 → #e78b18、
+   描边 #ffd88d；active 仅缩放。圆角 / 字号 / 高度沿用主按钮基类
+   （10px / 16px / 50px）。 */
+#challengeBtn {
+    background: linear-gradient(180deg, #ffb051, #f29621);
+    border-color: #ffce7c;
+    box-shadow: 0 6px 16px rgba(242, 150, 33, .32), inset 0 1px 0 rgba(255, 255, 255, .30);
+}
+
+#challengeBtn:hover {
+    background: linear-gradient(180deg, #ffa046, #e78b18);
+    border-color: #ffd88d;
+    filter: none;
+    box-shadow: 0 10px 28px rgba(231, 139, 24, .40), inset 0 1px 0 rgba(255, 255, 255, .16);
+}
+
+#challengeBtn:active {
+    transform: scale(1.02);
+    filter: none;
+}
+
+/* ---- 60.2 🎯挑战弹窗 ---- */
+.game-modal-body .challenge-title {
+    margin-bottom: 10px;
+    color: var(--rm-ink);
+    font-size: 14px;
+}
+
+/* 进度行：标签占满剩余宽度，状态徽标与练习 / 挑战按钮固定在右侧 */
+#challengeList .challenge-row .challenge-label {
+    flex: 1 1 auto;
+}
+
+#challengeList .challenge-row .challenge-state {
+    flex: 0 0 auto;
+}
+
+#challengeList .challenge-row .challenge-entry-btn {
+    flex: 0 0 auto;
+    margin-left: 2px;
+    padding: 4px 11px;
+    border-radius: 8px;
+    font-size: 10.5px;
+    line-height: 1.4;
+}
+
+/* 引导致系列行时整行同步闪烁，与按钮高亮呼应 */
+#challengeList .challenge-item.guide-series-flash {
+    outline: 2px solid rgba(47, 127, 235, .55);
+    outline-offset: 2px;
+    animation: guideSeriesFlash 1.2s ease-in-out infinite;
+}
+
+/* ---- 60.3 设置栏「ℹ️ 关于」 ---- */
+.about-version {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: #f2f6fa;
+    color: var(--rm-ink-2);
+    font-size: 13px;
+}
+
+.about-version strong {
+    color: var(--rm-blue-deep);
+    font-family: var(--rm-mono);
+    font-size: 13px;
+}
+
+.about-announce {
+    margin-top: 10px;
+}
+
+.about-announce-title {
+    margin-bottom: 6px;
+    color: var(--rm-ink-3);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.about-announce-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.about-announce-list li {
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: #f7f9fc;
+    color: var(--rm-ink-3);
+    font-size: 11.5px;
+    line-height: 1.55;
+}
+
+.about-announce-list b {
+    color: var(--rm-ink-2);
+}
+
+.about-foot {
+    margin-top: 10px;
+    color: var(--rm-ink-4);
+    font-size: 11px;
+    text-align: center;
+}
+
+@media (max-width: 700px) {
+    .slot-clear-btn {
+        height: 28px;
+        padding: 0 11px;
+        font-size: 11px;
+    }
+
+    #challengeList .challenge-row .challenge-entry-btn {
+        padding: 4px 9px;
+        font-size: 10px;
+    }
 }

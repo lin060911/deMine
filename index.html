@@ -11,25 +11,35 @@
 </head>
 <body>
 
+    <!-- 区块：全屏切换按钮（v1.3.2 新增）
+         固定在页面右上角，点击在「全屏 / 退出全屏」之间切换；
+         图标与文案由 08-ui.js 的 syncFullscreenBtn() 依据全屏事件同步，
+         浏览器不支持全屏时只做 toast 提示，不中断游戏 -->
+    <button class="rm-fullscreen-btn" id="fullscreenBtn" type="button"
+            onclick="toggleFullscreen()" aria-label="进入全屏" title="进入全屏">
+        <span class="rm-fs-icon" aria-hidden="true">⛶</span>
+        <span class="rm-fs-label">全屏</span>
+    </button>
+
     <!-- ==================================================================
          反向扫雷 · 页面骨架（index.html）
 
          职责：定义游戏的全部静态 DOM 结构、样式表与脚本入口。
          页面结构总览（body 内自上而下的区块顺序）：
-           1) 全局遮罩层与游戏选择弹窗
+           1) 全局遮罩层与游戏选择弹窗（难度 / 挑战）
            2) 背景特效层：#fallingContainer 下落表情、#bgEffects 漂浮幽灵
            3) 欢迎 / 新手引导 / 教学 / 难度解锁等各类弹窗
            4) 标题区 header.hero：游戏名、操作提示、操作方式徽章
            5) 教学总进度条 #tutorialProgressBar
-           6) 主按钮条 section.hud：新游戏 / 清空放置 / 教学 / 难度
+           6) 主按钮条 section.hud：新游戏 / 🎯挑战 / 教学 / 难度
            7) 计时与放置数 .hud-meta
            8) 棋盘托盘 .board-tray > #board（06-render.js 渲染格子）
            9) 教学完成弹窗
-          10) 创造模式面板与地雷 dock（#slot / #teachBubble）
+          10) 创造模式面板与地雷 dock（#slot / #teachBubble / 清空放置）
           11) 预设开局卡片、胜利提示层
           12) 左侧栏开关与信息侧栏（规则 / 炸弹信息）
-          13) 右侧栏开关、记录侧栏（成绩 / 挑战 / 成就）与成就解锁弹层
-          14) 创造侧栏、设置侧栏（含存档管理入口）
+          13) 右侧栏开关、记录侧栏（成绩 / 成就）与成就解锁弹层
+          14) 创造侧栏、设置侧栏（存档管理 + 关于）
           15) 页脚：署名与联系方式
           16) 脚本加载区：js/ 共 18 个模块文件，本页加载 00 ~ 16 共 17 个脚本
 
@@ -43,14 +53,14 @@
     <!-- 区块：游戏选择弹窗
          由主按钮条「难度」按钮打开，集中放置预设难度、自由模式参数与系列开关；
          弹窗开合与参数改动由 08-ui.js 处理，系列解锁数据来自 01-storage.js -->
-    <div class="challenge-modal" id="challengeModal" style="display:none;">
-        <div class="challenge-card">
-            <div class="challenge-head">
-                <span class="challenge-icon">🕹️</span>
+    <div class="game-modal" id="difficultyModal" style="display:none;">
+        <div class="game-modal-card">
+            <div class="game-modal-head">
+                <span class="game-modal-icon">🕹️</span>
                 <h2>游戏选择</h2>
-                <button class="challenge-close" type="button" onclick="closeChallengeModal()">✕</button>
+                <button class="game-modal-close" type="button" onclick="closeDifficultyModal()">✕</button>
             </div>
-            <div class="challenge-body">
+            <div class="game-modal-body">
         <!-- 难度挑战：三个基础预设 + 地狱 / 脑王 / 自由模式按钮；
              自由模式会展开自定义面板（棋盘大小、总地雷数、特殊雷种类与总数） -->
         <div class="sidebar-section">
@@ -99,7 +109,11 @@
                     <button class="num-btn" onclick="setVal('spec',1)">+</button>
                 </div>
             </div>
-            <button class="apply-btn" onclick="applySet()">应用设置</button>
+            <!-- 应用与恢复默认同排：主按钮负责开局，次要按钮负责把参数拉回标准档 -->
+            <div class="custom-btn-row">
+                <button class="apply-btn" onclick="applySet()">应用设置</button>
+                <button class="reset-params-btn" type="button" onclick="resetCustomParams()">↺ 恢复默认</button>
+            </div>
             </div>
         </div>
 
@@ -113,10 +127,39 @@
             <div class="switch-hint" id="seriesSwitchHint">完成对应关卡可解锁系列</div>
         </div>
 
-        <!-- 成绩入口说明：这里只提示去哪看成绩，实际成绩表在右侧「记录」侧栏 -->
+        <!-- 成绩入口说明：文案保持旧版，仅「📝记录」三个字是跳转入口，点击后
+             跳到「📝记录」侧栏并展开成绩区，再由引导层用高亮框 + 小手指向成绩栏
+             （08-ui.js `gotoRecordScores()` / 16-guide.js 记录跳转引导） -->
         <div class="sidebar-section">
-            <div class="record-tip">🥇 各难度成绩请到 <strong>📝记录</strong> 栏查看 o((>ω< ))o</div>
+            <div class="tip-note">🥇 各难度成绩请到 <button class="tip-note-link" id="recordJumpBtn" type="button"
+                    onclick="gotoRecordScores()" title="跳转到记录栏的成绩区">📝记录</button> 栏查看 o((>ω< ))o</div>
         </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 区块：挑战弹窗（v1.3.3）
+         主按钮条「🎯挑战」打开，样式与「难度」弹窗一致；集中展示
+         教学 / 基础挑战 / 四个系列挑战的进度（原「📝记录」栏的挑战区），
+         每行右侧的「练习 / 挑战」按钮取代原「炸弹信息」里的入口 -->
+    <div class="game-modal" id="challengeModal" style="display:none;">
+        <div class="game-modal-card">
+            <div class="game-modal-head">
+                <span class="game-modal-icon">🎯</span>
+                <h2>挑战</h2>
+                <button class="game-modal-close" type="button" onclick="closeChallengeModal()">✕</button>
+            </div>
+            <div class="game-modal-body">
+                <div class="sidebar-section">
+                    <div class="sidebar-title challenge-title">🎯 挑战进度</div>
+                    <div id="challengeList"></div>
+                </div>
+                <div class="sidebar-section">
+                    <div class="tip-note">
+                        ✅ 完成基础挑战（5 关）解锁四个系列挑战<br>
+                        🏅 通关系列挑战解锁该系列地雷与难度开关
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -165,12 +208,12 @@
     </div>
 
     <!-- 区块：更多关卡引导弹窗
-         教学通关后提示玩家可以在「炸弹信息」里开启更多系列关卡；
+         教学通关后提示玩家可以在「🎯挑战」里开启更多系列关卡；
          显示与关闭逻辑在 08-ui.js（关闭函数为 closeMoreTutorialGuide） -->
     <div class="auto-modal" id="moreTutorialGuide" style="display:none;">
         <div class="icon">🧐</div>
         <h2>更多关卡</h2>
-        <p>打开左侧💣信息栏的<b>炸弹信息</b><br>可开启更多系列关卡<br>通关后自动解锁该系列地雷！</p>
+        <p>点击主按钮<b>🎯挑战</b><br>可开启更多系列关卡<br>通关后自动解锁该系列地雷！</p>
         <button onclick="closeMoreTutorialGuide()">知道了</button>
     </div>
 
@@ -242,14 +285,15 @@
     </div>
 
     <!-- 区块：主按钮条（游戏操作区）
-         新游戏 / 清空放置 / 教学 / 难度四个主操作：前两者由 10-game.js 绑定事件，
-         后两者用内联 onclick 分别进入 09-tutorial.js 与 08-ui.js -->
+         v1.3.3：原「清空放置」移到地雷槽底部，空出的位置改为「🎯挑战」，
+         集中展示挑战进度与练习 / 挑战入口；新游戏与清空由 10-game.js 绑定，
+         挑战 / 教学 / 难度分别由 08-ui.js 与 09-tutorial.js 接管 -->
     <section class="hud" aria-label="游戏操作">
         <div class="panel">
             <button id="reset">新游戏</button>
-            <button id="clear">清空放置</button>        
+            <button id="challengeBtn" onclick="openChallengeModal()">🎯挑战</button>
             <button id="tutorialBtn" onclick="openTeachMode()">教学🧐</button>
-            <button id="challengeBtn" onclick="openChallengeModal()">难度🕹️</button>
+            <button id="difficultyBtn" onclick="openDifficultyModal()">难度🕹️</button>
         </div>
 
         <!-- 教学专用进度条：进入教学关卡后显示，当前关卡的操作进度由
@@ -293,8 +337,8 @@
     </div>
 
     <!-- 区块：创造模式面板
-         创造模式下取代常规棋盘区：顶部显示尺寸 / 已放地雷 / 可用类型，
-         中间是创造棋盘与地雷槽，底部生成并分享题库码；
+         v1.3.2 布局：顶部信息条 → 创造棋盘 → 「地雷槽 | 题库码」左右并排
+         （窄屏自动上下堆叠）→ 底部退出按钮；
          全部显隐与内容由 11-create.js 控制 -->
     <div class="create-mode-panel" id="createModePanel">
         <div class="create-info-bar" id="createInfoBar" style="display:none;">
@@ -305,18 +349,28 @@
 
         <div id="createBoardArea" style="position:relative;display:none;"></div>
 
-        <div id="createMineSlot" class="mine-slot-box" style="display:none;"></div>
+        <!-- 编辑区：左侧地雷槽、右侧题库码卡片并排；两块内容的显隐仍分别由
+             11-create.js 的 initCreateBoard / fullReset 控制 -->
+        <div class="create-edit-row" id="createEditRow">
+            <div id="createMineSlot" class="mine-slot-box" style="display:none;"></div>
 
-        <!-- 题库码卡片：把当前创造题目编码成可分享文本，配合 11-create.js 的
-             生成 / 复制逻辑使用 -->
-        <div class="create-card" id="createCodeCard" style="display:none;">
-            <div class="create-card-title">
-                <span class="title-icon">🔗</span>题库码
-            </div>
-            <div class="generate-code-area">
-                <button class="create-btn-primary" onclick="generatePuzzleCode()">🔧生成题库码</button>
+            <!-- 题库码卡片：把当前创造题目编码成可分享文本，配合 11-create.js 的
+                 生成 / 复制逻辑使用；v1.3.2 重排为「标题 → 全宽码框 → 按钮同排」 -->
+            <div class="create-card" id="createCodeCard" style="display:none;">
+                <div class="create-card-title">
+                    <span class="title-icon">🔗</span>题库码
+                    <span class="create-card-sub">生成后分享，好友粘贴即可挑战</span>
+                </div>
                 <div class="code-output" id="puzzleCodeOutput">点击生成后显示</div>
-                <button class="share-btn" id="shareCodeBtn" onclick="copyPuzzleCode()" disabled>🤝分享</button><br>
+                <div class="create-code-actions">
+                    <button class="create-btn-primary" onclick="generatePuzzleCode()">🔧 生成题库码</button>
+                    <button class="share-btn" id="shareCodeBtn" onclick="copyPuzzleCode()" disabled>🤝 分享</button>
+                </div>
+                <div class="create-code-hint">
+                    <span>① 摆好地雷后点「生成题库码」</span>
+                    <span>② 「分享」会复制带分享文案的题库码</span>
+                    <span>③ 好友在「✍️创造」侧栏粘贴并「应用」</span>
+                </div>
             </div>
         </div>
         <button class="back-btn" onclick="exitCreateMode()">🔙退出创造模式</button>
@@ -325,7 +379,9 @@
     <!-- 区块：地雷 dock（含教学气泡）
          #slot 是玩家放置地雷的来源，由 06-render.js 的 renderSlot() 渲染；
          内嵌 #teachBubble 是教学提示气泡，规则高亮卡、文案与进度由
-         09-tutorial.js 按关卡填写 -->
+         09-tutorial.js 按关卡填写。v1.3.3 从主按钮条移过来的「清空放置」放在
+         槽位内部底部（绝对定位，不参与宽度计算），数量由 renderSlot() 同步、
+         0 颗时置灰，教学模式下自动隐藏 -->
     <div class="mine-slot-box" id="slot">
         <div class="teach-bubble" id="teachBubble">
             <div class="teach-progress" id="teachProgress"></div>
@@ -339,6 +395,11 @@
                 <div class="teach-bubble-mines" id="teachBubbleMines"></div>
             </div>
             <div class="teach-bubble-hint" id="teachBubbleHint">按提示操作即可</div>
+        </div>
+        <!-- 清空放置：位于地雷槽内部底部；绝对定位 + 预留底部内边距，
+             不参与槽位的宽度计算，所以雷种少时白底也不会被撑宽 -->
+        <div class="slot-clear-bar" id="slotClearBar">
+            <button class="slot-clear-btn" id="slotClearBtn" type="button">🧹 清空放置<span class="slot-clear-count" id="slotClearCount">0</span></button>
         </div>
     </div>
 
@@ -427,12 +488,13 @@
     </div>
 
     <!-- 区块：成绩与成就侧边栏
-         顶部统计 + 三个可折叠子区（成绩 / 挑战 / 成就）：
+         顶部统计 + 两个可折叠子区（成绩 / 成就）：
            · 折叠面板结构与信息栏「规则信息」一致（标题即按钮 + 箭头 + 内容区），
-             默认折叠成绩与挑战，成就默认展开；
-           · 三个子区的条目统一使用「挑战」的轻量卡片语言（14px 圆角 / 浅灰底 /
+             默认折叠成绩、成就默认展开；
+           · 两个子区的条目统一使用「挑战」的轻量卡片语言（14px 圆角 / 浅灰底 /
              左侧标题 + 右侧徽标），数据分别由 08-ui.js / 13-achievements.js 渲染，
-             全部来自 01-storage.js 的签名存档容器 -->
+             全部来自 01-storage.js 的签名存档容器；
+           · v1.3.3：「挑战」进度区已移到主按钮「🎯挑战」打开的弹窗里。 -->
     <div class="achievement-sidebar" id="achSidebar">
         <div class="achievement-stats" id="achStats">
             <span class="stats-num" id="achUnlockedCount">0</span>
@@ -449,21 +511,6 @@
             </button>
             <div class="record-acc-body">
                 <div id="achRecordList"></div>
-            </div>
-        </div>
-        <!-- 挑战区（默认折叠）：新手教学 / 基础挑战 / 四大系列挑战的完成情况，
-             由 08-ui.js 的 renderChallengeList() 渲染；数据复用存档里的
-             teachFinished / tutorialStep / tutorial_<系列> / seriesUnlocked -->
-        <div class="record-panel record-acc record-acc-closed" id="challengeSection">
-            <button class="record-acc-head" type="button" onclick="toggleRecordAcc('challengeSection')"
-                    aria-expanded="false" aria-controls="achChallengeList"> 
-                <span class="record-acc-icon">🎯</span>
-                <span class="record-acc-title">挑战</span>
-                <span class="record-acc-hint" id="challengeSectionHint"></span>
-                <span class="record-acc-arrow" aria-hidden="true">▸</span>
-            </button>
-            <div class="record-acc-body">
-                <div id="achChallengeList"></div>
             </div>
         </div>
         <!-- 成就区（默认展开）：成就解锁总览，隐藏成就在解锁前不进入列表 -->
@@ -539,7 +586,7 @@
             <div class="create-size-hint">粘贴他人分享的题库码，即可载入该题目</div>
         </div>
         <div class="sidebar-section">
-            <div class="record-tip">🛠️ 生成空棋盘后，主页面会切换为创造棋盘<br>退出创造将回到新的一局</div>
+            <div class="tip-note">🛠️ 生成空棋盘后，主页面会切换为创造棋盘<br>退出创造将回到新的一局</div>
         </div>
     </div>
 
@@ -607,6 +654,20 @@
             <input type="file" id="saveFileInput" accept="application/json,.json" style="display:none">
             <div class="save-hint" id="saveHint">存档将导出为 JSON 文件<br>换设备 / 清缓存前可备份 🧳</div>
         </div>
+        <!-- 关于（v1.3.3）：版本号由 12-settings.js 从 RM.VERSION 写入，
+             更新公告为静态摘要，避免多处版本号不一致 -->
+        <div class="sidebar-section" id="AboutSection">
+            <div class="sidebar-title about-title">ℹ️ 关于</div>
+            <div class="about-version">🔧 版本号 <strong id="aboutVersion">v1.3.3</strong></div>
+            <div class="about-announce">
+                <div class="about-announce-title">📣 更新公告</div>
+                <ul class="about-announce-list">
+                    <li><b>V1.3.3</b>：清空放置移到地雷槽底部；新增「🎯挑战」弹窗，集中挑战进度与练习 / 挑战入口；设置栏新增「关于」。</li>
+                    <li><b>V1.3.2</b>：创造模式全部雷种与布局重排、题库码卡片重做、右上角全屏、记录成绩跳转、性能与手机端背景减负。</li>
+                </ul>
+            </div>
+            <div class="about-foot">© 2026 L1Nzy · lin060911@qq.com</div>
+        </div>
     </div>
 
     <!-- 区块：新手引导层
@@ -616,7 +677,7 @@
 
     <!-- 区块：页脚
          署名与联系方式，纯静态文本，脚本不依赖 -->
-    <footer class="sidebar-version">ReverseMinesweeper v1.3.1<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
+    <footer class="sidebar-version">ReverseMinesweeper v1.3.3<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
 
     <!-- 区块：脚本加载区（顺序即依赖）
          17 个外部脚本按 00 → 16 的书写顺序同步执行，共享同一个全局作用域：
@@ -630,7 +691,7 @@
            05-generator     题目生成、影响值重算、炸弹信息栏
            06-render        棋盘差量渲染与地雷槽渲染
            07-board         棋盘尺寸、放置模式、拖拽与放置删除
-           08-ui            侧边栏、系列开关、难度预设、成绩 / 挑战记录、弹窗与庆祝特效
+           08-ui            侧边栏、系列开关、难度预设、成绩记录、挑战 / 难度弹窗与庆祝特效
            09-tutorial      系列挑战 / 基础挑战 / 引导教学全流程
            10-game          新游戏、全局重置、预设开局与页面级事件
            11-create        创造模式与题库码

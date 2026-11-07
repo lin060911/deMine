@@ -948,7 +948,9 @@ function renderRecordList() {
         const label = DIFF_LABEL[d] || d;
         const winCount = wins[d] || 0;
         totalWins += winCount;
-        html += `<div class="record-item${d === "brain" ? " is-brain" : ""}">`;
+        // v1.3.4：追加 diff-<难度> 供成绩栏难度配色使用；brain 仍保留
+        // is-brain，兼容旧样式 / 旧选择器引用
+        html += `<div class="record-item diff-${d}${d === "brain" ? " is-brain" : ""}">`;
         html += `<div class="record-row">`;
         html += `<span class="record-label">${meta.icon}${label}</span>`;
         html += `<span class="record-badge">${winCount} 次</span>`;

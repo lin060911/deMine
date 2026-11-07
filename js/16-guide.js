@@ -384,9 +384,6 @@
         }, {
             target: q("#SaveManage"),
             text: "④ 此处可以管理你的存档"
-        }, {
-            target: q("#AboutSection"),
-            text: "⑤ 关于：版本号与更新公告都在这里"
         } ];
     }
 

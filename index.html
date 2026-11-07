@@ -151,7 +151,7 @@
             </div>
             <div class="game-modal-body">
                 <div class="sidebar-section">
-                    <div class="sidebar-title challenge-title">🎯 挑战进度</div>
+                    <div class="sidebar-title challenge-title">💪 挑战进度</div>
                     <div id="challengeList"></div>
                 </div>
                 <div class="sidebar-section">
@@ -268,7 +268,7 @@
          openSettingSidebar() 展开右侧设置栏 -->
     <header class="hero">
         <h1 class="game-title">反向💣扫雷</h1>
-        <div class="rule">ℹ️操作tips:拖拽/点选✅放置地雷 | 🚫右键(手机长按)删除<br> 当前操作方式:<b id="modeBadge">拖拽</b> <span class="rule-mode-link" onclick="openSettingSidebar()">⚙️切换</span></div>
+        <div class="rule">ℹ️操作tips:拖拽/点选✅放置地雷 | 🚫右键(手机长按/双击)删除<br> 当前操作方式:<b id="modeBadge">拖拽</b> <span class="rule-mode-link" onclick="openSettingSidebar()">⚙️切换</span></div>
     </header>
 
     <!-- 区块：教学总进度条
@@ -291,7 +291,7 @@
     <section class="hud" aria-label="游戏操作">
         <div class="panel">
             <button id="reset">新游戏</button>
-            <button id="challengeBtn" onclick="openChallengeModal()">🎯挑战</button>
+            <button id="challengeBtn" onclick="openChallengeModal()">挑战🎯</button>
             <button id="tutorialBtn" onclick="openTeachMode()">教学🧐</button>
             <button id="difficultyBtn" onclick="openDifficultyModal()">难度🕹️</button>
         </div>
@@ -317,9 +317,20 @@
 
     <!-- 区块：棋盘托盘
          #board 是唯一由脚本填充的棋盘容器，初始为空：06-render.js 以差量渲染
-         写入格子，07-board.js 在其上绑定拖拽 / 点选 / 右键删除 -->
+         写入格子，07-board.js 在其上绑定拖拽 / 点选 / 右键删除。
+         v1.3.4：初始先隐藏，等第一局生成完成后再由 06-render.js 的
+         hideBoardLoading() 显示，期间用下方的 #boardLoading 占位遮丑 -->
     <div class="board-tray">
-        <div id="board" class="board"></div>
+        <div id="board" class="board" style="display:none;"></div>
+    </div>
+
+    <!-- 区块：加载中占位（v1.3.4）
+         棋盘 / 地雷槽尚未生成或正在生成时显示，生成完成后立即隐藏；
+         显隐由 06-render.js 的 showBoardLoading() / hideBoardLoading() 控制。
+         放在 .board-tray 之外：托盘在 #board 隐藏时会整块隐藏，放在里面会被一起隐藏 -->
+    <div class="board-loading" id="boardLoading" role="status" aria-live="polite">
+        <span class="board-loading-bomb" aria-hidden="true">💣</span>
+        <span class="board-loading-text">加载中<span class="board-loading-dots" aria-hidden="true"><i></i><i></i><i></i></span></span>
     </div>
 
     <!-- 区块：教学完成弹窗
@@ -382,7 +393,7 @@
          09-tutorial.js 按关卡填写。v1.3.3 从主按钮条移过来的「清空放置」放在
          槽位内部底部（绝对定位，不参与宽度计算），数量由 renderSlot() 同步、
          0 颗时置灰，教学模式下自动隐藏 -->
-    <div class="mine-slot-box" id="slot">
+    <div class="mine-slot-box" id="slot" style="display:none;">
         <div class="teach-bubble" id="teachBubble">
             <div class="teach-progress" id="teachProgress"></div>
             <div class="teach-bubble-head">
@@ -658,12 +669,12 @@
              更新公告为静态摘要，避免多处版本号不一致 -->
         <div class="sidebar-section" id="AboutSection">
             <div class="sidebar-title about-title">ℹ️ 关于</div>
-            <div class="about-version">🔧 版本号 <strong id="aboutVersion">v1.3.3</strong></div>
+            <div class="about-version">🔧 版本号 <strong id="aboutVersion">v1.3.4</strong></div>
             <div class="about-announce">
                 <div class="about-announce-title">📣 更新公告</div>
                 <ul class="about-announce-list">
+                    <li><b>V1.3.4</b>：手机端双击删除地雷；地雷卡效果说明气泡不再被遮挡、手机端长按可看；成绩栏按难度配淡色底；新增棋盘加载中占位。</li>
                     <li><b>V1.3.3</b>：清空放置移到地雷槽底部；新增「🎯挑战」弹窗，集中挑战进度与练习 / 挑战入口；设置栏新增「关于」。</li>
-                    <li><b>V1.3.2</b>：创造模式全部雷种与布局重排、题库码卡片重做、右上角全屏、记录成绩跳转、性能与手机端背景减负。</li>
                 </ul>
             </div>
             <div class="about-foot">© 2026 L1Nzy · lin060911@qq.com</div>
@@ -677,7 +688,7 @@
 
     <!-- 区块：页脚
          署名与联系方式，纯静态文本，脚本不依赖 -->
-    <footer class="sidebar-version">ReverseMinesweeper v1.3.3<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
+    <footer class="sidebar-version">ReverseMinesweeper v1.3.4<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
 
     <!-- 区块：脚本加载区（顺序即依赖）
          17 个外部脚本按 00 → 16 的书写顺序同步执行，共享同一个全局作用域：

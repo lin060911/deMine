@@ -629,47 +629,54 @@ function applyPuzzleCode() {
             offset += 3;
         }
         // 全部校验通过后才重置对局，解码失败不会清掉玩家正在玩的这局
-        fullReset();
-        createModeActive = false;
-        document.getElementById("createModePanel").classList.remove("visible");
-        // 把解码尺寸写入全局棋盘参数；T 为本局地雷总数
-        SR = rows;
-        SC = cols;
-        S = Math.max(rows, cols);
-        T = Object.keys(placed).length;
-        let pool = {};
-        for (let k in placed) {
-            let t = placed[k];
-            pool[t] = (pool[t] || 0) + 1;
+        // 重置、组装与渲染期间用"加载中"占位遮住棋盘与地雷槽，完成立即收起；
+        // 内层任何一步抛异常也会在 finally 收掉占位，再交给外层 catch 提示
+        showBoardLoading();
+        try {
+            fullReset();
+            createModeActive = false;
+            document.getElementById("createModePanel").classList.remove("visible");
+            // 把解码尺寸写入全局棋盘参数；T 为本局地雷总数
+            SR = rows;
+            SC = cols;
+            S = Math.max(rows, cols);
+            T = Object.keys(placed).length;
+            let pool = {};
+            for (let k in placed) {
+                let t = placed[k];
+                pool[t] = (pool[t] || 0) + 1;
+            }
+            // 按雷种统计配额：G.pool 决定道具栏里每种雷可用多少个
+            G.pool = pool;
+            G.max = T;
+            G.placed = {};
+            // 按雷种定义重建期望值矩阵，流程与正常生成题目一致
+            let tar = Array.from({
+                length: SR
+            }, () => Array(SC).fill(0));
+            for (let k in placed) {
+                let [r, c] = k.split(",").map(Number);
+                M[placed[k]].f(r, c, tar);
+            }
+            // 战术道具会改写周围格子的期望值，解析结果也必须应用同一套规则
+            applyTacticalEffects(tar, placed);
+            G.tar = tar;
+            G.placed = {};
+            // 装配完成后统一重绘棋盘与记录表，并开始计时
+            resetP();
+            render();
+            renderRecordList();
+            document.getElementById("win").style.display = "none";
+            document.getElementById("timer").style.display = "block";
+            // 分享关卡不属于任何预设难度，清空难度标记
+            diff = null;
+            isFreeMode = false;
+            ts = true;
+            startTi();
+            AudioFX.confirm();
+        } finally {
+            hideBoardLoading();
         }
-        // 按雷种统计配额：G.pool 决定道具栏里每种雷可用多少个
-        G.pool = pool;
-        G.max = T;
-        G.placed = {};
-        // 按雷种定义重建期望值矩阵，流程与正常生成题目一致
-        let tar = Array.from({
-            length: SR
-        }, () => Array(SC).fill(0));
-        for (let k in placed) {
-            let [r, c] = k.split(",").map(Number);
-            M[placed[k]].f(r, c, tar);
-        }
-        // 战术道具会改写周围格子的期望值，解析结果也必须应用同一套规则
-        applyTacticalEffects(tar, placed);
-        G.tar = tar;
-        G.placed = {};
-        // 装配完成后统一重绘棋盘与记录表，并开始计时
-        resetP();
-        render();
-        renderRecordList();
-        document.getElementById("win").style.display = "none";
-        document.getElementById("timer").style.display = "block";
-        // 分享关卡不属于任何预设难度，清空难度标记
-        diff = null;
-        isFreeMode = false;
-        ts = true;
-        startTi();
-        AudioFX.confirm();
     } catch (e) {
         // 任何解析异常都转成友好提示，不让错误冒泡打断页面
         alert("题库码无效，请检查！\n" + e.message);

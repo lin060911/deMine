@@ -881,3 +881,41 @@ function renderSlot() {
     let clearCount = document.getElementById("slotClearCount");
     if (clearCount && clearCount.textContent !== String(placedTotal)) clearCount.textContent = String(placedTotal);
 }
+
+/* ---------- 13. 加载中占位（v1.3.4） ----------
+ * 棋盘尚未生成 / 正在生成时，先隐藏 #board 与 #slot 并显示 #boardLoading
+ * 占位遮丑，生成完成后立即收起（生成是同步的，不加最短显示时长）。
+ * 创造模式进入流程与预设待开局本来就会主动隐藏棋盘 / 槽位，因此收起占位时
+ * 必须避开这两种状态，否则会把它们有意隐藏的布局重新显示出来。 */
+
+/**
+ * 显示"加载中"占位：隐藏棋盘与地雷槽，改由 #boardLoading 占位。
+ * @sideeffect 修改 #boardLoading / #board / #slot 的 display；元素缺失时跳过
+ */
+function showBoardLoading() {
+    let loading = document.getElementById("boardLoading");
+    if (loading) loading.style.display = "flex";
+    let b = document.getElementById("board");
+    if (b) b.style.display = "none";
+    let s = document.getElementById("slot");
+    if (s) s.style.display = "none";
+}
+
+/**
+ * 收起"加载中"占位：隐藏 #boardLoading，并按当前模式决定是否恢复棋盘与地雷槽。
+ * 创造模式（createModeActive）与预设待开局（isPresetPending）有自己的显隐逻辑，
+ * 这两种状态下只收占位、不恢复 #board / #slot，避免破坏它们的布局。
+ * @sideeffect 修改 #boardLoading 的 display；非创造 / 非预设待开局时恢复
+ *             #board 与 #slot 的 display
+ */
+function hideBoardLoading() {
+    let loading = document.getElementById("boardLoading");
+    if (loading) loading.style.display = "none";
+    // 创造模式与预设待开局有意隐藏棋盘 / 槽位：只收占位，不抢它们的布局
+    if (typeof createModeActive !== "undefined" && createModeActive) return;
+    if (typeof isPresetPending !== "undefined" && isPresetPending) return;
+    let b = document.getElementById("board");
+    if (b) b.style.display = "";
+    let s = document.getElementById("slot");
+    if (s) s.style.display = "";
+}

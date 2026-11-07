@@ -130,34 +130,40 @@ function openTutorialSelector() {
  * @sideeffect 重置棋局、写入棋盘参数与挑战状态，渲染棋盘
  */
 function setupTutorialBoard(catKey) {
-    fullReset();
-    currentTutorialType = catKey;
-    isTutorialMode = true;
-    window._guideLockedSeries = null;
-    window._guideLockedDifficulty = null;
-    // 必须显式写 SR/SC，否则会沿用上一局（如 hard 的 12×12）
-    if (catKey) {
-        S = 10;
-        SR = 10;
-        SC = 10;
-        T = 5;
-        TY = 3;
-        SP = 3;
-    } else {
-        // 基础挑战：入门难度 8×8 / 4 颗雷
-        S = 8;
-        SR = 8;
-        SC = 8;
-        T = 4;
-        TY = 3;
-        SP = 3;
+    // 生成期间用"加载中"占位遮住棋盘与地雷槽，生成完立即收起
+    showBoardLoading();
+    try {
+        fullReset();
+        currentTutorialType = catKey;
+        isTutorialMode = true;
+        window._guideLockedSeries = null;
+        window._guideLockedDifficulty = null;
+        // 必须显式写 SR/SC，否则会沿用上一局（如 hard 的 12×12）
+        if (catKey) {
+            S = 10;
+            SR = 10;
+            SC = 10;
+            T = 5;
+            TY = 3;
+            SP = 3;
+        } else {
+            // 基础挑战：入门难度 8×8 / 4 颗雷
+            S = 8;
+            SR = 8;
+            SC = 8;
+            T = 4;
+            TY = 3;
+            SP = 3;
+        }
+        setupTutorialParams();
+        genTutorialGame(catKey);
+        showTutorialProgress(catKey);
+        render();
+        document.getElementById("win").style.display = "none";
+        if (typeof guideRefresh === "function") guideRefresh();
+    } finally {
+        hideBoardLoading();
     }
-    setupTutorialParams();
-    genTutorialGame(catKey);
-    showTutorialProgress(catKey);
-    render();
-    document.getElementById("win").style.display = "none";
-    if (typeof guideRefresh === "function") guideRefresh();
 }
 
 /**
@@ -638,37 +644,43 @@ function loadTeachLevel() {
     let lvl = TEACH_LEVELS[teachLevelIdx];
     teachActive = true;
     syncMainPanel();
-    SR = lvl.boardRows;
-    SC = lvl.boardCols;
-    S = 5;
-    // 目标矩阵必须深拷贝，否则玩家放置时会直接改到关卡数据本身
-    G.tar = lvl.targetBoard.map(row => row.slice());
-    G.p = Array(SR).fill().map(() => Array(SC).fill(0));
-    G.placed = {};
-    teachPlaceList = [];
-    teachPlacedTypes = {};
-    // 单雷种关卡没有 mineTypes，这里统一折算成 { 雷种: 1 } 的配比表
-    let mt = lvl.mineTypes || (lvl.mineType ? {
-        [lvl.mineType]: 1
-    } : {});
-    teachExpectedTypes = Object.assign({}, mt);
-    teachExpectedCount = 0;
-    for (let k in mt) teachExpectedCount += mt[k];
-    teachPlacedCount = 0;
-    G.max = teachExpectedCount;
-    G.pool = Object.assign({}, mt);
-    teachStepIdx = 0;
-    ensureTeachSlotHost(true);
-    renderTeachSlot();
-    renderTeachBoard();
-    showTeachStep();
-    updateTeachProgressBar();
-    // 教学关卡不显示胜利遮罩，也不启动计时
-    document.getElementById("win").style.display = "none";
-    document.getElementById("timer").style.display = "none";
-    document.getElementById("placed").textContent = "0";
-    document.getElementById("max").textContent = String(teachExpectedCount);
-    if (typeof guideRefresh === "function") guideRefresh();
+    // 装载期间用"加载中"占位遮住棋盘与地雷槽，装完立即收起
+    showBoardLoading();
+    try {
+        SR = lvl.boardRows;
+        SC = lvl.boardCols;
+        S = 5;
+        // 目标矩阵必须深拷贝，否则玩家放置时会直接改到关卡数据本身
+        G.tar = lvl.targetBoard.map(row => row.slice());
+        G.p = Array(SR).fill().map(() => Array(SC).fill(0));
+        G.placed = {};
+        teachPlaceList = [];
+        teachPlacedTypes = {};
+        // 单雷种关卡没有 mineTypes，这里统一折算成 { 雷种: 1 } 的配比表
+        let mt = lvl.mineTypes || (lvl.mineType ? {
+            [lvl.mineType]: 1
+        } : {});
+        teachExpectedTypes = Object.assign({}, mt);
+        teachExpectedCount = 0;
+        for (let k in mt) teachExpectedCount += mt[k];
+        teachPlacedCount = 0;
+        G.max = teachExpectedCount;
+        G.pool = Object.assign({}, mt);
+        teachStepIdx = 0;
+        ensureTeachSlotHost(true);
+        renderTeachSlot();
+        renderTeachBoard();
+        showTeachStep();
+        updateTeachProgressBar();
+        // 教学关卡不显示胜利遮罩，也不启动计时
+        document.getElementById("win").style.display = "none";
+        document.getElementById("timer").style.display = "none";
+        document.getElementById("placed").textContent = "0";
+        document.getElementById("max").textContent = String(teachExpectedCount);
+        if (typeof guideRefresh === "function") guideRefresh();
+    } finally {
+        hideBoardLoading();
+    }
 }
 
 // 最近一次落雷的坐标键：只给这一颗播放下落动画，后续重绘不会重播

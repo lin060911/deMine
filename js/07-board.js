@@ -428,6 +428,142 @@ function bindSlotItemDrag(div, t, kind) {
     div.onclick = function() {
         if (!full) toggleSelectedType(kind, t);
     };
+    // 效果说明气泡：触屏长按 / 窄屏鼠标悬停时显示；卡片可能被重复绑定，内部保证幂等
+    bindSlotItemTip(div);
+}
+
+/* ---- 地雷卡效果说明气泡：body 级固定定位，避免被槽位 overflow 裁剪（v1.3.4） ---- */
+
+// 复用的气泡节点；懒创建，避免脚本加载时 body 尚未就绪
+let _mineTipEl = null;
+
+/**
+ * 取得（必要时创建）页面唯一的效果说明气泡节点。
+ * 节点挂在 body 下而不是卡片内，窄屏下才不会被 .mine-slot-box 的 overflow 裁剪。
+ * @returns {HTMLElement} #mineTipFixed 节点
+ * @sideeffect 首次调用时向 body 追加气泡节点
+ */
+function ensureMineTip() {
+    if (_mineTipEl && _mineTipEl.parentNode) return _mineTipEl;
+    let el = document.getElementById("mineTipFixed");
+    if (!el) {
+        el = document.createElement("div");
+        el.id = "mineTipFixed";
+        el.className = "mine-tip-fixed";
+        el.setAttribute("role", "tooltip");
+        // 外观（配色、层级、最大宽度）由样式表负责，这里只兜底定位基准
+        el.style.position = "fixed";
+        el.style.left = "0";
+        el.style.top = "0";
+    }
+    document.body.appendChild(el);
+    _mineTipEl = el;
+    return el;
+}
+
+/**
+ * 在卡片正上方居中显示效果说明气泡；上方空间不足时翻到卡片下方，并夹在视口内。
+ * @param {HTMLElement} el 触发的地雷卡，说明文本取自其 data-tip
+ * @sideeffect 写入 #mineTipFixed 的文本、left / top 与显示状态
+ */
+function showMineTip(el) {
+    if (!el || !el.dataset) return;
+    const text = el.dataset.tip || "";
+    if (!text) {
+        hideMineTip();
+        return;
+    }
+    const tip = ensureMineTip();
+    tip.textContent = text;
+    // 先以 display:block 参与布局并临时隐藏，才能量到换行后的真实宽高
+    tip.style.visibility = "hidden";
+    tip.style.display = "block";
+    const rect = el.getBoundingClientRect();
+    const vw = window.innerWidth || (document.documentElement ? document.documentElement.clientWidth : 0);
+    const vh = window.innerHeight || (document.documentElement ? document.documentElement.clientHeight : 0);
+    const w = tip.offsetWidth, h = tip.offsetHeight;
+    // 水平：样式表用 translateX(-50%)，故 left 传气泡中心坐标，再夹在视口内 8px
+    const half = Math.min(w, Math.max(0, vw - 16)) / 2;
+    let left = rect.left + rect.width / 2;
+    left = Math.max(8 + half, Math.min(vw - 8 - half, left));
+    // 垂直：优先显示在卡片上方，上方空间不足时翻到下方
+    let top = rect.top - h - 10;
+    if (top < 8) top = rect.bottom + 10;
+    // 下方也放不下时贴边显示，保证气泡完整留在视口内
+    top = Math.max(8, Math.min(Math.max(8, vh - h - 8), top));
+    tip.style.left = Math.round(left) + "px";
+    tip.style.top = Math.round(top) + "px";
+    tip.style.visibility = "";
+}
+
+/**
+ * 隐藏效果说明气泡。
+ * @sideeffect 把 #mineTipFixed 置为 display:none（层级由样式表提供）
+ */
+function hideMineTip() {
+    if (_mineTipEl) _mineTipEl.style.display = "none";
+}
+
+// 页面滚动（含槽位自身滚动）或视口尺寸变化时收起气泡，避免气泡与卡片位置脱节
+window.addEventListener("scroll", hideMineTip, true);
+window.addEventListener("resize", hideMineTip);
+
+/**
+ * 为地雷卡挂载效果说明气泡的触发逻辑：触屏长按显示、松手 / 移动 / 离开隐藏，
+ * 鼠标仅在窄屏（≤700px）悬停显示；宽屏继续使用样式表的 :hover 气泡。
+ * 卡片节点会被增量渲染反复绑定，故用 _tipHoldBound 保证同一节点只绑一次。
+ * @param {HTMLElement} div 地雷卡节点
+ * @sideeffect 向 div 添加 pointer 系列监听；可能创建 #mineTipFixed
+ */
+function bindSlotItemTip(div) {
+    if (!div || div._tipHoldBound) return;
+    div._tipHoldBound = true;
+    // 长按时长：短于 480ms 的删除长按，触屏没有 hover 时也能查看说明
+    const HOLD_MS = 420;
+    let holdTimer = 0, tipShown = false, downX = 0, downY = 0;
+    /**
+     * 取消待触发的长按计时。
+     */
+    function cancelHold() {
+        if (holdTimer) {
+            clearTimeout(holdTimer);
+            holdTimer = 0;
+        }
+    }
+    /**
+     * 结束本次长按：取消失败的计时并收起气泡。
+     */
+    function endHold() {
+        cancelHold();
+        tipShown = false;
+        hideMineTip();
+    }
+    div.addEventListener("pointerdown", function(e) {
+        if (e.pointerType === "mouse") return;
+        downX = e.clientX;
+        downY = e.clientY;
+        cancelHold();
+        hideMineTip();
+        holdTimer = setTimeout(function() {
+            holdTimer = 0;
+            tipShown = true;
+            showMineTip(div);
+        }, HOLD_MS);
+    });
+    div.addEventListener("pointermove", function(e) {
+        if (!holdTimer && !tipShown) return;
+        // 手指移动过多视为滑动 / 拖动，不再展示说明
+        if (Math.abs(e.clientX - downX) > 8 || Math.abs(e.clientY - downY) > 8) endHold();
+    });
+    div.addEventListener("pointerup", endHold);
+    div.addEventListener("pointercancel", endHold);
+    div.addEventListener("pointerleave", endHold);
+    // 鼠标悬停：仅窄屏用固定气泡，宽屏交给 ::after 的 hover 气泡
+    div.addEventListener("pointerenter", function(e) {
+        if (e.pointerType === "mouse" && window.innerWidth <= 700) showMineTip(div);
+    });
+    // 部分设备的触屏长按会直接进入原生拖拽：开始拖动即收起气泡
+    div.addEventListener("dragstart", hideMineTip);
 }
 
 /**
@@ -580,8 +716,12 @@ window.addEventListener("resize", function() {
     const MOVE_THRESHOLD = 6;
     // 长按时长：触屏没有右键菜单，长按删除是"删除已放置地雷"的替代入口
     const LONG_PRESS_MS = 480;
+    // 双击删除：触屏在同一格上两次点按的间隔不超过该值即删除（v1.3.4 新增入口）
+    const DOUBLE_TAP_MS = 320;
     // 当前指针会话；为 null 表示没有正在跟踪的指针
     let st = null;
+    // 最近一次触屏点按 { kind, key, time }：用于识别"同一格快速点两下"的双击删除
+    let lastTap = null;
     /**
      * 清除长按计时器；拖动一旦开始，长按删除就不会触发。
      * @param {Object} s 指针会话状态
@@ -732,14 +872,20 @@ window.addEventListener("resize", function() {
      * @sideeffect 写入会话状态 st，可能注册长按删除计时器
      */
     function onDown(e) {
-        // 鼠标交给原生 HTML5 拖放，这里只接管触摸与触控笔
-        if (!e || e.pointerType === "mouse") return;
+        if (!e) return;
+        // 鼠标交给原生 HTML5 拖放，这里只接管触摸与触控笔；鼠标按下同时作废双击记录
+        if (e.pointerType === "mouse") {
+            lastTap = null;
+            return;
+        }
         if (st) return;
         const target = e.target;
         if (!target || !target.closest) return;
         const kind = currentBoardKind();
         const slotItem = target.closest(".mine-item");
         if (slotItem) {
+            // 点过槽位后，下一次点按不再算作上一次棋盘点按的"第二下"
+            lastTap = null;
             // 点选模式下槽位不参与拖动，选中与放置由 click 路径完成
             if (window._placeMode !== "drag") return;
             if (slotItem.classList.contains("disabled")) return;
@@ -769,7 +915,11 @@ window.addEventListener("resize", function() {
             const r = +cell.dataset.r, c = +cell.dataset.c, key = r + "," + c;
             const map = kind === "create" ? createPlaced : G.placed;
             const type = map[key];
-            if (!type) return;
+            if (!type) {
+                // 理论上带 mine-here 的格子必有雷，状态不同步时清掉双击记录
+                lastTap = null;
+                return;
+            }
             st = {
                 mode: "cell",
                 kind: kind,
@@ -796,11 +946,15 @@ window.addEventListener("resize", function() {
                 if (!s || s.active) return;
                 st = null;
                 clearTimers(s);
+                // 长按删除不属于双击序列
+                lastTap = null;
                 removeAtCell(s.kind, s.r, s.c);
                 buzz(18);
                 swallowNextClick();
             }, LONG_PRESS_MS);
         }
+        // 按下空格或棋盘外：作废上一次点按，避免"点 A → 点空 → 点 A"被误判为双击
+        if (!st) lastTap = null;
     }
     /**
      * 指针移动：首次越过阈值时激活拖动，激活后持续更新拖影与落点高亮。
@@ -822,6 +976,8 @@ window.addEventListener("resize", function() {
                 return;
             }
             st.active = true;
+            // 拖动开始后，本次按下不再算作双击序列的一部分
+            lastTap = null;
             st.ghost = makeGhost(st.type, e.clientX, e.clientY, st.isTouch);
             if (st.src && st.src.classList) st.src.classList.add("dragging");
             // 拖动时同步选中类型，松手后点选路径仍保持该类型
@@ -856,6 +1012,28 @@ window.addEventListener("resize", function() {
         // 没有越过阈值的抬起视为点按，不落子
         if (!s.active) {
             killGhost(s);
+            // 触屏双击删除（v1.3.4）：同一格两次点按间隔 ≤320ms 即删除，与长按删除并存
+            if (s.mode === "cell") {
+                const now = Date.now();
+                if (lastTap && lastTap.kind === s.kind && lastTap.key === s.fromKey &&
+                    now - lastTap.time <= DOUBLE_TAP_MS) {
+                    // 删除后清空记录重新计数，避免第三下继续触发删除
+                    lastTap = null;
+                    removeAtCell(s.kind, s.r, s.c);
+                    buzz(18);
+                    // 删除后浏览器仍会补发 click，吞掉它以免点选模式下又立刻放回一颗雷
+                    swallowNextClick();
+                    return;
+                }
+                lastTap = {
+                    kind: s.kind,
+                    key: s.fromKey,
+                    time: now
+                };
+            } else {
+                // 从槽位点按不属于双击序列
+                lastTap = null;
+            }
             return;
         }
         const cell = s.hover || findCell(e.clientX, e.clientY, s.kind);
@@ -875,6 +1053,8 @@ window.addEventListener("resize", function() {
         const s = st;
         st = null;
         clearTimers(s);
+        // 取消的这次按下不参与双击序列
+        lastTap = null;
         clearHover(s);
         killGhost(s);
     }

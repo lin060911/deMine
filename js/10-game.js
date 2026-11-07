@@ -44,10 +44,16 @@ function newGame() {
         enterPresetPending(diff);
         return;
     }
-    genGame();
-    render();
-    renderRecordList();
-    document.getElementById("win").style.display = "none";
+    // 生成期间用"加载中"占位遮住棋盘与地雷槽，生成完立即收起
+    showBoardLoading();
+    try {
+        genGame();
+        render();
+        renderRecordList();
+        document.getElementById("win").style.display = "none";
+    } finally {
+        hideBoardLoading();
+    }
 }
 
 /* ---------- 2. 全局重置：所有模式切换的唯一收口 ---------- */
@@ -121,16 +127,22 @@ function beginPresetGame() {
     // 参数只取决于当前难度，生成前重设一次，避免跨模式残留的尺寸参与生成
     if (isPresetDifficulty(diff)) applyPresetParams(diff);
     document.getElementById("presetStartCard").style.display = "none";
-    document.getElementById("board").style.display = "";
-    document.getElementById("slot").style.display = "";
-    isPresetPending = false;
-    isTutorialMode = false;
-    document.getElementById("tutorialProgressBar").style.display = "none";
-    genGame();
-    render();
-    renderRecordList();
-    document.getElementById("win").style.display = "none";
-    // 先标记本局已开始，防止首次落子时的自动计时再次触发
+    // 生成期间用"加载中"占位遮住棋盘与地雷槽，生成完立即收起
+    showBoardLoading();
+    try {
+        document.getElementById("board").style.display = "";
+        document.getElementById("slot").style.display = "";
+        isPresetPending = false;
+        isTutorialMode = false;
+        document.getElementById("tutorialProgressBar").style.display = "none";
+        genGame();
+        render();
+        renderRecordList();
+        document.getElementById("win").style.display = "none";
+    } finally {
+        hideBoardLoading();
+    }
+    // 先标记本局已开始，防止首次落子时的自动计时再次触发（计时在收起占位之后）
     if (!isFreeMode) {
         ts = true;
         startTi();

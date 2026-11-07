@@ -428,7 +428,7 @@ function bindSlotItemDrag(div, t, kind) {
     div.onclick = function() {
         if (!full) toggleSelectedType(kind, t);
     };
-    // 效果说明气泡：触屏长按 / 窄屏鼠标悬停时显示；卡片可能被重复绑定，内部保证幂等
+    // 效果说明气泡：窄屏点按选中即显示，宽屏触屏长按；卡片可能被重复绑定，内部保证幂等
     bindSlotItemTip(div);
 }
 
@@ -509,15 +509,20 @@ window.addEventListener("scroll", hideMineTip, true);
 window.addEventListener("resize", hideMineTip);
 
 /**
- * 为地雷卡挂载效果说明气泡的触发逻辑：触屏长按显示、松手 / 移动 / 离开隐藏，
- * 鼠标仅在窄屏（≤700px）悬停显示；宽屏继续使用样式表的 :hover 气泡。
+ * 为地雷卡挂载效果说明气泡的触发逻辑（v1.3.4）：
+ *   - 窄屏（≤700px）：点按卡片即"选中"，选中后立即显示说明、再点一次取消选中即收起，
+ *     手指 / 鼠标都适用——不再需要长按等待；点按棋盘或页面空白处也会收起。
+ *   - 宽屏触屏（>700px）：保留长按 420ms 显示、松手 / 移动 / 离开收起（宽屏鼠标
+ *     仍使用样式表的 :hover 气泡，不经过这里）。
  * 卡片节点会被增量渲染反复绑定，故用 _tipHoldBound 保证同一节点只绑一次。
  * @param {HTMLElement} div 地雷卡节点
- * @sideeffect 向 div 添加 pointer 系列监听；可能创建 #mineTipFixed
+ * @sideeffect 向 div 添加 pointer / click 监听；可能创建 #mineTipFixed
  */
 function bindSlotItemTip(div) {
     if (!div || div._tipHoldBound) return;
     div._tipHoldBound = true;
+    // 窄屏是否已经挂过"点空白处收起"的全局监听（整个页面只需要一次）
+    ensureMineTipOutsideClose();
     // 长按时长：短于 480ms 的删除长按，触屏没有 hover 时也能查看说明
     const HOLD_MS = 420;
     let holdTimer = 0, tipShown = false, downX = 0, downY = 0;
@@ -540,6 +545,8 @@ function bindSlotItemTip(div) {
     }
     div.addEventListener("pointerdown", function(e) {
         if (e.pointerType === "mouse") return;
+        // 窄屏改为"点按选中即显示"（见下方 click 分支），不再走长按计时
+        if (window.innerWidth <= 700) return;
         downX = e.clientX;
         downY = e.clientY;
         cancelHold();
@@ -558,12 +565,35 @@ function bindSlotItemTip(div) {
     div.addEventListener("pointerup", endHold);
     div.addEventListener("pointercancel", endHold);
     div.addEventListener("pointerleave", endHold);
+    // 窄屏：点按卡片（click 在卡片自身的选中切换之后触发）→ 选中即显示，取消选中即收起
+    div.addEventListener("click", function() {
+        if (window.innerWidth > 700) return;
+        if (div.classList.contains("selected")) showMineTip(div); else hideMineTip();
+    });
     // 鼠标悬停：仅窄屏用固定气泡，宽屏交给 ::after 的 hover 气泡
     div.addEventListener("pointerenter", function(e) {
         if (e.pointerType === "mouse" && window.innerWidth <= 700) showMineTip(div);
     });
     // 部分设备的触屏长按会直接进入原生拖拽：开始拖动即收起气泡
     div.addEventListener("dragstart", hideMineTip);
+}
+
+// 窄屏"点空白处收起气泡"的全局监听是否已安装
+let _mineTipOutsideBound = false;
+
+/**
+ * 安装一次性的全局监听：点按地雷卡以外的区域时收起效果说明气泡。
+ * 只在窄屏（≤700px，点选气泡生效的场景）需要；捕获阶段执行，避免被局部 stopPropagation 挡住。
+ * @sideeffect 向 document 添加 capture 阶段的 pointerdown 监听
+ */
+function ensureMineTipOutsideClose() {
+    if (_mineTipOutsideBound) return;
+    _mineTipOutsideBound = true;
+    document.addEventListener("pointerdown", function(e) {
+        const t = e.target;
+        if (t && t.closest && t.closest(".mine-item")) return;
+        hideMineTip();
+    }, true);
 }
 
 /**

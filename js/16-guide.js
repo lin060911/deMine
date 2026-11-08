@@ -3,7 +3,8 @@
  *
  * 职责：用一只会动的小手 + 目标高亮环 + 一句话气泡，告诉玩家"现在该点哪 /
  *       该把地雷拖到哪"；设置与创造的介绍按"下一处"逐项讲完；指引未解锁
- *       系列的「挑战」按钮时，额外让「🎯挑战」弹窗里对应系列行同步闪烁。
+ *       系列的「挑战」按钮时，额外让「🎯挑战」弹窗里对应系列行同步闪烁；
+ *       从难度弹窗跳转到记录成绩 / 炸弹信息后，负责把高亮定位到目标分区。
  * 依赖：DOM（棋盘格、雷槽、侧栏与弹窗按钮）、Store（记住已看过的引导）、
  *       TEACH_LEVELS / teachActive / teachLevelIdx（09-tutorial）、
  *       isBasicChallengeDone / seriesUnlocked 等全局状态。
@@ -17,7 +18,7 @@
  *   4) 频率：只有教学第 4-12 关保留"闲置 4 秒后才出现"的节奏；其余引导
  *      （含教学第 1-3 关）条件一满足就立即出现，单步最多两轮。带「下一处」
  *      的介绍类引导按按钮逐条推进，不点按钮就不会消失。
- *   5) 只有一个可见按钮的弹窗不再套高亮环，只保留气泡与小手，避免重复强调
+ *   5) 只有一个可见按钮的弹窗不套高亮环，只保留气泡与小手，避免重复强调
  *      唯一可点的目标。
  * ========================================================================== */
 
@@ -213,7 +214,7 @@
 
     /**
      * 目标所在的弹窗 / 提示卡里是否只剩它一个可见按钮。
-     * 只有一个按钮时不再套高亮环，避免重复强调唯一可点的目标。
+     * 只有一个按钮时不套高亮环，避免重复强调唯一可点的目标。
      * @param {HTMLElement} target 引导目标
      * @returns {boolean} 只有一个可见按钮时返回 true
      */
@@ -329,7 +330,7 @@
     }
 
     /**
-     * 未解锁的系列开关（v1.3.3 两步指引）：
+     * 未解锁的系列开关（两步指引）：
      * 第一步指主按钮「🎯挑战」，玩家点开弹窗后第二步指该系列行右侧的
      * 「挑战」按钮；每次点「前往挑战」都会重新走一遍这两步。
      * @returns {Object|null} 引导候选
@@ -451,7 +452,7 @@
     }
 
     /**
-     * 基础挑战未完成时的引导（每次打开网页都会检查，v1.3.3 改指新入口）：
+     * 基础挑战未完成时的引导（每次打开网页都会检查）：
      * 主按钮「🎯挑战」→ 挑战弹窗里基础挑战行右侧的「基础挑战」按钮。
      * @returns {Object|null} 引导候选
      */
@@ -538,13 +539,13 @@
     }
 
     /**
-     * 从难度弹窗点「成绩请到记录栏查看」跳转后的引导（v1.3.2）：
+     * 从难度弹窗点「成绩请到记录栏查看」跳转后的引导：
      * 记录侧栏打开后，用统一的高亮环 + 小手指向「成绩」分区。
      * @returns {Object|null} 引导候选
      */
     function recordScoresCandidate() {
         if (!window._guideRecordScores) return null;
-        // 侧栏被玩家收起：本次跳转引导到此结束
+        // 侧栏被玩家收起：这条跳转引导到此结束
         if (!sidebarOpen("achSidebar")) {
             window._guideRecordScores = false;
             return null;
@@ -559,6 +560,35 @@
             nextLabel: "知道啦 ✅",
             onDone: function() {
                 window._guideRecordScores = false;
+            }
+        });
+    }
+
+    /**
+     * 从系列开关板块点「炸弹详细信息请到信息栏查看」跳转后的引导：
+     * 信息侧栏打开后，用统一的高亮环 + 小手指向「炸弹信息」分区标题。
+     * 炸弹信息列表很长，套整块会让小手落到视口外，因此目标取分区标题。
+     * @returns {Object|null} 引导候选
+     */
+    function mineInfoCandidate() {
+        if (!window._guideMineInfo) return null;
+        // 侧栏被玩家收起：这条跳转引导到此结束
+        if (!sidebarOpen("infoSidebar")) {
+            window._guideMineInfo = false;
+            return null;
+        }
+        var mine = $("accMine");
+        if (!mine || !visible(mine)) return null;
+        var title = mine.querySelector(".sidebar-title") || mine;
+        if (!visible(title)) title = mine;
+        return tapStep({
+            key: "mines:info",
+            text: "各系列的炸弹与影响规则都在这里",
+            target: title,
+            active: true,
+            nextLabel: "知道啦 ✅",
+            onDone: function() {
+                window._guideMineInfo = false;
             }
         });
     }
@@ -595,7 +625,9 @@
         if (creating) return null;
         // ④.1 从难度弹窗点了「成绩请到记录栏查看」：高亮环 + 小手指向成绩区
         if (window._guideRecordScores) return recordScoresCandidate();
-        // ④.2 「🎯挑战」弹窗打开且基础挑战未完成：指基础挑战行右侧的入口
+        // ④.2 从系列开关板块点了「详细信息请到信息栏查看」：指向炸弹信息
+        if (window._guideMineInfo) return mineInfoCandidate();
+        // ④.3 「🎯挑战」弹窗打开且基础挑战未完成：指基础挑战行右侧的入口
         if (modalOpen("challengeModal")) {
             if (!isBasicChallengeDone()) return basicChallengeCandidate();
             return null;
@@ -658,7 +690,7 @@
         var key = r.left + "|" + r.top + "|" + r.w + "|" + r.h;
         if (key === state.geomKey) return true;
         state.geomKey = key;
-        // 只有一个按钮时只保留气泡与小手，不再加高亮环
+        // 只有一个按钮时只保留气泡与小手，不加高亮环
         if (singleButtonTarget(cand.target)) {
             if (ring) ring.style.display = "none";
         } else {
@@ -757,7 +789,7 @@
     var flashedSeries = null;
 
     /**
-     * 让「🎯挑战」弹窗里某个系列行同步闪烁（v1.3.3，与按钮高亮同时出现，不配手势）。
+     * 让「🎯挑战」弹窗里某个系列行同步闪烁（与按钮高亮同时出现，不配手势）。
      * @param {string} cat 系列键
      * @sideeffect 给对应 .challenge-item 添加 guide-series-flash 类
      */
@@ -777,7 +809,7 @@
     function clearSeriesFlash() {
         if (flashedSeries && flashedSeries.classList) flashedSeries.classList.remove("guide-series-flash");
         flashedSeries = null;
-        // 面板重绘后旧引用可能失效，再按类名兜底清理
+        // 面板重绘后缓存的引用可能失效，再按类名兜底清理
         var left = document.querySelectorAll("#challengeList .challenge-item.guide-series-flash");
         for (var i = 0; i < left.length; i++) left[i].classList.remove("guide-series-flash");
     }
@@ -869,7 +901,7 @@
 
     function tick() {
         if (!layer) return;
-        // 页面在后台时不做候选判定（v1.3.2 性能优化）：省掉每 400ms 一轮的
+        // 页面在后台时不做候选判定：省掉每 400ms 一轮的
         // DOM 查询，回到前台后下一次 tick 会立即按最新状态恢复引导
         if (document.hidden) return;
         var now = Date.now();

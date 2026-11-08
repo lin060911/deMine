@@ -31,7 +31,7 @@ let influenceHintOn = Store.get("mineInfluenceHint") === "true";
  */
 function setInfluenceHint(on, silent) {
     influenceHintOn = !!on;
-    // 存储写入失败不影响本次会话内的开关状态
+    // 存储写入失败不影响当前会话内的开关状态
     try {
         Store.set("mineInfluenceHint", influenceHintOn ? "true" : "false");
     } catch (e) {}
@@ -138,7 +138,7 @@ function isPreviewDropLegal(kind, key, type, moving) {
 /**
  * 拖动中指针悬浮在格子上时预演这一步的净效果：对影响值会变化的地块，
  * 直接显示"放置后"的三态配色，并在左下角显示放置后的影响值。
- * 移动棋盘上已有的雷时，同时预演"移走旧雷 + 放下新雷"的合并结果。
+ * 移动棋盘上已有的雷时，同时预演"移走源格地雷 + 放下新雷"的合并结果。
  * @param {string} kind 棋盘标识 main / teach
  * @param {HTMLElement} cell 当前悬停格
  * @param {string} [moveFrom] 触屏拖拽时由调用方显式传入的拖动起点；省略时按 G.drag 判断
@@ -162,7 +162,7 @@ function previewPlacementEffect(kind, cell, moveFrom) {
     if (sig === _previewSig) return;
     _previewSig = sig;
     clearPreviewCells();
-    // 原地不动或非法落点：清掉旧预览后直接返回
+    // 原地不动或非法落点：清掉上一处预览后直接返回
     if (fromKey === key || !isPreviewDropLegal(kind, key, type, moving)) return;
     const placed2 = {};
     for (let k in G.placed) placed2[k] = G.placed[k];
@@ -227,14 +227,14 @@ function appendInfluenceBadge(cell, cur, tar) {
  *   落雷都会重播所有已放置雷的落雷动画，玩家越到后期界面越抖。差量引擎只在
  *   首次进入或结构不可信时重建网格，之后按"状态变化"局部更新：
  *     · 点击/右键统一走事件委托，网格重建后不需要重新绑定；
- *     · 只有本次新增的那一颗雷播放落雷动画，其余格子保持静止；
+ *     · 只有新放置的那一颗雷播放落雷动画，其余格子保持静止；
  *     · 固定复用 .cell-num / .cell-mine 两个子节点，更新时只改内容不换节点。
  *
  * 一致性分层校验（从便宜到昂贵）
  *   1) 状态体检：G.tar / G.p 的行列数必须与 SR/SC 一致，否则不绘制并记日志；
  *   2) 网格体检：节点数、父子关系、data-r/data-c 逐格核对，不符就整块重建；
  *   3) 尺寸变化：窗口缩放导致格子边长变化时重新应用棋盘度量；
- *   4) 更新异常：单格更新抛异常时改为整块重建后再更新一遍；
+ *   4) 更新异常：单格更新抛异常时降级为整块重建后再更新一遍；
  *   5) 结果不变量：绘制完成后 DOM 上的 .mine-here 数量必须等于 G.placed
  *      的键数，不等就强制重建（这是最后一道一致性闸门）；
  *   6) 最小绘制：连重建都抛异常时，用 legacyRender 画一版静态棋盘，
@@ -364,7 +364,7 @@ function appendInfluenceBadge(cell, cur, tar) {
     /**
      * 确保容器内存在可信网格：尺寸变化时重设棋盘度量，结构不可信时整块重建。
      * @param {HTMLElement} host 棋盘容器
-     * @returns {boolean} 本次是否发生了全量重建（true 表示不播放落雷动画）
+     * @returns {boolean} 是否发生了全量重建（true 表示不播放落雷动画）
      */
     function ensureGrid(host) {
         host.classList.add("rm-diff");
@@ -378,7 +378,7 @@ function appendInfluenceBadge(cell, cur, tar) {
         if (view.forceRebuild || !gridMatches(host)) {
             view.forceRebuild = false;
             fullBuild(host);
-            return true;      // 网格刚重建，本次不播落雷动画
+            return true;      // 网格刚重建，此处不播落雷动画
         }
         return false;
     }
@@ -524,7 +524,7 @@ function appendInfluenceBadge(cell, cur, tar) {
         return true;
     }
 
-    // 记录本次绘制遇到的未知雷型数量：一旦出现就跳过结果不变量校验
+    // 记录当前绘制遇到的未知雷型数量：一旦出现就跳过结果不变量校验
     var unknownTypes = 0;
 
     /**
@@ -671,7 +671,7 @@ function appendInfluenceBadge(cell, cur, tar) {
         var host = document.getElementById("board");
         // 页面没有棋盘容器时不渲染（例如非主界面）
         if (!host) return;
-        // 状态不健康时直接跳过本次绘制，避免把错误数据画到界面上
+        // 状态不健康时直接跳过当前绘制，避免把错误数据画到界面上
         if (!stateHealthy()) {
             log("render", "状态矩阵与棋盘尺寸不一致（SR=" + SR + ",SC=" + SC + "），已跳过本次绘制");
             return;
@@ -740,7 +740,7 @@ function appendInfluenceBadge(cell, cur, tar) {
 
 /* ---------- 12. 渲染总入口与地雷槽 ---------- */
 
-/* 计数文本与元素引用缓存（v1.3.2 性能优化）：每次落子都会走 render()，
+/* 计数文本与元素引用缓存：每次落子都会走 render()，
  * 元素引用只查一次，文本未变化时不写 DOM。 */
 var _placedEl = null;
 var _maxEl = null;
@@ -782,9 +782,9 @@ function render() {
     }
 }
 
-/* ---------- 12.1 地雷槽缓存（v1.3.2 性能优化） ----------
- * renderSlot() 在每次落子 / 删雷后都会被调用；旧实现每次 innerHTML 重建整块
- * 槽位并重新绑定拖拽。这里缓存「牌池结构 + 卡片节点」：结构不变时只更新
+/* ---------- 12.1 地雷槽缓存 ----------
+ * renderSlot() 在每次落子 / 删雷后都会被调用；避免每次 innerHTML 重建整块
+ * 槽位并重新绑定拖拽，这里缓存「牌池结构 + 卡片节点」：结构不变时只更新
  * disabled / selected 与计数文本，仅结构变化（开局、换牌池、教学切换）才重建。 */
 var _slotCache = {
     host: null,
@@ -792,10 +792,10 @@ var _slotCache = {
     nodes: []
 };
 
-/* ---------- 12.2 地雷槽「清空放置」（v1.3.3） ----------
- * 按钮从主按钮条移到地雷槽外侧的下一行（静态 DOM，不参与 #slot 的内部布局），
- * 因此地雷槽高度不会因为它而变大；renderSlot 只负责同步「已放数量」与禁用态，
- * 不再在槽位重建时搬运该节点。 */
+/* ---------- 12.2 地雷槽「清空放置」 ----------
+ * 按钮位于地雷槽内部底部（静态 DOM，绝对定位并预留底部内边距，不参与 #slot 的
+ * 宽度计算），因此雷种少时槽位白底不会被撑宽；renderSlot 只负责同步
+ * 「已放数量」与禁用态，不在槽位重建时搬运该节点。 */
 
 /**
  * 重建右侧地雷槽：按牌池为每种雷生成一张可拖拽卡片，并标出已用 / 配额与选中态。
@@ -882,10 +882,10 @@ function renderSlot() {
     if (clearCount && clearCount.textContent !== String(placedTotal)) clearCount.textContent = String(placedTotal);
 }
 
-/* ---------- 13. 加载中占位（v1.3.4） ----------
+/* ---------- 13. 加载中占位 ----------
  * 棋盘尚未生成 / 正在生成时，先隐藏 #board 与 #slot 并显示 #boardLoading
  * 占位遮丑，生成完成后立即收起（生成是同步的，不加最短显示时长）。
- * 创造模式进入流程与预设待开局本来就会主动隐藏棋盘 / 槽位，因此收起占位时
+ * 创造模式进入流程与预设待开局会主动隐藏棋盘 / 槽位，因此收起占位时
  * 必须避开这两种状态，否则会把它们有意隐藏的布局重新显示出来。 */
 
 /**

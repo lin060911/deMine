@@ -1,9 +1,9 @@
 /* ==========================================================================
  * 模块 17 · 主线任务 / 地雷仙人 / 积分商店 / 外观（js/17-sage.js）
  *
- * 职责：把"门槛驱动"改写成"任务 → 奖励驱动"。
+ * 职责：以"任务 → 奖励驱动"组织玩家成长路径。
  *   1) 主线任务（9 环）与支线（6 条）：条件全部读现有状态，不新造进度；
- *   2) 新门禁 N1（教学 → 基础挑战）与 N2（基础挑战 → 中等）的统一判定；
+ *   2) 门禁 N1（教学 → 基础挑战）与 N2（基础挑战 → 中等）的统一判定；
  *   3) 地雷仙人：小盆栽、第 5 个侧栏、任务卡 / 验收单 / 通行条件弹窗；
  *   4) 火药积分（成就 + 任务 + 章节 − 已购）与商店、衣柜、页面背景、雷 emoji。
  *
@@ -12,10 +12,13 @@
  *      isBasicChallengeDone / getSeriesOnCount / checkBrainUnlocked（08）、
  *      renderMineInfo / updatePresetButtons（05/08）、openTeachMode /
  *      openPracticeMode（09）、render / renderSlot（06）。
+ * 对外：window.Sage（isGateOpen / gateInfo / onBlocked / refresh / claim / buy /
+ *      equipItem / unequip / mineEmoji / onAchievement / openPanel / showTab /
+ *      points / earned / spent / state）。
  * 设计要点：
  *   1) 判定优先"条件驱动"：同一状态重复判定不会累加，启动开两局也安全；
- *   2) 积分不存余额：earned − spent 现算，老档读入自动补分、导入不漂移；
- *   3) 伪奖励（解锁）由原规则生效，本模块只负责宣布；真奖励靠"复命"领取；
+ *   2) 积分不存余额：earned − spent 现算，已有存档读入自动补分、导入不漂移；
+ *   3) 伪奖励（解锁）由既有规则生效，本模块只负责宣布；真奖励靠"复命"领取；
  *   4) UI 缺失 / 其他模块未加载时全部降级为空操作，保证游戏本身仍可玩。
  * ========================================================================== */
 
@@ -27,7 +30,7 @@
     var QUEST_KEY = "rmMainQuest_v1";
     var LOOKS_KEY = "rmLooks_v1";
 
-    // 新门禁总开关：调试时可单独关闭，回到旧行为
+    // 门禁总开关：调试时可单独关闭；关闭后不拦截任何入口
     var NEW_GATES = {
         basicRequiresTeaching: true,   // N1：教学完成 → 基础挑战
         mediumRequiresBasic: true      // N2：基础挑战 5 关 → 中等难度

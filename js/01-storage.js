@@ -2,21 +2,21 @@
  * 模块 01 · 紧凑签名存档引擎（js/01-storage.js）
  *
  * 职责：用一个 localStorage 键承载全部游戏进度，提供"极小的体积 + 强完整性
- *   校验"的存档层。对上层仍然暴露与旧实现同名的 Store 接口（get/set/save/
+ *   校验"的存档层。对上层暴露 Store 接口（get/set/save/
  *   guard/getJSON/setJSON/remove），因此业务模块不需要关心存档格式。
  * 依赖：00-core 的 RM（命名空间、RM.ACH_IDS、RM.warn）；window.localStorage。
  * 对外：window.Store（基础读写、受保护读写、导入导出、合并预览、导入前快照、
  *   完整性校验、存档摘要与详情、下载），以及顶层的 lt / rec / wins /
  *   seriesState / seriesUnlocked 等派生状态与系列读写函数。
  *
- * 存档格式（v2，详见 docs/SAVE-FORMAT.md）：
+ * 存档格式（详见 docs/SAVE-FORMAT.md）：
  *   明文数据 → 位打包 / varint 编码（成就用 45 位比特位图 + 时间差编码）
  *            → LZSS 压缩（只在更小时采用）
  *            → SHA-256 计数器流 XOR 混淆
  *            → HMAC-SHA256 签名
  *            → Base64URL，写入 rmSave；上一份完好存档写入 rmSave__bak。
  *   成就解锁时间、各难度最快用时 / 通关次数、教学与全部挑战进度都是结构化
- *   字段，不再是一堆可读 JSON 键，体积约为旧格式的 1/3～1/4。
+ *   字段，不逐个占用可读 JSON 键，体积约为等价明文 JSON 的 1/3～1/4。
  *
  * 安全模型（务必理解边界）：
  *   · 签名密钥是内嵌在前端代码里的常量，因此本方案能阻止"改存档文件 / 改
@@ -26,8 +26,8 @@
  *   · 损坏数据不会静默进入游戏：校验失败即隔离到 rmSave__bad 并标记
  *     Store.tampered，界面上会显示"完整性异常"。
  *   · 导入文件同样验签；验签通过后按当前密钥重新签名落盘。
- *   · 不兼容 v1.2.x 的旧存档格式；首次启动会做一次单向的旧键迁移（只读旧键
- *     生成新容器，随后删除旧键），之后旧格式不再被识别。
+ *   · 不兼容早期的多键明文 JSON 存档格式；首次启动会做一次单向的旧键迁移
+ *     （只读旧键生成新容器，随后删除旧键）。
  * ========================================================================== */
 
 (function() {
@@ -55,7 +55,7 @@
     var MAC_LEN = 32;
 
     /* 签名 / 混淆密钥：拆成多段，避免出现一整条可直接搜索的字符串。
-     * 修改任何一段都会让旧存档验签失败（等价于一次强制换档）。 */
+     * 修改任何一段都会让既有存档验签失败（等价于一次强制换档）。 */
     var SECRET_PARTS = [ "ReverseMinesweeper", ".sav", "e.v2.", "L1Nzy-2026-", "signed-compact" ];
 
     /* 难度顺序：与 00-core 的 PRE、08-ui 的成绩列表保持一致 */
@@ -67,7 +67,7 @@
     /* 成就 id 顺序：存档位图的位序；缺失时退化为通用 JSON 保存（不失数据） */
     var ACH_IDS = (RM && Array.isArray(RM.ACH_IDS)) ? RM.ACH_IDS.slice(0) : null;
 
-    /* 旧版存档键白名单：只用于一次性迁移与清理，不再作为运行时读写键 */
+    /* 旧存档键白名单：只用于一次性迁移与清理，不作为运行时读写键 */
     var LEGACY_KEYS = [
         "mineLastTimes", "mineRecords", "mineWins",
         "brainUnlockedNotified", "brainCleared",
@@ -475,7 +475,7 @@
         return out;
     }
 
-    /* ---------- 5. LZSS 压缩（体积优化） ---------- */
+    /* ---------- 5. LZSS 压缩（减小体积） ---------- */
 
     /* 压缩侧的哈希表复用，避免每次保存都重新分配 16KB */
     var LZ_HEAD = new Int32Array(4096);
@@ -702,7 +702,7 @@
 
     /* ---------- 7. 数据结构编解码：rawMap ↔ payload ---------- */
 
-    /* rawMap：键 → 旧格式的原始字符串值（例如 "true" / "0" / JSON 文本），
+    /* rawMap：键 → 原始字符串值（例如 "true" / "0" / JSON 文本），
      * 与 Store.get 的返回值完全一致，业务模块无需感知二进制格式。 */
 
     function defaultSeriesObj() {
@@ -710,7 +710,7 @@
     }
 
     /**
-     * 新存档的默认键集合：与旧实现首次启动时的可见状态一致。
+     * 新存档的默认键集合：与首次启动时的可见状态一致。
      * 刻意不写入 achievementState_v1 / tutorialCompleted 等"缺省即未达成"的键。
      * @returns {Object} rawMap
      */
@@ -1235,7 +1235,7 @@
         decodeMisc(r, map);
         decodeExtras(r.string(), map);
         if (r.left() !== 0) {
-            /* 多出来的字节通常意味着格式版本演进或数据损坏，直接拒绝更安全 */
+            /* 多出来的字节通常意味着编码格式不一致或数据损坏，直接拒绝更安全 */
             throw new Error("存档尾部存在未知数据");
         }
         map.rmSchemaVersion = String(SCHEMA);
@@ -1499,8 +1499,8 @@
     }
 
     /**
-     * 旧版（v1.2.x）存档键的一次性收集：只在新容器尚不存在时调用。
-     * @returns {?Object} 旧 rawMap；没有旧数据时返回 null
+     * 旧存档键的一次性收集：只在新容器尚不存在时调用。
+     * @returns {?Object} 旧键 → 原始字符串的映射；没有旧数据时返回 null
      */
     function collectLegacy() {
         var keys = rawKeys();
@@ -1524,7 +1524,7 @@
         if (k === SAVE_KEY || k === BAK_KEY || k === PRE_KEY || k === BAD_KEY) return false;
         if (k === "rmPreImportAt" || k === "rmPreImportISO") return true;
         if (/__(bak|sig|pre)$/.test(k)) {
-            /* 旧版辅助键：只要基键属于旧白名单 / 前缀就一起清理 */
+            /* 辅助键：只要基键属于旧白名单 / 前缀就一起清理 */
             var base = k.replace(/__(bak|sig|pre)$/, "");
             return LEGACY_KEYS.indexOf(base) >= 0 || legacyPrefixMatch(base);
         }
@@ -1578,7 +1578,7 @@
             }
         }
         if (!migrated) load();
-        /* 旧键无论是否迁移成功都清掉：新版本不再读取它们，留着只会占空间 */
+        /* 旧键无论是否迁移成功都清掉：运行时只读新容器，旧键留着只会占空间 */
         var keys = rawKeys();
         for (var i = 0; i < keys.length; i++) {
             if (legacyKey(keys[i])) rawRemove(keys[i]);
@@ -1604,7 +1604,7 @@
         saveKey: SAVE_KEY,
         backupKey: BAK_KEY,
 
-        /* ----- 11.1 基础读写（与旧实现同名同语义） ----- */
+        /* ----- 11.1 基础读写 ----- */
 
         get: function(k) {
             try {
@@ -1681,7 +1681,7 @@
             return clone(fallback);
         },
         /**
-         * 保存一个受保护存档项：与 setJSON 等价，保留旧接口名。
+         * 保存一个受保护存档项：与 setJSON 等价，保留既有接口名。
          * @param {string} k 存档键
          * @param {*} v 待保存值
          * @returns {boolean}
@@ -1779,7 +1779,7 @@
                 }
                 rawMap = next;
                 persist();
-                // 导入的是刚验签通过的文件：当前存档已整体替换，旧的异常标记不再适用
+                // 导入的是刚验签通过的文件：当前存档已整体替换，重置完整性异常标记
                 Store.tampered = false;
                 Store.integrity = "ok";
                 res.ok = true;
@@ -1792,7 +1792,7 @@
             }
         },
 
-        /* ----- 11.4 兼容旧导出入口的别名（仅返回内存态，不用于文件） ----- */
+        /* ----- 11.4 兼容既有导出入口的别名（仅返回内存态，不用于文件） ----- */
 
         /**
          * 返回当前受管键的原始值副本（调试 / 对比用，不是导出文件格式）。
@@ -1994,7 +1994,7 @@
                     save: raw
                 };
                 rawSet(PRE_KEY, stringify(snapshot));
-                /* 快照时间只保存在 PRE_KEY 内部；这里不再额外写辅助键，
+                /* 快照时间只保存在 PRE_KEY 内部；这里不额外写辅助键，
                  * 避免绕开受管键规则产生无意义的散键 */
                 return Object.keys(rawMap).length;
             } catch (e) {
@@ -2025,7 +2025,7 @@
                 }
                 rawMap = opened.rawMap;
                 persist();
-                // 快照本身通过验签：回退后旧主档的异常标记清空
+                // 快照本身通过验签：回退后主档的异常标记清空
                 Store.tampered = false;
                 Store.integrity = "ok";
                 return Object.keys(rawMap).length;
@@ -2532,7 +2532,7 @@
 
 })();
 
-/* ---------- 14. 成绩与胜场（与旧实现同名，业务模块无需改动） ---------- */
+/* ---------- 14. 成绩与胜场 ---------- */
 
 /* 各难度的最近一次用时（毫秒），受保护读取：结构损坏自动回退备份 */
 let lt = Store.guard("mineLastTimes", {

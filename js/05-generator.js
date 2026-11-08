@@ -120,8 +120,9 @@ function shuffleArr(arr) {
  * @sideeffect 写 G.tar / G.pool / G.max / G.placed / lastChallengeTypes
  */
 function genTutorialGame(categoryKey) {
-    // 未指定系列时的默认牌库：普通雷 + 基础系列中较易理解的 5 种特殊雷
-    let allowed = [ "normal", "big5", "high", "chiliV", "chiliH", "chiliPlus" ];
+    // 未指定系列时的默认牌库：普通雷 + 基础系列中较易理解的 4 种特殊雷
+    // （十字辣椒已归入异形系列，不再出现在基础挑战的牌库中）
+    let allowed = [ "normal", "big5", "high", "chiliV", "chiliH" ];
     let forced = null;
     if (categoryKey) {
         // 纯系列局只保留普通雷与该系列雷，避免混入其他系列的影响核
@@ -202,53 +203,68 @@ function setupTutorialParams() {
 
 /* ---------- 3. 图鉴渲染：预览网格与图鉴面板 ---------- */
 /**
- * 生成某种雷的图鉴预览网格 HTML，包含中心高亮、影响范围、数值与对角分隔线。
- * values 缺省时视为"所有受影响格 +1"，因此不渲染数字；split 为真时额外
- * 画一条对角线，提示预览图里两个对称区域的关系。
- * @param {string} mk 雷型 key
+ * 生成一张图鉴预览网格的 HTML：中心高亮、影响范围、逐格数值，并叠加可选的
+ * 中心点 / 平分线 / 文本气泡与"其他地雷"标记。
+ * 逐格数值缺省时视为"受影响格 +1"，因此不渲染数字；labels 用于把 0 之类的
+ * 文字标在不受影响的格上，避免图例被误读成"本格也受影响"。
+ * @param {Object} preview 预览数据：size / active / center / values / labels / marks / guides
  * @returns {string} 预览网格的 HTML 字符串
  */
-function genPreHtml(mk) {
-    const mine = M[mk];
+function genPreHtml(preview) {
     // 没有预览数据时给出占位文案，调用方无需判空
-    if (!mine.preview) return "<div>无预览</div>";
-    const {size: size, active: active, center: center, values: values, split: split} = mine.preview;
+    if (!preview) return "<div>无预览</div>";
+    const {size, active, center, values, labels, marks, guides} = preview;
     // 未给出逐格数值时，默认影响为 +1，格子不显示数字
     const isPlus1 = !values;
-    let diagonal = "";
-    // 对称系列用一条对角线把两个落点区域分隔开
-    if (split) diagonal = `<svg class="diagonal-line" viewBox="0 0 ${size} ${size}"><line x1="${size}" y1="0" x2="0" y2="${size}" stroke="#666" stroke-width="0.2"/></svg>`;
+    // 引导层：中心点 / 平分线画进覆盖整格的 SVG，文本气泡用绝对定位的 HTML
+    let svgInner = "";
+    let overlays = "";
+    (guides || []).forEach(g => {
+        if (g.type === "line") {
+            const dash = g.dash ? ` stroke-dasharray="${g.dash}"` : "";
+            svgInner += `<line x1="${g.x1}" y1="${g.y1}" x2="${g.x2}" y2="${g.y2}"${dash}/>`;
+        } else if (g.type === "dot") {
+            svgInner += `<circle cx="${g.x}" cy="${g.y}" r="${g.r || .13}"/>`;
+        } else if (g.type === "callout") {
+            // 百分比坐标让气泡跟随网格尺寸缩放，样式表里不写死像素
+            overlays += `<span class="preview-callout" style="left:${(g.x / size * 100).toFixed(2)}%;top:${(g.y / size * 100).toFixed(2)}%">${g.text}</span>`;
+        }
+    });
+    const guideSvg = svgInner ? `<svg class="preview-guide" viewBox="0 0 ${size} ${size}" preserveAspectRatio="none">${svgInner}</svg>` : "";
     // 每格固定 20px，预览网格尺寸与图鉴卡片布局解耦
-    let html = `<div class="preview-grid" style="grid-template-columns: repeat(${size}, 20px);">${diagonal}`;
+    let html = `<div class="preview-grid" style="grid-template-columns: repeat(${size}, 20px);">${guideSvg}`;
     for (let i = 0; i < size; i++) for (let j = 0; j < size; j++) {
+        // 其他地雷标记优先于数值与中心样式：标记格只画 emoji，不重复画数字
+        const mark = marks ? marks.find(m => m.r === i && m.c === j) : null;
+        if (mark) {
+            html += `<div class="preview-cell mark">${mark.text || "💣"}</div>`;
+            continue;
+        }
         let cls = "preview-cell";
         // 中心格（雷自身）与普通受影响格使用不同的高亮样式
-        let isC = i === center[0] && j === center[1];
-        let isA = active.some(([x, y]) => x === i && y === j);
-        let val = !isPlus1 && values && values[i] && values[i][j] !== undefined ? values[i][j] : null;
+        const isC = center && center[0] === i && center[1] === j;
+        const isA = active.some(([x, y]) => x === i && y === j);
+        const val = !isPlus1 && values[i] && values[i][j] !== undefined ? values[i][j] : null;
         if (isC) {
             cls += " center";
         } else if (isA) {
             // 负值单独用 negative 样式，避免与正向影响混淆
-            if (val !== null && val < 0) {
-                cls += " negative";
-            } else if (split) {
-                if (i < 3 && j < 3) cls += " split-left"; else if (i >= 3 && j >= 3) cls += " split-right";
-            } else {
-                cls += " active";
-            }
+            if (val !== null && val < 0) cls += " negative"; else cls += " active";
         }
-        let cv = val !== null && val !== "" ? val : "";
+        // 逐格文字优先取 labels 覆盖，其次取数值
+        const cv = labels && labels[i + "," + j] !== undefined ? labels[i + "," + j] :
+            (val !== null && val !== "" ? val : "");
         html += `<div class="${cls}">${cv}</div>`;
     }
-    html += "</div>";
+    html += overlays + "</div>";
     return html;
 }
 
 /**
  * 重建"地雷图鉴"面板：按固定系列顺序输出各系列卡片，并根据 seriesUnlocked
- * 显示"已解锁 / 始终开启 / 挑战完成解锁"状态（v1.3.3 起练习 / 挑战入口统一
- * 移到「🎯挑战」弹窗），同时为每种雷挂上预览图。
+ * 显示"已解锁 / 始终开启 / 挑战完成解锁"状态（练习 / 挑战入口位于主按钮
+ * 「🎯挑战」弹窗中）。
+ * 普通雷种悬停展开单张预览；战术系列机制复杂，改为常驻展示多张图例与说明文本。
  * @sideeffect 覆盖 #mineInfoList 的 innerHTML
  */
 function renderMineInfo() {
@@ -264,7 +280,7 @@ function renderMineInfo() {
         if (bombs.length === 0) return;
         html += `<div class="category-section" data-cat="${catKey}">`;
         html += `<div class="category-header"><strong>${cat.emoji} ${cat.name}</strong>`;
-        /* v1.3.3：练习 / 挑战入口已统一移到主按钮「🎯挑战」打开的弹窗里，
+        /* 练习 / 挑战入口位于主按钮「🎯挑战」打开的弹窗中，
            炸弹信息只保留解锁状态说明，避免同一动作出现两个入口 */
         if (catKey === "basic") {
             html += `<span style="margin-left:auto;font-size:12px;color:#38a169;">✅始终开启</span>`;
@@ -278,7 +294,16 @@ function renderMineInfo() {
             let m = M[key];
             // 未解锁系列的雷种降透明度显示，但仍可查看影响说明
             let wrapStyle = unlocked ? "" : "opacity:0.75;";
-            html += `<div class="mine-info-item" style="${wrapStyle}">\n                        <div class="mine-info-header">\n                            <div class="mine-info-emoji ${m.cls}">${m.e}</div>\n                            <div class="mine-info-name">${m.n}</div>\n                            ${unlocked ? "" : '<span style="margin-left:auto;font-size:11px;color:#a0aec0;">🔒</span>'}\n                        </div>\n                        <div class="mine-info-desc">${m.tip}</div>\n                        <div class="mine-info-tip">\n                            ℹ️查看影响范围\n                            <div class="mine-preview">${genPreHtml(key)}</div>\n                        </div>\n                    </div>`;
+            let previewBlock;
+            if (m.demos && m.demos.length) {
+                // 多图例：每张图例配标题与一句话说明，常驻可见（悬停气泡装不下）
+                previewBlock = `<div class="mine-demo-list">` + m.demos.map(d => {
+                    return `<div class="mine-demo"><div class="mine-demo-grid">${genPreHtml(d.preview)}</div><div class="mine-demo-text"><div class="mine-demo-title">${d.title}</div><div class="mine-demo-note">${d.note}</div></div></div>`;
+                }).join("") + `</div>`;
+            } else {
+                previewBlock = `<div class="mine-info-tip">ℹ️查看影响范围<div class="mine-preview">${genPreHtml(m.preview)}</div></div>`;
+            }
+            html += `<div class="mine-info-item" style="${wrapStyle}">\n                        <div class="mine-info-header">\n                            <div class="mine-info-emoji ${m.cls}">${m.e}</div>\n                            <div class="mine-info-name">${m.n}</div>\n                            ${unlocked ? "" : '<span style="margin-left:auto;font-size:11px;color:#a0aec0;">🔒</span>'}\n                        </div>\n                        <div class="mine-info-desc">${m.tip}</div>\n                        ${previewBlock}\n                    </div>`;
         });
         html += `</div>`;
     });

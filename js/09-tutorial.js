@@ -252,9 +252,9 @@ function startCategoryTutorial(catKey) {
 }
 
 /**
- * 从挑战入口开始后收起相关面板（v1.3.3）：
- * 原来只收起「信息」侧栏，现在挑战入口统一在「🎯挑战」弹窗里，
- * 因此同时收起信息侧栏与挑战弹窗，让棋盘占满视野。
+ * 从挑战入口开始后收起相关面板：
+ * 挑战入口统一在「🎯挑战」弹窗里，因此同时收起信息侧栏与挑战弹窗，
+ * 让棋盘占满视野。
  * @sideeffect 移除 #infoSidebar 的 open 类、隐藏 #challengeModal，并通知引导层刷新
  */
 function closeChallengeEntryPanels() {
@@ -714,7 +714,7 @@ function renderTeachBoard() {
             let k = r + "," + c;
             if (G.placed[k]) {
                 d.classList.add("mine-here");
-                // 只有本次新落下的那颗播落雷动画（用完即清，避免后续重绘重播）
+                // 只有刚落下的那颗播落雷动画（用完即清，避免后续重绘重播）
                 if (k === _teachLastDropKey) {
                     d.classList.add("just-dropped");
                     _teachLastDropKey = null;
@@ -891,7 +891,7 @@ function teachDrop(r, c, forceType) {
     } : {});
     if ((teachPlacedTypes[dragType] || 0) >= (mt[dragType] || 0)) return;
     G.placed[k] = dragType;
-    // 记住本次落点，渲染时只给这一颗播放下落动画
+    // 记住刚落下的落点，渲染时只给这一颗播放下落动画
     _teachLastDropKey = k;
     teachPlaceList.push({
         r: r,
@@ -1065,7 +1065,7 @@ function paintTeachRule(rule) {
 
 /**
  * 刷新教学气泡：显示当前步骤的短文案、图标与目标格高亮。
- * @param {boolean} isCorrect 本次放置是否正确；true 时气泡切换为过关文案
+ * @param {boolean} isCorrect 当前这次放置是否正确；true 时气泡切换为过关文案
  * @sideeffect 改写气泡文本、规则卡、目标格高亮，并通知引导层刷新
  */
 function showTeachStep(isCorrect) {

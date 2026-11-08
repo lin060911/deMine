@@ -107,7 +107,7 @@ window.toggleAcc = toggleAcc;
  * 淡入），但各区互不互斥：玩家可以同时展开成绩与成就进行对照，因此
  * 这里不做手风琴式收起。默认展开状态由 index.html 的
  * record-acc-open / record-acc-closed 类决定（成绩默认折叠、成就默认展开）。
- * v1.3.3 起「挑战」区已移到主按钮「🎯挑战」打开的弹窗，本函数只处理
+ * 「挑战」区位于主按钮「🎯挑战」打开的弹窗中，本函数只处理
  * recSection / achSection 两个折叠区。
  *
  * @param {string} id 折叠区元素 id：recSection / achSection
@@ -280,9 +280,9 @@ window.isBasicChallengeDone = isBasicChallengeDone;
 /* ---------- 6. 系列挑战入口 ---------- */
 
 /**
- * 把玩家引向「🎯挑战」里的指定系列（v1.3.3）：
+ * 把玩家引向「🎯挑战」里的指定系列：
  * **不直接打开挑战弹窗**，而是先设置引导标记、收起弹层，让引导层把高亮环
- * 放到主按钮「🎯挑战」上；玩家自己点开弹窗后，引导会自动改为指向该系列行
+ * 放到主按钮「🎯挑战」上；玩家自己点开弹窗后，引导会自动转而指向该系列行
  * 右侧的「挑战 / 练习」按钮。每次调用都会重置引导状态，所以重复点「前往挑战」
  * 每次都会重新触发这套两步指引。
  * @param {string} catKey 系列键（special / physics / symmetry / tactical 等）
@@ -366,17 +366,19 @@ function openDifficultyModal() {
 function closeDifficultyModal() {
     const m = document.getElementById("difficultyModal");
     if (m) m.style.display = "none";
+    // 弹窗收起时一并收起开关行的说明气泡，避免气泡悬在页面上
+    hideSeriesTip();
     if (typeof guideRefresh === "function") guideRefresh();
 }
 
 window.openDifficultyModal = openDifficultyModal;
 window.closeDifficultyModal = closeDifficultyModal;
 
-/* ---------- 7.1 挑战弹窗（v1.3.3） ---------- */
+/* ---------- 7.1 挑战弹窗 ---------- */
 
 /**
  * 打开「🎯挑战」弹窗：集中展示教学 / 基础挑战 / 四个系列挑战的进度，
- * 每行右侧是练习 / 挑战入口（原「炸弹信息」里的按钮）。
+ * 每行右侧是练习 / 挑战入口。
  * 与难度弹窗互斥，打开前先收起所有侧栏与难度弹窗，并刷新一次进度。
  * @sideeffect 播放音效、收起侧栏、显示 challengeModal
  */
@@ -467,16 +469,18 @@ window.ensureBarToggle = ensureBarToggle;
  */
 document.addEventListener("click", e => {
     const modeLink = e.target && e.target.closest ? e.target.closest(".rule-mode-link") : null;
-    // v1.3.2：难度弹窗里的「📝记录」跳转按钮会在本次 click 里打开记录侧栏，
+    // 难度弹窗里的「📝记录」跳转按钮会在这次 click 里打开记录侧栏，
     // 必须把它排除在外，否则同一次点击的冒泡会立刻把刚打开的侧栏收回去，
     // 引导也会因为侧栏被关而落到别的按钮上
     const recordJump = e.target && e.target.closest ? e.target.closest("#recordJumpBtn") : null;
+    // 系列开关板块底部的「🧭信息」跳转同理：它负责打开信息侧栏
+    const mineJump = e.target && e.target.closest ? e.target.closest("#mineJumpBtn") : null;
     [ [ "infoSidebar", "toggleInfoSidebar" ], [ "achSidebar", "toggleAchSidebar" ], [ "createSidebar", "toggleCreateSidebar" ], [ "settingSidebar", "toggleSettingSidebar" ] ].forEach(([ id, btnId ]) => {
         const sb = document.getElementById(id);
         if (!sb || !sb.classList.contains("open")) return;
         const btn = document.getElementById(btnId);
-        // 点在侧边栏内部、开关按钮上、模式跳转链接或记录跳转按钮上时都不收起
-        if (!sb.contains(e.target) && e.target !== btn && !modeLink && !recordJump) sb.classList.remove("open");
+        // 点在侧边栏内部、开关按钮上、模式跳转链接或记录 / 信息跳转按钮上时都不收起
+        if (!sb.contains(e.target) && e.target !== btn && !modeLink && !recordJump && !mineJump) sb.classList.remove("open");
     });
 });
 
@@ -517,29 +521,141 @@ document.addEventListener("keydown", function(e) {
 /* ---------- 9. 系列开关 ---------- */
 
 /**
- * 渲染难度弹窗里的 5 个系列开关：锁状态、开关状态与解锁提示。
- * @sideeffect 重写 #seriesSwitchList 与 #seriesSwitchHint 的内容
+ * 取某个系列下全部地雷的图鉴键，按 M 的声明顺序排列。
+ * @param {string} catKey 系列键
+ * @returns {string[]} 雷型 key 列表
+ */
+function seriesMineKeys(catKey) {
+    return Object.keys(M).filter(function(k) {
+        return M[k].category === catKey;
+    });
+}
+
+/**
+ * 拼某个系列的炸弹清单文本（emoji + 名称，顿号分隔），用于开关行说明气泡。
+ * 系列名与清单之间用换行分开，气泡里表现为"系列名冒号后换行"。
+ * @param {string} catKey 系列键
+ * @returns {string} 气泡文本；系列不存在时返回空串
+ */
+function seriesMineTipText(catKey) {
+    const cat = CATEGORY[catKey];
+    if (!cat) return "";
+    const keys = seriesMineKeys(catKey);
+    return cat.emoji + " " + cat.name + "：\n" + keys.map(function(k) {
+        return M[k].e + M[k].n;
+    }).join("、");
+}
+
+/**
+ * 收起系列开关的说明气泡。
+ * @sideeffect 隐藏 body 级气泡节点
+ */
+function hideSeriesTip() {
+    if (typeof hideMineTip === "function") hideMineTip();
+}
+
+/**
+ * 在指定元素上显示说明气泡：复用 body 级固定气泡，避免被弹窗或槽位的
+ * overflow 裁剪；宽屏悬停与窄屏点按共用同一套定位。
+ * @param {HTMLElement} el 触发元素
+ * @param {string} text 气泡文本
+ */
+function showSeriesTip(el, text) {
+    if (!el || !text) return;
+    if (typeof showMineTip === "function") showMineTip(el, text);
+}
+
+/**
+ * 宽屏鼠标移入系列行：显示该系列的炸弹清单。
+ * 触屏没有 hover，交给点击分支；用媒体查询区分，避免触屏模拟的
+ * mouseenter 与点按气泡互相覆盖。
+ * @param {HTMLElement} el 系列行
+ */
+function onSeriesRowEnter(el) {
+    if (!window.matchMedia || !window.matchMedia("(hover: hover)").matches) return;
+    if (!el || !el.dataset) return;
+    showSeriesTip(el, seriesMineTipText(el.dataset.cat));
+}
+
+/**
+ * 鼠标移出系列行：收起气泡（触屏不参与）。
+ */
+function onSeriesRowLeave() {
+    if (window.matchMedia && !window.matchMedia("(hover: hover)").matches) return;
+    hideSeriesTip();
+}
+
+/**
+ * 点按系列行：触屏上点一次出现炸弹清单气泡，点页面其它位置由全局监听收起。
+ * 开关自身有独立处理器，这里跳过，避免一次点按同时切换开关与弹气泡。
+ * @param {MouseEvent} ev 点击事件
+ * @param {HTMLElement} el 系列行
+ */
+function onSeriesRowClick(ev, el) {
+    if (ev && ev.target && ev.target.closest && ev.target.closest(".switch-toggle")) return;
+    // 宽屏鼠标已有 hover 气泡，点击不再重复切换
+    if (window.matchMedia && window.matchMedia("(hover: hover)").matches) return;
+    if (!el || !el.dataset) return;
+    showSeriesTip(el, seriesMineTipText(el.dataset.cat));
+}
+
+/**
+ * 基础系列的开关：该系列始终开启、无法关闭，点按时说明原因。
+ * @param {HTMLElement} el 开关节点
+ * @sideeffect 显示提示气泡并播放"不可用"音效
+ */
+function onBasicSeriesClick(el) {
+    const row = document.querySelector('#seriesSwitchList .switch-row[data-cat="basic"]');
+    showSeriesTip(el || row, "该系列始终开启");
+    try {
+        AudioFX.locked();
+    } catch (e) {}
+}
+
+/**
+ * 渲染难度弹窗里的 5 个系列开关：二级分组标题、锁定状态文案、开关状态、
+ * 悬停 / 点按的炸弹清单气泡与解锁提示。
+ * @sideeffect 重写 #seriesSwitchList 与 #seriesSwitchHint 的内容，并收起旧气泡
  */
 function renderSeriesSwitches() {
     const container = document.getElementById("seriesSwitchList");
     if (!container) return;
+    hideSeriesTip();
     let html = "";
-    // 展示顺序固定，基础系列排第一且始终开启
-    const catOrder = [ "basic", "special", "physics", "symmetry", "tactical" ];
-    catOrder.forEach(catKey => {
-        let unlocked = seriesUnlocked[catKey];
-        let on = seriesState[catKey];
-        let cat = CATEGORY[catKey];
-        let lockEmoji = unlocked ? "🔓" : "🔒";
-        html += `<div class="switch-row ${unlocked ? "unlocked" : "locked-row"}">`;
-        html += `<div class="switch-label"><span class="lock-emoji">${lockEmoji}</span><span class="cat-name">${cat.emoji} ${cat.name}</span></div>`;
-        if (catKey === "basic") {
-            // 基础系列不可关闭：它是其余系列的前置条件
-            html += `<div class="switch-toggle on" style="cursor:default;opacity:0.7"></div>`;
-        } else {
-            // 未解锁时点击不切换，而是弹出"前往挑战"的引导
-            html += `<div class="switch-toggle ${on ? "on" : ""} ${unlocked ? "" : "disabled"}" onclick="event.stopPropagation();${unlocked ? "toggleSeries('" + catKey + "')" : "onLockedSeriesClick('" + catKey + "')"}"></div>`;
-        }
+    // 二级分组：基础系列始终开启，其余四个系列靠挑战解锁后可选
+    const groups = [
+        { title: "始终开启", keys: [ "basic" ] },
+        { title: "可选扩展", keys: [ "special", "physics", "symmetry", "tactical" ] }
+    ];
+    groups.forEach(function(group) {
+        html += `<div class="series-group">`;
+        html += `<div class="series-group-title">${group.title}</div>`;
+        group.keys.forEach(function(catKey) {
+            let unlocked = seriesUnlocked[catKey];
+            let on = seriesState[catKey];
+            let cat = CATEGORY[catKey];
+            // 锁定状态固定在开关左侧；基础系列始终开启，徽标固定显示"始终开启"
+            let badge;
+            if (catKey === "basic") {
+                badge = `<span class="series-lock-badge always-on">始终开启</span>`;
+            } else {
+                badge = unlocked ? `<span class="series-lock-badge unlocked">✅已解锁</span>` : `<span class="series-lock-badge locked">🔒未解锁</span>`;
+            }
+            html += `<div class="switch-row ${unlocked ? "unlocked" : "locked-row"}" data-cat="${catKey}" data-tip="${seriesMineTipText(catKey)}" onmouseenter="onSeriesRowEnter(this)" onmouseleave="onSeriesRowLeave()" onclick="onSeriesRowClick(event,this)">`;
+            html += `<div class="switch-label"><span class="cat-name">${cat.emoji} ${cat.name}</span></div>`;
+            html += badge;
+            if (catKey === "basic") {
+                // 基础系列是其余系列的前置条件：开关只作状态展示，点击给出原因
+                html += `<div class="switch-toggle on always-on" role="switch" aria-checked="true" aria-disabled="true" onclick="event.stopPropagation();onBasicSeriesClick(this)"></div>`;
+            } else if (unlocked) {
+                // 已解锁：开关可随时切换，切换结果立即持久化
+                html += `<div class="switch-toggle ${on ? "on" : ""}" role="switch" aria-checked="${on ? "true" : "false"}" onclick="event.stopPropagation();toggleSeries('${catKey}')"></div>`;
+            } else {
+                // 未解锁时点击不切换，而是弹出"前往挑战"的引导
+                html += `<div class="switch-toggle disabled" role="switch" aria-checked="false" aria-disabled="true" onclick="event.stopPropagation();onLockedSeriesClick('${catKey}')"></div>`;
+            }
+            html += `</div>`;
+        });
         html += `</div>`;
     });
     container.innerHTML = html;
@@ -620,7 +736,7 @@ function updatePresetButtons() {
     let hardLocked = onCount < 3;
     let hellLocked = onCount < 5;
     let brainLocked = !checkBrainUnlocked();
-    // 简单 / 中等始终可用：入门难度不再受系列开关数量限制
+    // 简单 / 中等始终可用：不受系列开关数量限制
     [ "btnEasy", "btnMedium" ].forEach(id => {
         let btn = document.getElementById(id);
         if (btn) btn.classList.remove("locked");
@@ -850,7 +966,7 @@ function applySet() {
 }
 
 /**
- * 通关结算：记录本次用时、最快纪录与通关次数，并检查脑王解锁条件。
+ * 通关结算：记录本局用时、最快纪录与通关次数，并检查脑王解锁条件。
  * @sideeffect 写入 lt / rec / wins 并持久化，刷新成绩列表
  */
 function saveRec() {
@@ -923,11 +1039,11 @@ const RECORD_META = {
 };
 
 /**
- * 渲染「📝记录」栏的成绩列表：逐难度显示最快用时、通关次数与本次用时。
+ * 渲染「📝记录」栏的成绩列表：逐难度显示最快用时、通关次数与最近一次用时。
  *
- * v1.3.1 起条目结构与「挑战」面板统一：每行一张浅灰圆角卡，顶部一行是
- * 难度名 + 通关次数徽标，下面一行是「最快 / 本次」两项数据，不再使用
- * 旧版的左色条 + 多行说明。列宽与字号与挑战条目一致。
+ * 条目结构与「挑战」面板统一：每行一张浅灰圆角卡，顶部一行是
+ * 难度名 + 通关次数徽标，下面一行是「最快」与最近一次用时两项数据。
+ * 列宽与字号与挑战条目一致。
  * @sideeffect 重写 #achRecordList 的 innerHTML，并更新折叠标题右侧摘要
  */
 function renderRecordList() {
@@ -940,7 +1056,7 @@ function renderRecordList() {
     let html = "";
     let totalWins = 0;
     RECORD_DIFFS.forEach(d => {
-        // 脑王以外的难度共用默认元数据，避免新增难度时出现空图标
+        // 脑王以外的难度共用默认元数据，避免难度扩展后出现空图标
         const meta = RECORD_META[d] || {
             icon: "💣",
             color: "#cbd5e0"
@@ -948,8 +1064,8 @@ function renderRecordList() {
         const label = DIFF_LABEL[d] || d;
         const winCount = wins[d] || 0;
         totalWins += winCount;
-        // v1.3.4：追加 diff-<难度> 供成绩栏难度配色使用；brain 仍保留
-        // is-brain，兼容旧样式 / 旧选择器引用
+        // 追加 diff-<难度> 供成绩栏难度配色使用；brain 同时保留
+        // is-brain，兼容既有样式 / 选择器引用
         html += `<div class="record-item diff-${d}${d === "brain" ? " is-brain" : ""}">`;
         html += `<div class="record-row">`;
         html += `<span class="record-label">${meta.icon}${label}</span>`;
@@ -969,13 +1085,13 @@ function renderRecordList() {
     renderChallengeList();
 }
 
-/* ---------- 11.1 挑战完成情况面板（v1.3.0） ---------- */
+/* ---------- 11.1 挑战完成情况面板 ---------- */
 /*
- * 存档升级说明：挑战完成情况直接复用现有存档键，不新增任何持久化字段——
+ * 存档键说明：挑战完成情况直接复用现有存档键，不引入任何额外的持久化字段——
  *   teachFinished        新手教学是否完成（"true" / 缺失）
  *   tutorialStep         基础挑战已通关关数 "0".."5"
  *   tutorial_<cat>       各系列挑战已通关关数 "0".."5"
- *   tutorialCompleted    基础挑战完成标记（兼容老存档，与 tutorialStep>=5 等价）
+ *   tutorialCompleted    基础挑战完成标记（兼容已有存档，与 tutorialStep>=5 等价）
  *   seriesUnlocked[cat]  系列是否解锁（内存态，基础系列恒为 true）
  * 因此本面板只做「读取 + 渲染」，不写存档、不改动任何玩法逻辑。
  */
@@ -994,7 +1110,7 @@ const CHALLENGE_PANEL_ROWS = [ {
     fallbackName: "基础挑战"
 }, {
     key: "special",
-    icon: "✖️",
+    icon: "🔶",
     fallbackName: "异形系列"
 }, {
     key: "physics",
@@ -1024,7 +1140,7 @@ function escapeChallengeHtml(v) {
 }
 
 /**
- * 渲染「🎯挑战」弹窗里的挑战完成情况面板（v1.3.3 从「📝记录」侧栏移入）。
+ * 渲染「🎯挑战」弹窗里的挑战完成情况面板。
  *
  * 每行展示名称、状态徽标、进度条与右侧的练习 / 挑战入口，状态分三档：
  *   ✅ 已完成  教学 teachFinished；基础挑战 tutorialCompleted 或 step>=5；
@@ -1033,7 +1149,7 @@ function escapeChallengeHtml(v) {
  *   🔒 未解锁  基础挑战未完成时四个系列统一锁定；教学未完成显示「未完成」；
  *              门禁已开放但 step=0 的项显示「未开始 0/5」
  *
- * 右侧按钮完全复用原「炸弹信息」里的入口行为：基础挑战行 未完成显示
+ * 右侧按钮的行为：基础挑战行 未完成显示
  * 「基础挑战」/ 完成显示「练习」；系列行 未解锁显示「挑战」/ 解锁后显示
  * 「练习」。教学行没有对应入口，只展示进度。
  *
@@ -1143,7 +1259,7 @@ function renderChallengeList() {
             }
         }
 
-        // v1.3.3：每行右侧的练习 / 挑战入口（教学行没有对应入口，不放按钮）
+        // 每行右侧的练习 / 挑战入口（教学行没有对应入口，不放按钮）
         let action = "";
         if (row.key === "basic") {
             action = `<button class="challenge-entry-btn ${basicCompleted ? "is-practice" : "is-challenge"}" onclick="openPracticeMode()">${basicCompleted ? "练习" : "基础挑战"}</button>`;
@@ -1169,7 +1285,7 @@ window.renderChallengeList = renderChallengeList;
 /* ---------- 12. 按钮音效委托与通关庆祝 ---------- */
 
 /**
- * 全局委托：鼠标移入可交互按钮时播放轻音效。
+ * 全局委托：鼠标悬停在可交互按钮上时播放轻音效。
  * 使用捕获阶段统一监听，免去给每个按钮单独绑定；锁定与禁用的按钮不发声。
  */
 document.addEventListener("mouseover", e => {
@@ -1310,7 +1426,7 @@ function checkWin() {
         document.getElementById("win").style.display = "flex";
     }
     checkWinAchievements();
-    // v1.3.2：题库码题目没有难度标记（diff 为空），通关后把四项关卡参数恢复成
+    // 题库码题目没有难度标记（diff 为空），通关后把四项关卡参数恢复成
     // 当前进度的标准档，避免下一局沿用分享题目的棋盘大小与雷数。放在成就判定
     // 之后执行：成就侧仍要用本局的 SR / SC 扫描题面数值。
     if (!diff && !isFreeMode) applyStandardParams();
@@ -1416,7 +1532,7 @@ document.getElementById("overlay").addEventListener("click", () => {
     if (typeof guideRefresh === "function") guideRefresh();
 });
 
-/* ---------- 16. 全屏切换（v1.3.2） ---------- */
+/* ---------- 16. 全屏切换 ---------- */
 
 /**
  * 取当前处于全屏的元素：优先标准属性，缺失时回退 WebKit / 旧 Edge 前缀。
@@ -1512,7 +1628,7 @@ window.toggleFullscreen = toggleFullscreen;
 });
 syncFullscreenBtn();
 
-/* ---------- 17. 记录栏成绩跳转（v1.3.2） ---------- */
+/* ---------- 17. 记录栏成绩跳转 ---------- */
 
 /**
  * 从「难度🕹️」弹窗底部的成绩提示跳到「📝记录」栏的成绩区。
@@ -1534,7 +1650,7 @@ function gotoRecordScores() {
     if (rec && !rec.classList.contains("record-acc-open") && typeof toggleRecordAcc === "function") {
         toggleRecordAcc("recSection");
     }
-    // 标记本次跳转来源：引导层据此把高亮环与小手放到成绩区
+    // 标记跳转来源：引导层据此把高亮环与小手放到成绩区
     window._guideRecordScores = true;
     // 玩家已经在看成绩，门槛类引导让位给这条更具体的引导
     window._guideLockedSeries = null;
@@ -1555,7 +1671,54 @@ function gotoRecordScores() {
 }
 window.gotoRecordScores = gotoRecordScores;
 
-/* ---------- 18. 自由模式恢复默认参数（v1.3.2） ---------- */
+/* ---------- 17.1 信息栏炸弹信息跳转 ---------- */
+
+/**
+ * 从「难度🕹️」弹窗系列开关板块底部的提示跳到「🧭信息」栏的炸弹信息。
+ * 依次完成：收起弹层 → 打开信息侧栏 → 让炸弹信息分区滚进视野，
+ * 最后写入引导标记，由 16-guide.js 用统一的高亮框 + 小手指出位置。
+ * @sideeffect 关闭弹窗、切换侧栏 open 类、展开炸弹信息分区、写入引导标记
+ */
+function gotoMineInfo() {
+    try {
+        AudioFX.confirm();
+    } catch (e) {}
+    // 难度弹窗与其它弹层先收起，避免挡住信息侧栏
+    if (typeof closeAllModals === "function") closeAllModals();
+    closeSidebarsExcept("infoSidebar");
+    var sb = document.getElementById("infoSidebar");
+    if (sb) sb.classList.add("open");
+    // 炸弹信息分区常驻展开：这里只保证它处于展开态，不做收起
+    var mine = document.getElementById("accMine");
+    if (mine && !mine.classList.contains("rm-acc-open")) {
+        mine.classList.remove("rm-acc-closed");
+        mine.classList.add("rm-acc-open");
+    }
+    // 标记跳转来源：引导层据此把高亮环与小手放到炸弹信息分区
+    window._guideMineInfo = true;
+    // 玩家已经在看炸弹信息，门槛类与其它跳转类引导让位给这条更具体的引导
+    window._guideLockedSeries = null;
+    window._guideLockedDifficulty = null;
+    // 等侧栏滑入动画结束后再滚动：直接改侧栏自身的 scrollTop 做相对滚动，
+    // 不受抽屉 transform / 窄屏底部卡片定位影响。炸弹信息列表很长，
+    // 只滚到分区顶部，保证标题与第一组雷种进入视野。
+    setTimeout(function() {
+        try {
+            if (!sb || !mine) return;
+            var delta = mine.getBoundingClientRect().top - sb.getBoundingClientRect().top - 10;
+            if (Math.abs(delta) > 1) sb.scrollTop = Math.max(0, sb.scrollTop + delta);
+            // 滚动后目标位置已变：重新刷新引导，让高亮环与气泡按新位置重新定位
+            if (typeof guideRefresh === "function") guideRefresh();
+        } catch (e2) {}
+    }, 420);
+    if (typeof guideRefresh === "function") {
+        guideRefresh();
+        setTimeout(guideRefresh, 320);
+    }
+}
+window.gotoMineInfo = gotoMineInfo;
+
+/* ---------- 18. 自由模式恢复默认参数 ---------- */
 
 /**
  * 自由模式参数面板的「恢复默认」：按当前进度恢复四项标准参数
@@ -1565,7 +1728,7 @@ window.gotoRecordScores = gotoRecordScores;
  */
 function resetCustomParams() {
     applyStandardParams();
-    // 与 setVal 一致：参数被手动改动后不再属于任何预设难度
+    // 与 setVal 一致：参数被手动改动后即不属于任何预设难度
     diff = null;
     updatePresetButtons();
     try {

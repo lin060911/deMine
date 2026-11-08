@@ -14,7 +14,7 @@
  *      不使用立体描边按钮。
  *   3) 语义色：绿 = 安全 / 可落子，黄 = 待定 / 提示，红 = 危险 / 违规；
  *      颜色只承载状态语义，不承担装饰。
- *   4) 适配：桌面单列居中；700px 以下改为底部抽屉与触屏尺寸。
+ *   4) 适配：桌面单列居中；700px 以下使用底部抽屉与触屏尺寸。
  *
  * 目录：
  *   1. 设计令牌
@@ -73,6 +73,12 @@
  *  54. 成就条目
  *  55. 成就悬浮说明
  *  56. 成就横幅
+ *  56.1 新手引导层
+ *  57. 存档与挑战面板：存档详情 / 完整性状态
+ *  58. 记录栏统一与折叠
+ *  59. 全屏按钮 / 创造模式布局 / 记录跳转 / 移动端背景减负
+ *  60. 地雷槽清空放置 / 🎯挑战弹窗 / 设置关于
+ *  61. 地雷卡效果气泡层级 / 成绩栏难度配色 / 加载中占位
  * ========================================================================== */
 
 /* ===== 1. 设计令牌 ===== */
@@ -2268,21 +2274,8 @@ body:has(.info-sidebar.open, .achievement-sidebar.open, .rule-sidebar.open,
     color: #ffffff;
 }
 
-.preview-cell.split-left,
-.preview-cell.split-right {
-    background: #9fdf9f;
-}
-
 .preview-cell.negative {
     background: #fca5a5;
-}
-
-.diagonal-line {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
 }
 
 /* ===== 23. 开关行 ===== */
@@ -4229,7 +4222,7 @@ body.drag-mode .cell.mine-here {
     .mine-item > div:nth-child(2) { font-size: 10.5px; }
     .mine-item > div:nth-child(3) { font-size: 9.5px; }
 
-    /* 教学气泡：窄屏改为单列，地雷候选行提到正文之前，便于单手操作 */
+    /* 教学气泡：窄屏采用单列布局，地雷候选行提到正文之前，便于单手操作 */
     #slot.teach-slot-host {
         width: 100%;
         min-width: 0;
@@ -4280,7 +4273,7 @@ body.drag-mode .cell.mine-here {
         border-bottom: none;
     }
 
-    /* 抽屉：窄屏改为底部卡片，限高 74vh 并加顶部拖拽指示条 */
+    /* 抽屉：窄屏采用底部卡片，限高 74vh 并加顶部拖拽指示条 */
     .info-sidebar,
     .rule-sidebar,
     .achievement-sidebar,
@@ -4345,7 +4338,7 @@ body.drag-mode .cell.mine-here {
         animation-delay: 0s;
     }
 
-    /* 底部导航条：窄屏把侧栏入口改为横排的底部工具栏 */
+    /* 底部导航条：窄屏把侧栏入口排成横排的底部工具栏 */
     .left-sidebar-container,
     .right-sidebar-container {
         top: auto;
@@ -4448,7 +4441,7 @@ body.drag-mode .cell.mine-here {
     .brain-win-modal h2 { font-size: 24px; }
     .brain-win-modal p { font-size: 13.5px; }
 
-    /* 难度弹窗：窄屏压缩上下留白，内容区改为 86vh 内滚动 */
+    /* 难度弹窗：窄屏压缩上下留白，内容区在 86vh 内滚动 */
     .game-modal {
         padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px));
     }
@@ -4466,7 +4459,7 @@ body.drag-mode .cell.mine-here {
     .game-modal-head h2 { font-size: 17px; }
     .game-modal-body { padding: 14px 16px 16px; max-height: calc(86vh - 70px); }
 
-    /* 创造模式：窄屏各面板改为整宽，按钮与输入框同步缩小 */
+    /* 创造模式：窄屏各面板铺满整宽，按钮与输入框同步缩小 */
     .create-mode-panel,
     #createBoardArea,
     #createMineSlot {
@@ -4618,8 +4611,6 @@ body.drag-mode .cell.mine-here {
 }
 
 /* ===== 38. 系列挑战入口（高亮统一由引导层 #guideLayer 提供） ===== */
-/* 旧的分区闪烁高亮已移除：导航到系列挑战后由引导层用统一的高亮框指向「挑战」按钮 */
-
 /* ===== 39. 主界面布局骨架 ===== */
 /* 布局包装层：设为 display: contents，使标题、按钮、棋盘成为 body 的直接 flex 子项 */
 .hero,
@@ -6574,7 +6565,7 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     line-height: normal;
 }
 
-/* ===== 51. 新手引导层 ===== */
+/* ===== 56.1 新手引导层 ===== */
 /* 引导层本身不拦截任何操作：小手、高亮环与气泡都只是视觉提示 */
 .guide-layer {
     position: fixed;
@@ -6718,13 +6709,13 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     }
 
 /* ==========================================================================
- * 57. v1.3.0 存档升级：挑战面板 + 存档详情 / 完整性状态
+ * 57. 存档与挑战面板：存档详情 / 完整性状态
  *
- * 说明：本段是本版新增样式的收口，全部使用既有设计令牌（--rm-*）与
- *   记录栏 / 弹窗的视觉语言；只新增类，不覆盖前面任何既有选择器。
+ * 说明：本段集中定义存档与挑战面板的样式，全部使用既有设计令牌（--rm-*）与
+ *   记录栏 / 弹窗的视觉语言，不覆盖前面已有的选择器。
  * ========================================================================== */
 
-/* ----- 57.1 📝记录 → 挑战完成情况面板（08-ui.js renderChallengeList） ----- */
+/* ----- 57.1 挑战完成情况面板（08-ui.js renderChallengeList） ----- */
 #challengeList {
     display: flex;
     flex-direction: column;
@@ -7111,13 +7102,13 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     box-shadow: 0 6px 16px rgba(47, 127, 235, .28);
 }
 
-/* ===== 58. 记录栏统一与折叠（v1.3.1） ===== */
-/* 记录栏三个子区（成绩 / 挑战 / 成就）统一为同一套视觉：
+/* ===== 58. 记录栏统一与折叠 ===== */
+/* 记录栏的成绩 / 成就两个子区，以及「🎯挑战」弹窗的进度列表，统一为同一套视觉：
    · 每个子区是一张白色分组卡（与信息栏 .sidebar-section 一致），展开时
      标题按钮与内容一起被包在卡片内部，而不是标题与内容分离；
    · 区标题 = 信息栏规则的折叠按钮（浅灰胶囊 + 图标 + 标题 + 摘要 + 箭头）
-   · 成绩 / 挑战条目 = 「挑战」那套浅灰圆角卡；成就保留原有金色配色与动效；
-   默认折叠成绩与挑战，成就默认展开；三区互不互斥，可同时展开对照。 */
+   · 成绩 / 挑战条目 = 「挑战」那套浅灰圆角卡；成就保留金色配色与动效；
+   默认折叠成绩，成就默认展开；两区互不互斥，可同时展开对照。 */
 .record-panel {
     margin-bottom: 14px;
     padding: 16px;
@@ -7289,7 +7280,7 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     font-weight: 700;
 }
 
-/* ---- 30.3 成就条目：同卡片、同字号、右侧锁/勾改为挑战同款徽标 ---- */
+/* ---- 30.3 成就条目：同卡片、同字号、右侧锁/勾使用挑战同款徽标 ---- */
 #achList > .achievement-item {
     display: flex;
     align-items: flex-start;
@@ -7378,7 +7369,7 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     }
 }
 
-/* 成就分组标题：与挑战/成绩的卡片语言统一为低调灰色小标题，不再使用橙色块 */
+/* 成就分组标题：与挑战 / 成绩的卡片语言统一为低调灰色小标题，不使用橙色块 */
 .achievement-group-title {
     margin: 12px 2px 6px;
     color: var(--rm-ink-4);
@@ -7391,9 +7382,9 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     margin-top: 2px;
 }
 
-/* ---- 58.1 成就保留原有金色配色与动效（不回退为挑战卡片） ----
-   成绩 / 挑战使用挑战同款卡片；成就是玩家最在意的"战利品区"，按反馈保留
-   原有的暖金配色、emoji 悬浮旋转缩放与解锁高亮，不参与卡片统一。 */
+/* ---- 58.1 成就沿用金色配色与动效（不并入挑战卡片） ----
+   成绩 / 挑战使用挑战同款卡片；成就是玩家最在意的"战利品区"，保留
+   暖金配色、emoji 悬浮旋转缩放与解锁高亮，不参与卡片统一。 */
 #achList {
     display: block;
     gap: 0;
@@ -7436,7 +7427,7 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     background: rgba(233, 81, 78, .075);
 }
 
-/* emoji 恢复 38px 原尺寸与原悬浮动效（缩放 + 轻旋转） */
+/* emoji 使用 38px 尺寸与悬浮动效（缩放 + 轻旋转） */
 #achList > .achievement-item .achievement-emoji {
     width: 38px;
     height: 38px;
@@ -7456,7 +7447,7 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     filter: none;
 }
 
-/* 文本恢复原字号与解锁金色 */
+/* 文本字号与解锁金色 */
 #achList > .achievement-item .achievement-info {
     padding-top: 1px;
 }
@@ -7485,7 +7476,7 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     color: #a3740a;
 }
 
-/* 锁图标恢复原来的纯 emoji 展示（不再做成胶囊徽标） */
+/* 锁图标使用纯 emoji 展示（不做胶囊徽标） */
 #achList > .achievement-item .achievement-lock {
     flex-shrink: 0;
     width: 24px;
@@ -7507,7 +7498,7 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     opacity: .65;
 }
 
-/* 分组标题恢复原来的橙色小标题 */
+/* 分组标题使用橙色小标题 */
 .achievement-group-title {
     margin: 10px 0 6px 4px;
     color: #f59e0b;
@@ -7520,8 +7511,8 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     margin-top: 2px;
 }
 
-/* #achSection 在 1.2.1 皮肤段有一条"透明容器"的 ID 规则，优先级高于
-   .record-panel；这里用 ID + class 的组合把成就区重新包成白底分组卡，
+/* #achSection 已有一条"透明容器"的 ID 规则，优先级高于
+   .record-panel；这里用 ID + class 的组合把成就区包成白底分组卡，
    与成绩 / 挑战区保持一致的外层结构。 */
 #achSection.record-panel {
     margin-bottom: 14px;
@@ -7532,7 +7523,7 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     box-shadow: 0 1px 2px rgba(18, 38, 58, .03), 0 8px 24px rgba(18, 38, 58, .045);
 }
 
-/* ---- 58.2 更强的成就动效与更深的暖金配色（v1.3.1 反馈迭代） ----
+/* ---- 58.2 成就动效与暖金配色 ----
    目标：成就条目一眼看得到"金色战利品"的气质；emoji 常驻轻微浮动，
    悬停有弹跳/放大，解锁卡有更深的金色底与金色光晕；折叠展开也更弹。 */
 
@@ -7665,7 +7656,7 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     }
 }
 
-/* ---- 58.3 隐藏成就：更醒目的特殊红色（v1.3.1 反馈迭代） ----
+/* ---- 58.3 隐藏成就：醒目的特殊红色 ----
    隐藏成就在解锁前不进入列表；解锁后整张卡使用比普通成就更深的红色基调，
    并用极慢的红色光晕呼吸动画强调"这是隐藏款"。 */
 @keyframes achHiddenPulse {
@@ -7744,9 +7735,9 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     box-shadow: inset 0 0 0 1px rgba(220, 38, 38, .65), 0 8px 22px rgba(197, 48, 48, .30);
 }
 
-/* ---- 58.4 成就条目间距加大（v1.3.1 反馈迭代） ----
-   原列表靠 border-top 分隔、行距偏紧；这里改为 flex 列 + 12px 间距，
-   让每张成就卡独立成块，已解锁 / 隐藏成就的颜色块之间也不会连在一起。 */
+/* ---- 58.4 成就条目间距 ----
+   成就列表用 flex 列 + 12px 间距，让每张成就卡独立成块，
+   已解锁 / 隐藏成就的颜色块之间也不会连在一起。 */
 #achList {
     display: flex;
     flex-direction: column;
@@ -7754,11 +7745,11 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
 }
 
 /* ==========================================================================
- * 59. v1.3.2：全屏按钮 / 创造模式新布局 / 记录跳转 / 移动端背景减负
+ * 59. 全屏按钮 / 创造模式布局 / 记录跳转 / 移动端背景减负
  * --------------------------------------------------------------------------
- * 本段只新增类与移动端覆盖规则，不改动前面任何既有选择器的桌面端表现：
+ * 本段补充类与移动端覆盖规则，不改变前面已有选择器的桌面端表现：
  *   59.1 右上角固定全屏按钮（图标 + 文案，随全屏状态切换）
- *   59.2 创造模式「地雷槽 | 题库码」并排：雷种按系列分行、题库码卡片重排
+ *   59.2 创造模式「地雷槽 | 题库码」并排：雷种按系列分行、题库码卡片布局
  *   59.3 难度弹窗底部的「📝记录」文字跳转
  *   59.4 自由模式参数面板的「恢复默认」（与应用设置同排）
  *   59.5 手机端背景减负（去固定背景 / 噪点层 / 扫描光带 / 漂浮幽灵）
@@ -8099,7 +8090,7 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
         font-size: 11px;
     }
 
-    /* 创造模式编辑区窄屏改为上下堆叠：先地雷槽，再题库码卡片 */
+    /* 创造模式编辑区窄屏上下堆叠：先地雷槽，再题库码卡片 */
     .create-edit-row {
         flex-direction: column;
         gap: 0;
@@ -8174,9 +8165,9 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
 }
 
 /* ==========================================================================
- * 60. v1.3.3：地雷槽底部清空放置 / 🎯挑战弹窗 / 设置关于
+ * 60. 地雷槽清空放置 / 🎯挑战弹窗 / 设置关于
  * --------------------------------------------------------------------------
- *   60.1 地雷槽底部「🧹 清空放置」（从主按钮条移入，显示已放数量）
+ *   60.1 地雷槽「🧹 清空放置」（显示已放数量）
  *   60.2 🎯挑战弹窗：进度行右侧的练习 / 挑战入口与系列行高光
  *   60.3 设置栏「ℹ️ 关于」：版本号 + 更新公告
  * ========================================================================== */
@@ -8263,11 +8254,10 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     background: rgba(22, 33, 43, .08);
 }
 
-/* ---- 60.4 主按钮「🎯挑战」：取旧版与“过淡版”的中间值 ----
-   旧版（v1.3.2 #clear）饱和偏橙，第一次调淡过头，这里取两者中间并略偏黄：
-   背景 #ffb051 → #f29621、3px 描边 #ffce7c；hover 背景 #ffa046 → #e78b18、
-   描边 #ffd88d；active 仅缩放。圆角 / 字号 / 高度沿用主按钮基类
-   （10px / 16px / 50px）。 */
+/* ---- 60.4 主按钮「🎯挑战」配色 ----
+   偏黄的橙色渐变：背景 #ffb051 → #f29621、3px 描边 #ffce7c；
+   hover 背景 #ffa046 → #e78b18、描边 #ffd88d；active 仅缩放。
+   圆角 / 字号 / 高度沿用主按钮基类（10px / 16px / 50px）。 */
 #challengeBtn {
     background: linear-gradient(180deg, #ffb051, #f29621);
     border-color: #ffce7c;
@@ -8390,18 +8380,18 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
 }
 
 /* ==========================================================================
- * 61. v1.3.4：地雷卡效果气泡层级 / 成绩栏难度配色 / 加载中占位
+ * 61. 地雷卡效果气泡层级 / 成绩栏难度配色 / 加载中占位
  * --------------------------------------------------------------------------
- * 本段只新增与覆盖，不删除前面任何旧规则：与旧规则同特异性时靠书写顺序
- * （本段在文件最末）生效，需要压过旧规则时提高特异性。
+ * 本段在文件最末，与前面同特异性的规则靠书写顺序生效；需要覆盖既有规则时
+ * 提高特异性。
  *   61.1 地雷卡效果气泡：宽屏 .mine-item::after 提层级；窄屏统一交给
  *        body 级固定气泡 .mine-tip-fixed（07-board.js 写入 left/top/display）
- *   61.2 成绩栏难度配色：5 个难度各配一档淡色底，覆盖旧 #f7f9fc / .is-brain
+ *   61.2 成绩栏难度配色：5 个难度各配一档淡色底，覆盖 #f7f9fc / .is-brain
  *   61.3 加载中占位：💣 浮动 + 三点跳动，默认可见，显隐由 06-render.js 控制
  * ========================================================================== */
 
 /* ---- 61.1 地雷卡效果气泡 ----
-   宽屏：hover 时 CSS ::after 气泡照旧显示，但需要把气泡与卡片自身的层级
+   宽屏：hover 时 CSS ::after 气泡正常显示，但需要把气泡与卡片自身的层级
    抬到棋盘格子（z-index 1~3）与相邻卡片之上，避免被后画的兄弟元素盖住；
    窄屏：地雷槽 / 棋盘可横向滚动，::after 会被 overflow 裁剪，统一改用
    body 级固定气泡（定位与显隐由 07-board.js 负责，这里只提供外观）。 */
@@ -8453,7 +8443,7 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
 /* ---- 61.2 成绩栏难度配色 ----
    与难度选择按钮（.preset-easy/medium/hard/hell/brain）同一色相，但明度
    大幅提高的"淡色版"；只换底色，圆角 / 内边距 / 字号 / 文字颜色保持原样。
-   选择器特异性（#id + 两个 class）高于旧的 #f7f9fc 与 .is-brain 规则。 */
+   选择器特异性（#id + 两个 class）高于 #f7f9fc 与 .is-brain 规则。 */
 #achRecordList > .record-item.diff-easy {
     background: linear-gradient(135deg, #eefaf3, #e2f6eb);
 }
@@ -8606,5 +8596,235 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     .board-loading-bomb,
     .board-loading-dots i {
         animation: none;
+    }
+}
+
+/* ==========================================================================
+ * 62. 系列开关分组 / 锁定文案 / 炸弹清单气泡 / 信息栏跳转
+ * --------------------------------------------------------------------------
+ * 本段在文件最末：与前面同特异性的规则靠书写顺序生效，需要覆盖既有
+ * 开关行样式时提高特异性。
+ *   62.1 二级分组标题（始终开启 / 可选扩展）：组标题 + 组间细分隔线
+ *   62.2 锁定文案：固定在开关左侧，🔒未解锁 / ✅已解锁
+ *   62.3 基础系列开关：胶囊中央常驻 🔒，点击只提示"始终开启"
+ *   62.4 系列开关板块底部的「🧭信息」跳转提示（外观沿用 .tip-note）
+ * ========================================================================== */
+
+/* ---- 62.1 系列开关的二级分组 ----
+   基础系列单独一组、其余四个系列一组；组标题用浅灰小标题，组与组之间
+   用一条虚线与上一组分开，层级低于弹窗里的板块标题。 */
+#seriesSwitchList .series-group + .series-group {
+    margin-top: 10px;
+    padding-top: 6px;
+    border-top: 1px dashed rgba(22, 33, 43, .1);
+}
+
+#seriesSwitchList .series-group-title {
+    padding: 3px 2px 1px;
+    color: var(--rm-ink-4);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+}
+
+/* 组标题已经承担分隔作用，组内第一行不再重复画顶部分隔线 */
+#seriesSwitchList .series-group-title + .switch-row {
+    border-top: none;
+}
+
+/* ---- 62.2 锁定状态文案 ----
+   文案紧贴开关左侧；锁定行的整体降透明与去色会连带削弱文字可读性，
+   这里改为只作用在系列名和开关上，徽标保持清晰。 */
+#seriesSwitchList .switch-row.locked-row {
+    opacity: 1;
+    filter: none;
+}
+
+#seriesSwitchList .switch-row.locked-row .switch-label,
+#seriesSwitchList .switch-row.locked-row .switch-toggle {
+    opacity: .55;
+    filter: grayscale(1);
+}
+
+#seriesSwitchList .series-lock-badge {
+    flex-shrink: 0;
+    margin-left: auto;
+    margin-right: 2px;
+    padding: 2px 7px;
+    border-radius: 99px;
+    font-size: 10.5px;
+    font-weight: 700;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+
+#seriesSwitchList .series-lock-badge.unlocked,
+#seriesSwitchList .series-lock-badge.always-on {
+    background: rgba(52, 199, 89, .12);
+    color: #1f9d55;
+}
+
+#seriesSwitchList .series-lock-badge.locked {
+    background: rgba(120, 132, 146, .12);
+    color: var(--rm-ink-4);
+}
+
+/* ---- 62.3 基础系列开关 ----
+   基础系列始终开启：外形与其它已开启的系列完全一致（胶囊 + 白色滑块停在
+   开启位），但整体绿色更淡、滑块面上带 🔒，用来区分"始终开启、不可关闭"；
+   点击只弹说明，不改变状态。 */
+#seriesSwitchList .switch-toggle.always-on,
+#seriesSwitchList .switch-toggle.always-on.on {
+    background: linear-gradient(180deg, #b9efcf, #a1e5bd);
+    box-shadow: inset 0 1px 3px rgba(18, 38, 58, .05), 0 2px 6px rgba(52, 199, 89, .16);
+}
+
+#seriesSwitchList .switch-toggle.always-on {
+    cursor: pointer;
+}
+
+/* 滑块保持普通开关的白色圆钮与位移，只在钮面居中加 🔒 */
+#seriesSwitchList .switch-toggle.always-on::after {
+    content: "🔒";
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    line-height: 1;
+}
+
+#seriesSwitchList .switch-toggle.always-on.on::after {
+    transform: translateX(20px);
+}
+
+#seriesSwitchList .switch-toggle.always-on:hover {
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, .05), 0 3px 9px rgba(52, 199, 89, .28);
+}
+
+/* ---- 62.4 炸弹信息跳转提示 ----
+   沿用难度弹窗底部成绩提示的浅灰提示条与行内文字链接语言，
+   只补一条与上方开关提示之间的间距。 */
+#difficultyModal .series-info-note {
+    margin-top: 8px;
+}
+
+/* ---- 62.5 系列炸弹清单气泡的多行排版 ----
+   清单文本在"系列名："之后换行；只有带换行的气泡才启用 pre-line，
+   地雷卡的单项效果说明仍是单行，不受影响。 */
+.mine-tip-fixed.mine-tip-multi {
+    white-space: pre-line;
+}
+
+/* ==========================================================================
+ * 63. 炸弹图例：中心点 / 平分线 / 文本气泡 / 战术多图例
+ * --------------------------------------------------------------------------
+ * 本段在文件最末：与前面同特异性的规则靠书写顺序生效。
+ *   63.1 图例引导层（覆盖网格的 SVG）：中心点、平分线
+ *   63.2 「中心点」文本气泡：百分比坐标由 JS 写入，这里只管外观
+ *   63.3 其他地雷标记：与受影响格、中心格区分开
+ *   63.4 战术系列的多图例 + 说明文本：常驻展示，替代悬停单图
+ * ========================================================================== */
+
+/* ---- 63.1 图例引导层 ----
+   与格子同一坐标系（viewBox 0 0 size size）铺满网格；线宽用
+   non-scaling-stroke，保证 3×3 / 5×5 / 6×6 网格下线宽一致。 */
+.preview-guide {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+}
+
+.preview-guide line {
+    stroke: #d97757;
+    stroke-width: 1.1;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+}
+
+.preview-guide circle {
+    fill: #d97757;
+}
+
+/* ---- 63.2 「中心点」文本气泡 ----
+   位置由 05-generator 按 viewBox 坐标换算成百分比写入 left / top，
+   样式表只负责外观；气泡不拦截指针，不会挡住图鉴条目的悬停。 */
+.preview-callout {
+    position: absolute;
+    z-index: 2;
+    padding: 1px 6px;
+    border: 1px solid #f0bfa9;
+    border-radius: 99px;
+    background: #fff7f2;
+    box-shadow: 0 1px 3px rgba(180, 85, 59, .16);
+    color: #b4553b;
+    font-size: 9px;
+    font-weight: 700;
+    line-height: 1.5;
+    white-space: nowrap;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+}
+
+/* ---- 63.3 其他地雷标记 ----
+   演示多雷联动时，第二颗雷只画 emoji、不画影响数字，避免同一个格子
+   既要表达"这是雷"又要表达"影响值是多少"。 */
+.preview-cell.mark {
+    background: #ffe6a3;
+    font-size: 11px;
+    line-height: 1;
+}
+
+/* ---- 63.4 战术系列：多图例 + 说明文本 ----
+   每张图例 = 网格 + 标题 + 一句话说明；常驻可见、不做悬停展开，
+   窄屏下也能完整阅读。 */
+.mine-demo-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mine-demo {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px;
+    border: 1px solid var(--rm-hairline);
+    border-radius: 12px;
+    background: #ffffff;
+}
+
+.mine-demo-grid {
+    flex: 0 0 auto;
+}
+
+.mine-demo-text {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.mine-demo-title {
+    margin-bottom: 3px;
+    color: var(--rm-ink);
+    font-size: 11.5px;
+    font-weight: 700;
+}
+
+.mine-demo-note {
+    color: var(--rm-ink-3);
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+@media (max-width: 700px) {
+    .mine-demo {
+        gap: 8px;
+        padding: 7px;
+    }
+
+    .mine-demo-note {
+        font-size: 10.5px;
     }
 }

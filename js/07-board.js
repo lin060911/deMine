@@ -403,7 +403,7 @@ function bindSlotItemDrag(div, t, kind) {
                 return;
             }
             clearPlacementPreview();
-            // 原生拖放预览只截取单个 emoji，不再截取整张「emoji + 名称 + 数量」卡片
+            // 原生拖放预览只截取单个 emoji，不截取整张「emoji + 名称 + 数量」卡片
             setMineDragImage(e, t);
             // 从槽位拖出的是新雷，不是棋盘上已有的雷，清空 G.drag 避免误判为移动
             G.drag = null;
@@ -432,7 +432,7 @@ function bindSlotItemDrag(div, t, kind) {
     bindSlotItemTip(div);
 }
 
-/* ---- 地雷卡效果说明气泡：body 级固定定位，避免被槽位 overflow 裁剪（v1.3.4） ---- */
+/* ---- 地雷卡效果说明气泡：body 级固定定位，避免被槽位 overflow 裁剪 ---- */
 
 // 复用的气泡节点；懒创建，避免脚本加载时 body 尚未就绪
 let _mineTipEl = null;
@@ -462,19 +462,22 @@ function ensureMineTip() {
 }
 
 /**
- * 在卡片正上方居中显示效果说明气泡；上方空间不足时翻到卡片下方，并夹在视口内。
- * @param {HTMLElement} el 触发的地雷卡，说明文本取自其 data-tip
+ * 在触发元素正上方居中显示说明气泡；上方空间不足时翻到下方，并夹在视口内。
+ * @param {HTMLElement} el 触发元素（地雷卡或系列开关行）
+ * @param {string} [text] 指定气泡文本；缺省时读取 el.dataset.tip。
+ *   系列开关行的炸弹清单直接传入，地雷卡则沿用 data-tip。
  * @sideeffect 写入 #mineTipFixed 的文本、left / top 与显示状态
  */
-function showMineTip(el) {
-    if (!el || !el.dataset) return;
-    const text = el.dataset.tip || "";
-    if (!text) {
+function showMineTip(el, text) {
+    const msg = typeof text === "string" ? text : (el && el.dataset ? el.dataset.tip || "" : "");
+    if (!msg) {
         hideMineTip();
         return;
     }
     const tip = ensureMineTip();
-    tip.textContent = text;
+    tip.textContent = msg;
+    // 带换行的文本（系列炸弹清单）按多行排版，单项说明保持原有单行样式
+    tip.classList.toggle("mine-tip-multi", msg.indexOf("\n") >= 0);
     // 先以 display:block 参与布局并临时隐藏，才能量到换行后的真实宽高
     tip.style.visibility = "hidden";
     tip.style.display = "block";
@@ -509,9 +512,9 @@ window.addEventListener("scroll", hideMineTip, true);
 window.addEventListener("resize", hideMineTip);
 
 /**
- * 为地雷卡挂载效果说明气泡的触发逻辑（v1.3.4）：
+ * 为地雷卡挂载效果说明气泡的触发逻辑：
  *   - 窄屏（≤700px）：点按卡片即"选中"，选中后立即显示说明、再点一次取消选中即收起，
- *     手指 / 鼠标都适用——不再需要长按等待；点按棋盘或页面空白处也会收起。
+ *     手指 / 鼠标都适用，无需长按等待；点按棋盘或页面空白处也会收起。
  *   - 宽屏触屏（>700px）：保留长按 420ms 显示、松手 / 移动 / 离开收起（宽屏鼠标
  *     仍使用样式表的 :hover 气泡，不经过这里）。
  * 卡片节点会被增量渲染反复绑定，故用 _tipHoldBound 保证同一节点只绑一次。
@@ -536,7 +539,7 @@ function bindSlotItemTip(div) {
         }
     }
     /**
-     * 结束本次长按：取消失败的计时并收起气泡。
+     * 结束当前长按：取消待触发的计时并收起气泡。
      */
     function endHold() {
         cancelHold();
@@ -545,7 +548,7 @@ function bindSlotItemTip(div) {
     }
     div.addEventListener("pointerdown", function(e) {
         if (e.pointerType === "mouse") return;
-        // 窄屏改为"点按选中即显示"（见下方 click 分支），不再走长按计时
+        // 窄屏走"点按选中即显示"（见下方 click 分支），不走长按计时
         if (window.innerWidth <= 700) return;
         downX = e.clientX;
         downY = e.clientY;
@@ -559,7 +562,7 @@ function bindSlotItemTip(div) {
     });
     div.addEventListener("pointermove", function(e) {
         if (!holdTimer && !tipShown) return;
-        // 手指移动过多视为滑动 / 拖动，不再展示说明
+        // 手指移动过多视为滑动 / 拖动，不展示说明
         if (Math.abs(e.clientX - downX) > 8 || Math.abs(e.clientY - downY) > 8) endHold();
     });
     div.addEventListener("pointerup", endHold);
@@ -746,7 +749,7 @@ window.addEventListener("resize", function() {
     const MOVE_THRESHOLD = 6;
     // 长按时长：触屏没有右键菜单，长按删除是"删除已放置地雷"的替代入口
     const LONG_PRESS_MS = 480;
-    // 双击删除：触屏在同一格上两次点按的间隔不超过该值即删除（v1.3.4 新增入口）
+    // 双击删除：触屏在同一格上两次点按的间隔不超过该值即删除
     const DOUBLE_TAP_MS = 320;
     // 当前指针会话；为 null 表示没有正在跟踪的指针
     let st = null;
@@ -914,7 +917,7 @@ window.addEventListener("resize", function() {
         const kind = currentBoardKind();
         const slotItem = target.closest(".mine-item");
         if (slotItem) {
-            // 点过槽位后，下一次点按不再算作上一次棋盘点按的"第二下"
+            // 点过槽位后，下一次点按不计入上一次棋盘点按的"第二下"
             lastTap = null;
             // 点选模式下槽位不参与拖动，选中与放置由 click 路径完成
             if (window._placeMode !== "drag") return;
@@ -1006,7 +1009,7 @@ window.addEventListener("resize", function() {
                 return;
             }
             st.active = true;
-            // 拖动开始后，本次按下不再算作双击序列的一部分
+            // 拖动开始后，该次按下不计入双击序列
             lastTap = null;
             st.ghost = makeGhost(st.type, e.clientX, e.clientY, st.isTouch);
             if (st.src && st.src.classList) st.src.classList.add("dragging");
@@ -1042,7 +1045,7 @@ window.addEventListener("resize", function() {
         // 没有越过阈值的抬起视为点按，不落子
         if (!s.active) {
             killGhost(s);
-            // 触屏双击删除（v1.3.4）：同一格两次点按间隔 ≤320ms 即删除，与长按删除并存
+            // 触屏双击删除：同一格两次点按间隔 ≤320ms 即删除，与长按删除并存
             if (s.mode === "cell") {
                 const now = Date.now();
                 if (lastTap && lastTap.kind === s.kind && lastTap.key === s.fromKey &&

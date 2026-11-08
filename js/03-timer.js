@@ -80,7 +80,7 @@ let ts = false;    // 本局是否已开始计时
             lastMeasured = 0;
             running = true;
         },
-        /* 停止计时：冻结本次耗时并返回；重复调用返回同一个值 */
+        /* 停止计时：冻结本局耗时并返回；重复调用返回同一个值 */
         stop: function() {
             if (running) lastMeasured = rawElapsed();
             running = false;
@@ -183,7 +183,7 @@ function stopTi() {
 
 /* ---------- 6. 显示刷新与复位 ---------- */
 
-/* 计时显示缓存（v1.3.2 性能优化）：
+/* 计时显示缓存：
  * 33ms 刷新一次，但百分秒约 10ms 才跳一档，实际约 2/3 的刷新写的是同一个
  * 字符串。这里缓存上一次的文本，未变化时直接跳过 DOM 写入；元素引用也缓存
  * 一次，避免每帧都做一次 getElementById。 */

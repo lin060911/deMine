@@ -11,7 +11,7 @@
 </head>
 <body>
 
-    <!-- 区块：全屏切换按钮（v1.3.2 新增）
+    <!-- 区块：全屏切换按钮
          固定在页面右上角，点击在「全屏 / 退出全屏」之间切换；
          图标与文案由 08-ui.js 的 syncFullscreenBtn() 依据全屏事件同步，
          浏览器不支持全屏时只做 toast 提示，不中断游戏 -->
@@ -120,28 +120,35 @@
 
         <!-- 系列开关：每个系列一组开关；解锁后可随时调整，
              解锁由 08-ui.js 的 unlockSeries() 写入，01-storage.js 的
-             seriesUnlocked 负责持久化，09-tutorial.js 在通关后触发解锁 -->
+             seriesUnlocked 负责持久化，09-tutorial.js 在通关后触发解锁
+             开关行按「始终开启 / 可选扩展」两级分组；锁定状态文案在开关左侧，
+             悬停 / 点按行会显示该系列的炸弹清单（08-ui.js 的 renderSeriesSwitches） -->
         <div class="sidebar-section">
-            <div class="sidebar-title lock-title">🔓 系列开关</div>
+            <div class="sidebar-title lock-title">🗝️ 系列开关</div>
             <div id="seriesSwitchList"></div>
             <div class="switch-hint" id="seriesSwitchHint">完成对应关卡可解锁系列</div>
+            <!-- 图鉴入口：只有「🧭信息」三个字是跳转入口，点击后打开信息侧栏、
+                 再把炸弹信息分区滚进视野，并由引导层高亮（08-ui.js `gotoMineInfo()` /
+                 16-guide.js 信息跳转引导），样式沿用记录栏成绩跳转 -->
+            <div class="tip-note series-info-note">💣 各系列炸弹信息请到 <button class="tip-note-link" id="mineJumpBtn" type="button"
+                    onclick="gotoMineInfo()" title="跳转到信息栏的炸弹信息">🧭信息</button> 栏查看ヾ(•ω•`)o</div>
         </div>
 
-        <!-- 成绩入口说明：文案保持旧版，仅「📝记录」三个字是跳转入口，点击后
+        <!-- 成绩入口说明：仅「📝记录」三个字是跳转入口，点击后
              跳到「📝记录」侧栏并展开成绩区，再由引导层用高亮框 + 小手指向成绩栏
              （08-ui.js `gotoRecordScores()` / 16-guide.js 记录跳转引导） -->
         <div class="sidebar-section">
-            <div class="tip-note">🥇 各难度成绩请到 <button class="tip-note-link" id="recordJumpBtn" type="button"
+            <div class="tip-note">🥇 各难度历史成绩请到 <button class="tip-note-link" id="recordJumpBtn" type="button"
                     onclick="gotoRecordScores()" title="跳转到记录栏的成绩区">📝记录</button> 栏查看 o((>ω< ))o</div>
         </div>
             </div>
         </div>
     </div>
 
-    <!-- 区块：挑战弹窗（v1.3.3）
+    <!-- 区块：挑战弹窗
          主按钮条「🎯挑战」打开，样式与「难度」弹窗一致；集中展示
-         教学 / 基础挑战 / 四个系列挑战的进度（原「📝记录」栏的挑战区），
-         每行右侧的「练习 / 挑战」按钮取代原「炸弹信息」里的入口 -->
+         教学 / 基础挑战 / 四个系列挑战的进度，每行右侧的「练习 / 挑战」
+         按钮负责进入对应的练习或挑战 -->
     <div class="game-modal" id="challengeModal" style="display:none;">
         <div class="game-modal-card">
             <div class="game-modal-head">
@@ -285,9 +292,9 @@
     </div>
 
     <!-- 区块：主按钮条（游戏操作区）
-         v1.3.3：原「清空放置」移到地雷槽底部，空出的位置改为「🎯挑战」，
-         集中展示挑战进度与练习 / 挑战入口；新游戏与清空由 10-game.js 绑定，
-         挑战 / 教学 / 难度分别由 08-ui.js 与 09-tutorial.js 接管 -->
+         新游戏 / 🎯挑战 / 教学 / 难度四个入口；新游戏由 10-game.js 绑定，
+         挑战 / 教学 / 难度分别由 08-ui.js 与 09-tutorial.js 接管，
+         「🎯挑战」集中展示挑战进度与练习 / 挑战入口 -->
     <section class="hud" aria-label="游戏操作">
         <div class="panel">
             <button id="reset">新游戏</button>
@@ -318,13 +325,13 @@
     <!-- 区块：棋盘托盘
          #board 是唯一由脚本填充的棋盘容器，初始为空：06-render.js 以差量渲染
          写入格子，07-board.js 在其上绑定拖拽 / 点选 / 右键删除。
-         v1.3.4：初始先隐藏，等第一局生成完成后再由 06-render.js 的
+         初始先隐藏，第一局生成完成后再由 06-render.js 的
          hideBoardLoading() 显示，期间用下方的 #boardLoading 占位遮丑 -->
     <div class="board-tray">
         <div id="board" class="board" style="display:none;"></div>
     </div>
 
-    <!-- 区块：加载中占位（v1.3.4）
+    <!-- 区块：加载中占位
          棋盘 / 地雷槽尚未生成或正在生成时显示，生成完成后立即隐藏；
          显隐由 06-render.js 的 showBoardLoading() / hideBoardLoading() 控制。
          放在 .board-tray 之外：托盘在 #board 隐藏时会整块隐藏，放在里面会被一起隐藏 -->
@@ -348,7 +355,7 @@
     </div>
 
     <!-- 区块：创造模式面板
-         v1.3.2 布局：顶部信息条 → 创造棋盘 → 「地雷槽 | 题库码」左右并排
+         布局：顶部信息条 → 创造棋盘 → 「地雷槽 | 题库码」左右并排
          （窄屏自动上下堆叠）→ 底部退出按钮；
          全部显隐与内容由 11-create.js 控制 -->
     <div class="create-mode-panel" id="createModePanel">
@@ -366,7 +373,7 @@
             <div id="createMineSlot" class="mine-slot-box" style="display:none;"></div>
 
             <!-- 题库码卡片：把当前创造题目编码成可分享文本，配合 11-create.js 的
-                 生成 / 复制逻辑使用；v1.3.2 重排为「标题 → 全宽码框 → 按钮同排」 -->
+                 生成 / 复制逻辑使用；布局为「标题 → 全宽码框 → 按钮同排」 -->
             <div class="create-card" id="createCodeCard" style="display:none;">
                 <div class="create-card-title">
                     <span class="title-icon">🔗</span>题库码
@@ -390,9 +397,8 @@
     <!-- 区块：地雷 dock（含教学气泡）
          #slot 是玩家放置地雷的来源，由 06-render.js 的 renderSlot() 渲染；
          内嵌 #teachBubble 是教学提示气泡，规则高亮卡、文案与进度由
-         09-tutorial.js 按关卡填写。v1.3.3 从主按钮条移过来的「清空放置」放在
-         槽位内部底部（绝对定位，不参与宽度计算），数量由 renderSlot() 同步、
-         0 颗时置灰，教学模式下自动隐藏 -->
+         09-tutorial.js 按关卡填写。「清空放置」位于槽位内部底部（绝对定位，
+         不参与宽度计算），数量由 renderSlot() 同步、0 颗时置灰，教学模式下自动隐藏 -->
     <div class="mine-slot-box" id="slot" style="display:none;">
         <div class="teach-bubble" id="teachBubble">
             <div class="teach-progress" id="teachProgress"></div>
@@ -484,7 +490,7 @@
 
         <!-- 炸弹信息：按已解锁系列列出雷种、影响规则与示意图 -->
         <div class="sidebar-section rm-acc rm-acc-open" id="accMine">
-            <div class="sidebar-title boom-title">💣 炸弹信息</div>
+            <div class="sidebar-title boom-title">ℹ️ 炸弹信息</div>
             <div class="rm-acc-body">
                 <div id="mineInfoList"></div>
             </div>
@@ -505,7 +511,7 @@
            · 两个子区的条目统一使用「挑战」的轻量卡片语言（14px 圆角 / 浅灰底 /
              左侧标题 + 右侧徽标），数据分别由 08-ui.js / 13-achievements.js 渲染，
              全部来自 01-storage.js 的签名存档容器；
-           · v1.3.3：「挑战」进度区已移到主按钮「🎯挑战」打开的弹窗里。 -->
+           · 「挑战」进度区位于主按钮「🎯挑战」打开的弹窗里，不在本侧栏内。 -->
     <div class="achievement-sidebar" id="achSidebar">
         <div class="achievement-stats" id="achStats">
             <span class="stats-num" id="achUnlockedCount">0</span>
@@ -651,7 +657,7 @@
             </div>
             <div class="switch-hint">开启后，<strong>拖拽</strong>地雷时（鼠标 / 触屏）悬浮在棋盘格上，会显示<strong>放置后</strong>受影响地块的三色状态及影响值<br><br></div>
         </div>
-        <!-- 存档管理（v1.3.0）：紧凑签名容器 + 详情查看；导出 / 导入 / 清空 /
+        <!-- 存档管理：紧凑签名容器 + 详情查看；导出 / 导入 / 清空 /
              详情四个入口，接线在 15-boot.js，导入会先验签并弹三选一确认框，
              写入前留快照，可撤销 -->
         <div class="sidebar-section" id="SaveManage">
@@ -665,16 +671,16 @@
             <input type="file" id="saveFileInput" accept="application/json,.json" style="display:none">
             <div class="save-hint" id="saveHint">存档将导出为 JSON 文件<br>换设备 / 清缓存前可备份 🧳</div>
         </div>
-        <!-- 关于（v1.3.3）：版本号由 12-settings.js 从 RM.VERSION 写入，
+        <!-- 关于：版本号由 12-settings.js 从 RM.VERSION 写入，
              更新公告为静态摘要，避免多处版本号不一致 -->
         <div class="sidebar-section" id="AboutSection">
             <div class="sidebar-title about-title">ℹ️ 关于</div>
-            <div class="about-version">🔧 版本号 <strong id="aboutVersion">v1.3.4</strong></div>
+            <div class="about-version">🔧 版本号 <strong id="aboutVersion">v1.3.6</strong></div>
             <div class="about-announce">
                 <div class="about-announce-title">📣 更新公告</div>
                 <ul class="about-announce-list">
-                    <li><b>V1.3.4</b>：手机端双击删除地雷；地雷卡效果说明气泡不再被遮挡、手机端长按可看；成绩栏按难度配淡色底；新增棋盘加载中占位。</li>
-                    <li><b>V1.3.3</b>：清空放置移到地雷槽底部；新增「🎯挑战」弹窗，集中挑战进度与练习 / 挑战入口；设置栏新增「关于」。</li>
+                    <li><b>V1.3.6</b>：炸弹信息的影响范围图例更准确——环形雷本格标 0；镜像 / 阴阳 / 负镜像改为中心点示意；对称·叁雷改为横竖两条平分线；战术系列改为多张图例加说明。十字辣椒归入异形系列（🔶）；对角辣椒、大对角辣椒图标改为 ❌。</li>
+                    <li><b>V1.3.5</b>：系列开关按「始终开启 / 可选扩展」分组；锁定状态改为「🔒未解锁 / ✅已解锁」并显示各系列炸弹清单；基础系列开关加锁并提示始终开启；新增「🧭信息」跳转查看炸弹详情。</li>
                 </ul>
             </div>
             <div class="about-foot">© 2026 L1Nzy · lin060911@qq.com</div>
@@ -688,7 +694,7 @@
 
     <!-- 区块：页脚
          署名与联系方式，纯静态文本，脚本不依赖 -->
-    <footer class="sidebar-version">ReverseMinesweeper v1.3.4<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
+    <footer class="sidebar-version">ReverseMinesweeper v1.3.6<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
 
     <!-- 区块：脚本加载区（顺序即依赖）
          17 个外部脚本按 00 → 16 的书写顺序同步执行，共享同一个全局作用域：
@@ -709,7 +715,7 @@
            12-settings      音量持久化与 _gameNS
            13-achievements  成就系统与 installHooks 钩子装配
            14-bgeffects     背景漂浮幽灵，只依赖 DOM，位置相对自由
-           15-boot          启动自检与存档管理，必须在 10 之后执行
+           15-boot          启动自检与存档管理，排在 14 之后、16 之前
            16-guide         新手引导层（小手动画 / 高亮 / 提示气泡）
 
          举例：06-render.js 在顶层就调用 Store.get 读取提示开关，如果它排在

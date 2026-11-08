@@ -165,7 +165,7 @@ function clearAll() {
 // 「新游戏」按钮：13-achievements 安装钩子时会包装此处理器，用于统计连点
 document.getElementById("reset").onclick = newGame;
 
-// 「清空放置」按钮（v1.3.3 起位于地雷槽底部）：同样属于可被钩子替换的入口
+// 「清空放置」按钮（位于地雷槽内部底部）：同样属于可被钩子替换的入口
 document.getElementById("slotClearBtn").onclick = clearAll;
 
 /**

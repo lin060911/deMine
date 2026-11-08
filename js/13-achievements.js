@@ -14,11 +14,11 @@
  *   1) 成就判定与业务逻辑分离：业务文件不知道成就系统的存在，本文件在
  *      installHooks 中包装既有全局函数，只在原有行为前后追加统计，属于
  *      可插拔的横切扩展；不加载本文件即可整体关闭成就系统。
- *   2) 数据驱动：45 个成就集中在同一张表内，新增成就只需追加数据与触发点。
+ *   2) 数据驱动：45 个成就集中在同一张表内，添加成就只需追加数据与触发点。
  *   3) 解锁时间以完整 ISO 时间戳（含 T、时分秒与 Z 后缀）保存，面板展示时再
- *      换算成本地时间；旧存档里的纯日期值 / 数字时间戳在启动时统一规范化。
- *      解锁时间、计数器与本局过程数据合并成一条 localStorage 记录，读写都
- *      做异常保护，存储不可用时退化为仅内存有效。
+ *      换算成本地时间；已有存档中可能出现的纯日期值 / 数字时间戳在启动时统一
+ *      规范化。解锁时间、计数器与本局过程数据合并成一条 localStorage 记录，
+ *      读写都做异常保护，存储不可用时退化为仅内存有效。
  *   4) 只读查询接口（list / byId / unlockTime / summary）只读内部状态，不做
  *      判定、不改存档，供存档详情等界面复用成就数据与解锁时间。
  * ========================================================================== */
@@ -499,7 +499,7 @@
      * 校验成就数据表与 00-core 的 RM.ACH_IDS 编码表是否一致。
      * 存档位图按 RM.ACH_IDS 的数组下标编码，两者的数量或顺序不一致会让解锁
      * 状态错位，因此这里在初始化阶段做一次校验；只记录警告，不抛错、不改数据，
-     * 旧版本没有 RM.ACH_IDS 时直接跳过。
+     * 缺少 RM.ACH_IDS 时直接跳过。
      * @sideeffect 不一致时写入一条 RM.warn 记录（标记 "achievements:ids"）。
      */
     function verifyAchievementIds() {
@@ -521,7 +521,7 @@
 
     // 存档键：解锁时间、计数器与本局过程数据合并存放在同一条记录中
     const STORE_KEY = "achievementState_v1";
-    // 旧存档的纯日期形态（如 2024-05-01）与完整 ISO 时间形态，规范化时据此区分
+    // 已有存档中可能出现的纯日期形态（如 2024-05-01）与完整 ISO 时间形态，规范化时据此区分
     const DATE_ONLY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
     const ISO_TIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:?\d{2})$/;
     // loadState 执行时 _achState 尚未完成赋值，而 saveState 依赖 _achState，
@@ -529,7 +529,7 @@
     let _stateNormalized = false;
     // 运行期状态：启动时读取一次，之后所有判定与渲染都基于这份对象
     let _achState = loadState();
-    // 旧存档被规范化过就立即回写一次，让内存与磁盘上的时间格式保持一致
+    // 规范化改写过存档就立即回写一次，让内存与磁盘上的时间格式保持一致
     if (_stateNormalized) saveState();
     /**
      * 把解锁时间统一成完整 ISO 时间戳。
@@ -565,7 +565,7 @@
     }
     /**
      * 规范化解锁记录：把每条解锁值统一成完整 ISO 时间戳，非法值直接删除
-     * （视为从未解锁）。只改写 unlocked 内已有键的值或删除非法键，不新增键，
+     * （视为从未解锁）。只改写 unlocked 内已有键的值或删除非法键，不添加新键，
      * 也不调整键顺序，因此不会影响解锁计数与面板显示顺序。
      * @param {Object} st 成就状态对象（原地修改）
      * @returns {boolean} 是否发生了改写
@@ -573,7 +573,7 @@
     function normalizeAchievements(st) {
         if (!st || typeof st !== "object" || Array.isArray(st)) return false;
         let changed = false;
-        // 旧存档可能缺少 unlocked 字段，补一份空表避免后续读取到 undefined
+        // 存档可能缺少 unlocked 字段，补一份空表避免后续读取到 undefined
         if (!st.unlocked || typeof st.unlocked !== "object" || Array.isArray(st.unlocked)) {
             st.unlocked = {};
             changed = true;
@@ -592,7 +592,7 @@
     }
     /**
      * 读取成就状态；无存档或解析失败时返回一份完整的默认状态。
-     * 读到旧存档时顺带做一次规范化（纯日期 / 数字时间戳 → 完整 ISO），
+     * 读到已有存档时顺带做一次规范化（纯日期 / 数字时间戳 → 完整 ISO），
      * 规范化结果由启动阶段统一回写；默认状态覆盖全部判定字段，避免后续
      * 读取到 undefined。
      * @returns {Object} 成就状态对象
@@ -955,7 +955,7 @@
         let _oTW = typeof window.onTutorialWin === "function" ? window.onTutorialWin : NS.onTutorialWin;
         window.onTutorialWin = function() {
             if (_oTW) _oTW.apply(this, arguments);
-            // 原逻辑更新教学进度，这里只在其后判断是否完成全部引导
+            // 被包装函数先更新教学进度，这里只在其后判断是否完成全部引导
             if (tutorialStep >= 5) unlock("finish_tutorial");
         };
         let _oDel = typeof window.del === "function" ? window.del : NS.del;
@@ -1101,7 +1101,7 @@
         }
         /**
          * 废弃当前的长草倒计时，并从此刻重新开始。
-         * @sideeffect 清掉旧定时器并重新创建检测周期。
+         * @sideeffect 清掉上一轮定时器并重新创建检测周期。
          */
         function resetGrassTimer() {
             stopGrassTimer();
@@ -1252,8 +1252,8 @@
     }
     // 暴露给 08-ui 的通关流程调用
     window.checkWinAchievements = checkWinAchievements;
-    // 对外接口：既有的 unlock / incrementCounter / renderAchievements / state
-    // 保持不变，新增 list / byId / unlockTime / summary 四个只读查询接口
+    // 对外接口：unlock / incrementCounter / renderAchievements / state，
+    // 以及 list / byId / unlockTime / summary 四个只读查询接口
     window.Achievements = {
         unlock: unlock,
         incrementCounter: incrementCounter,

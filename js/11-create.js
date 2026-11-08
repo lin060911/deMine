@@ -47,7 +47,7 @@ const CREATE_MAX_CELLS = 400;
 
 /**
  * 收集创造模式可用的雷种键。
- * v1.3.2 起创造模式不参与系列解锁限制：图鉴里的 22 种地雷全部可用，
+ * 创造模式不参与系列解锁限制：图鉴里的 22 种地雷全部可用，
  * 出题人可以自由组合任意系列的影响核（主局仍受系列开关控制）。
  * @returns {string[]} 雷种键数组，顺序沿用 M 的定义顺序
  */
@@ -391,8 +391,8 @@ function renderCreateBoard() {
 }
 
 /**
- * 渲染雷种面板：v1.3.2 起按系列分组，一行一个系列（基础 6 种、其余系列各 4 种），
- * 22 张卡片不再混排，作者能按影响核分组快速找雷。每张卡显示雷种图标、名称与
+ * 渲染雷种面板：按系列分组，一行一个系列（基础 5 种、异形 5 种、其余系列各 4 种），
+ * 22 张卡片按系列分布，作者能按影响核分组快速找雷。每张卡显示雷种图标、名称与
  * 已放数量；总数达到上限时全部置灰。
  * @sideeffect 重建 #createMineSlot 的子节点（系列行 + 卡片）并绑定拖拽事件。
  */
@@ -400,7 +400,7 @@ function renderCreateMineSlot() {
     let container = document.getElementById("createMineSlot");
     container.innerHTML = "";
     // 全部 22 种雷都出现在面板里，逐个 filter 统计会白扫 22 遍，
-    // 改为一次遍历得到每种雷的已放数量
+    // 这里一次遍历得到每种雷的已放数量
     let used = {};
     for (let key in createPlaced) {
         let t = createPlaced[key];

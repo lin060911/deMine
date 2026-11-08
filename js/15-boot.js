@@ -1,8 +1,7 @@
 /* ==========================================================================
  * 模块 15 · 启动自检与存档管理 UI（js/15-boot.js）
  *
- * 版本：v1.3.3（紧凑签名存档 UI）
- * 职责：作为最后一个加载的模块，负责四件事：
+ * 职责：在 00 ~ 14 号模块之后加载，负责四件事：
  *   1) 启动自检：确认 00 ~ 14 号模块暴露的全局对象与函数都存在；
  *      缺失只提示、不阻断启动，renderChallengeList 属于可选增强，缺失只记 warn。
  *   2) 存档状态徽章：把 Store.getStatus() / Store.verify() 的结果渲染成
@@ -24,15 +23,15 @@
  * 对外：window.RMSave = { exportSave, importSave, pickFile, resetSave,
  *       undoImport, showDetails, refreshHint }。
  * 设计要点：
- *   1) 必须最后加载：自检的前提是 00 ~ 14 号模块都已执行完毕。
+ *   1) 必须在 00 ~ 14 号模块之后加载：自检的前提是这些模块都已执行完毕。
  *   2) 验签优先：导入先 Store.parseFile() 验证 HMAC，失败只 toast、不打开弹窗；
- *      旧版 {app, schema:1, data} 明文存档明确提示不再支持，不做迁移
+ *      早期 {app, schema:1, data} 明文存档直接拒绝，不做迁移
  *      （localStorage 里的旧键迁移由 01-storage.js 自动完成）。
  *   3) 预览优先：覆盖 / 合并前展示「当前 / 覆盖后 / 合并后」三列画像，
  *      确认后才写盘；合并路径只增不减，不做二次确认。
  *   4) 破坏性操作先留快照：写入前 Store.backupCurrent()，撤销只需一步。
  *   5) 不写样式：详情弹窗与状态徽章全部复用 style.css 第 27 段已定义的类名，
- *      JS 里不注入 <style>，也不新增 CSS 文件。
+ *      JS 里不注入 <style>，也不引入 CSS 文件。
  * ========================================================================== */
 
 (function() {
@@ -76,7 +75,7 @@
             }
             missing.push(name);
         }
-        // 不变量：RM.missingModules 恒等于本次自检的必需项结果，供其它模块查询
+        // 不变量：RM.missingModules 恒等于每次自检的必需项结果，供其它模块查询
         RM.missingModules = missing;
         if (missing.length) {
             RM.onError("boot:selfCheck", "缺少模块: " + missing.join(", "));
@@ -248,7 +247,7 @@
      * 读取挑战系列的中文名；CATEGORY 在 04-mines.js 中定义，缺失时回退。
      * @param {string} key 系列键（special / physics / symmetry / tactical）
      * @param {string} fallback 回退名称
-     * @returns {string} 形如 "✖️ 异形系列" 的展示名
+     * @returns {string} 形如 "🔶 异形系列" 的展示名
      */
     function catName(key, fallback) {
         try {
@@ -348,7 +347,7 @@
      * 表格把「当前存档 / 覆盖后 / 合并后」三个画像拼成三列，每行同时算出
      * 两个风险标记：
      *   ovLoss —— 覆盖后比当前少，该项进度会丢失（表格中标红）
-     *   mgGain —— 合并后比当前多，该项进度会新增（表格中标绿）
+     *   mgGain —— 合并后比当前多，该项进度会增加（表格中标绿）
      * @param {Object} cur 当前存档画像
      * @param {Object} ov 存档文件画像（即覆盖后的结果）
      * @param {Object} mg 合并结果画像
@@ -358,7 +357,7 @@
         var rows = [];
         var i, d;
 
-        // 累计通关：覆盖后变少即视为丢失进度，合并后变多即视为新增
+        // 累计通关：覆盖后变少即视为丢失进度，合并后变多即视为增加
         rows.push({
             k: "累计通关",
             cur: cell(cur.totalWins + " 次"),
@@ -479,7 +478,7 @@
     /* ---------- 4. 导入提示框：三选一交互与落盘 ---------- */
     /* 导入数据流（三选一）：
      *   pickFile → 原生文件框 → importSave(file) → FileReader 异步读取
-     *     → JSON.parse → 旧版明文档直接拒绝 → Store.parseFile() 验签
+     *     → JSON.parse → 早期明文存档直接拒绝 → Store.parseFile() 验签
      *     → pending = payload；openImportModal：由 Store.profile / profileOfFile /
      *       previewMergeFile 生成「当前 / 覆盖后 / 合并后」三列，只做预览不写存储
      *     → onAction 按用户选择分流：
@@ -533,7 +532,7 @@
         var t = buildTable(cur, ov, mg);
         pendingLoss = t.lossCount;
 
-        // 已有快照的时间，用于提示「本次导入会覆盖上一份快照」
+        // 已有快照的时间，用于提示「导入会覆盖上一份快照」
         var info = Store.backupInfo();
 
         // 文件来源信息：导出时间、编码体积、格式、摘要与验签结论
@@ -614,7 +613,7 @@
         var merge = mode === "merge";
         var label = merge ? "合并" : "覆盖";
         try {
-            // 先快照再写入：即使本次导入失败，撤销入口依然可用
+            // 先快照再写入：即使导入失败，撤销入口依然可用
             Store.backupCurrent();
             var res = Store.importFile(payload, { merge: merge });
             if (!res || !res.ok) {
@@ -698,7 +697,7 @@
     }
 
     /**
-     * 导入入口：读取文件 → 解析 JSON → 拒绝旧版明文 → 验签 → 打开三选一弹窗。
+     * 导入入口：读取文件 → 解析 JSON → 拒绝早期明文 → 验签 → 打开三选一弹窗。
      * 这里不直接写入存储，所有写入都发生在用户选择覆盖或合并之后。
      * @param {File} file 用户选中的 JSON 文件
      * @sideeffect 验签成功后设置 pending 并打开导入弹窗
@@ -721,7 +720,7 @@
                 RM.toast("这不是有效的存档文件", 3600);
                 return;
             }
-            // 旧版 {app, schema:1, data:{...}} 明文存档：明确拒绝，不做迁移
+            // 早期 {app, schema:1, data:{...}} 明文存档：直接拒绝，不做迁移
             if (!payload.save && payload.data && typeof payload.data === "object") {
                 RM.toast("旧版明文存档已不再支持，请使用 v1.3.0 及以上版本导出的签名存档", 4800);
                 return;
@@ -1244,7 +1243,7 @@
         } catch (e) {}
     }
 
-    // 脚本写在 body 末尾，正常情况下 DOM 已可操作；若被改为 defer 或动态插入，
+    // 脚本写在 body 末尾，正常情况下 DOM 已可操作；若被设为 defer 或动态插入，
     // readyState 仍是 loading，此时等 DOMContentLoaded 再启动
     if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", boot);

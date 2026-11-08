@@ -140,9 +140,9 @@ window._gameNS = {
     applyPuzzleCode: applyPuzzleCode
 };
 
-/* ---------- 4. 关于板块的版本号（v1.3.3） ---------- */
+/* ---------- 4. 关于板块的版本号 ---------- */
 /* 「⚙️设置 → ℹ️关于」里的版本号统一从 RM.VERSION 读取，
- * 避免发布时漏改页脚以外的第二处版本号。 */
+ * 避免页脚与「关于」两处显示不一致。 */
 (function syncAboutVersion() {
     try {
         var el = document.getElementById("aboutVersion");

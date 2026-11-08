@@ -25,7 +25,7 @@ let _origDrop = null;
 
 let _origDel = null;
 
-// 启动时按当前进度设置默认棋盘参数：四系列未全完成用入门档，全部完成用标准档
+// 启动时按当前进度设置默认棋盘参数：原有四系列未全完成用入门档，全部完成用标准档
 applyStandardParams();
 
 /**
@@ -67,10 +67,13 @@ function newGame() {
 function fullReset() {
     resetTi();
     isTutorialMode = false;
+    isPracticeMode = false;
     isPresetPending = false;
     pendingDiff = null;
     currentTutorialType = null;
     document.getElementById("tutorialProgressBar").style.display = "none";
+    // 练习形态的进度条（隐藏进度轨道 + 退出按钮）一并还原，避免串到下一局
+    if (typeof applyPracticeBar === "function") applyPracticeBar(false);
     document.getElementById("teachProgressBar").style.display = "none";
     teachActive = false;
     teachPlacedCount = 0;

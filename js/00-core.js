@@ -22,7 +22,7 @@ var RM = window.RM || {};
 window.RM = RM;
 
 /* 程序标识串：仅随日志输出，用于问题定位，不参与任何游戏逻辑 */
-RM.VERSION = "1.3.6";
+RM.VERSION = "1.3.8";
 
 /* 程序英文名：页脚署名、存档导出与导入校验统一使用这一写法 */
 RM.APP_NAME = "ReverseMinesweeper";
@@ -136,7 +136,7 @@ RM.onError = function(where, err) {
 
 /* 当前棋盘参数：S 为边长，SR / SC 为行数与列数，T 为总雷数，
  * TY 为地雷类型数，SP 为特殊道具数。只允许 applyBoardParams 写入。
- * 初始值取入门档（8×8 / 4 雷），四个系列挑战全部完成后由
+ * 初始值取入门档（8×8 / 4 雷），四个原有系列挑战全部完成后由
  * applyStandardParams 切到标准档（10×10 / 6 雷）。 */
 let S = 8, SR = 8, SC = 8, T = 4, TY = 2, SP = 3;
 
@@ -198,7 +198,7 @@ const DIFF_LABEL = {
     free: "自由"
 };
 
-/* 标准参数分两档：四个系列挑战全部完成前用入门档，全部完成后切到标准档。
+/* 标准参数分两档：四个原有系列挑战全部完成前用入门档，全部完成后切到标准档。
  * 退出创造、教学、系列挑战等特殊模式后统一回到其中一档。 */
 const STD_PARAM_INTRO = {
     size: 8,
@@ -215,7 +215,9 @@ const STD_PARAM_FULL = {
 };
 
 /**
- * 判断四个非基础系列挑战是否全部完成（对应系列均已解锁）。
+ * 判断四个原有非基础系列挑战是否全部完成（对应系列均已解锁）。
+ * 扑克牌系列是后续新增的扩展系列，不参与标准参数档位的判定，
+ * 避免已经在用标准档的玩家因新增系列而回退到入门档。
  * @returns {boolean} 全部完成返回 true；存储尚未就绪时按未完成处理
  */
 function allSeriesChallengesDone() {
@@ -253,7 +255,7 @@ function applyBoardParams(p) {
 }
 
 /**
- * 切回当前进度的标准参数：四系列未全部完成用入门档，全部完成用标准档。
+ * 切回当前进度的标准参数：四个原有系列未全部完成用入门档，全部完成用标准档。
  * @sideeffect 同 applyBoardParams
  */
 function applyStandardParams() {
@@ -277,8 +279,15 @@ window.applyPresetParams = applyPresetParams;
 
 /* ---------- 5. 解锁阈值与运行时状态 ---------- */
 
-/* 地狱难度通关达到该次数后解锁脑王（与系列全开共同构成解锁条件） */
+/* 地狱难度通关达到该次数后解锁脑王（与系列开关数量共同构成解锁条件） */
 const BRAIN_HELL_WINS_REQ = 10;
+
+/* 系列总数：仅用于展示 x/6 与门槛比较的上界。
+ * 新增系列时同步这里、04-mines 的 CATEGORY 与 01-storage 的系列位表。 */
+const SERIES_TOTAL = 6;
+
+/* 地狱与脑王共用的系列开关门槛：两者都要求至少开启 5 个系列 */
+const HELL_SERIES_REQ = 5;
 
 /* 当前对局难度 key；null 表示尚未选择或正在自由调整参数 */
 let diff = null;
@@ -320,3 +329,8 @@ let tutorialStep = 0;
 
 /* 是否处于教学演示中：教学局不计成绩、不触发成就 */
 let isTutorialMode = false;
+
+/* 是否处于「练习」模式：从已完成的挑战进入，顶部进度条改为
+ * 「XX练习」+ 退出按钮；练习局不写挑战进度、不触发解锁，
+ * 退出后回到标准参数的新局。由 setupTutorialBoard 按进入入口显式赋值。 */
+let isPracticeMode = false;

@@ -260,6 +260,8 @@ function syncMainPanel() {
         hide = false;   // teachActive 尚未初始化时按"不隐藏"处理
     }
     p.style.display = hide ? "none" : "flex";
+    // 教学模式下显示「退出教学」按钮条：它位于地雷槽之外，无法用 #slot 的类名判定
+    document.body.classList.toggle("teach-mode", hide);
 }
 window.syncMainPanel = syncMainPanel;
 
@@ -377,7 +379,7 @@ window.closeDifficultyModal = closeDifficultyModal;
 /* ---------- 7.1 挑战弹窗 ---------- */
 
 /**
- * 打开「🎯挑战」弹窗：集中展示教学 / 基础挑战 / 四个系列挑战的进度，
+ * 打开「🎯挑战」弹窗：集中展示教学 / 基础挑战 / 五个系列挑战的进度，
  * 每行右侧是练习 / 挑战入口。
  * 与难度弹窗互斥，打开前先收起所有侧栏与难度弹窗，并刷新一次进度。
  * @sideeffect 播放音效、收起侧栏、显示 challengeModal
@@ -613,7 +615,7 @@ function onBasicSeriesClick(el) {
 }
 
 /**
- * 渲染难度弹窗里的 5 个系列开关：二级分组标题、锁定状态文案、开关状态、
+ * 渲染难度弹窗里的 6 个系列开关：二级分组标题、锁定状态文案、开关状态、
  * 悬停 / 点按的炸弹清单气泡与解锁提示。
  * @sideeffect 重写 #seriesSwitchList 与 #seriesSwitchHint 的内容，并收起旧气泡
  */
@@ -622,10 +624,10 @@ function renderSeriesSwitches() {
     if (!container) return;
     hideSeriesTip();
     let html = "";
-    // 二级分组：基础系列始终开启，其余四个系列靠挑战解锁后可选
+    // 二级分组：基础系列始终开启，其余五个系列靠挑战解锁后可选
     const groups = [
         { title: "始终开启", keys: [ "basic" ] },
-        { title: "可选扩展", keys: [ "special", "physics", "symmetry", "tactical" ] }
+        { title: "可选扩展", keys: [ "special", "physics", "poker", "symmetry", "tactical" ] }
     ];
     groups.forEach(function(group) {
         html += `<div class="series-group">`;
@@ -661,14 +663,21 @@ function renderSeriesSwitches() {
     container.innerHTML = html;
     let hint = document.getElementById("seriesSwitchHint");
     let onCount = getSeriesOnCount();
-    if (onCount < 5) {
+    // 门槛：困难 ≥3 个；地狱与脑王共用 ≥5 个（脑王另需地狱通关次数）
+    if (onCount < SERIES_TOTAL) {
         hint.className = "switch-hint";
-        let need = onCount < 3 ? "困难需<strong>≥3</strong>个 · 地狱/脑王需全开" : "困难可用✅ · 地狱/脑王需全开";
-        hint.innerHTML = `已开启<strong> ${onCount}/5 </strong>个系列<br>${need}`;
+        let need;
+        if (onCount < 3) need = "困难需<strong>≥3</strong>个 · 地狱/脑王需<strong>≥" + HELL_SERIES_REQ + "</strong>个";
+        else if (onCount < HELL_SERIES_REQ) need = "困难可用✅ · 地狱/脑王需<strong>≥" + HELL_SERIES_REQ + "</strong>个";
+        else if ((wins.hell || 0) >= BRAIN_HELL_WINS_REQ) need = "地狱 & 脑王均可挑战 ✅";
+        else need = "地狱可用✅ · 脑王需地狱通关<strong>" + BRAIN_HELL_WINS_REQ + "</strong>次";
+        hint.innerHTML = `已开启<strong> ${onCount}/${SERIES_TOTAL} </strong>个系列<br>${need}`;
     } else {
         hint.className = "switch-hint unlock-hint";
         let brainReady = (wins.hell || 0) >= BRAIN_HELL_WINS_REQ;
-        hint.innerHTML = brainReady ? `全部 ${onCount}/5 已开启 ✅ 地狱 & 脑王均可挑战` : `全部 ${onCount}/5 已开启 ✅ 地狱可用<br>脑王需地狱通关<strong>${BRAIN_HELL_WINS_REQ}</strong>次`;
+        // 与上面几种档位保持同样的两行结构：避免全开时提示少一行导致
+        // 弹窗内容高度变化（滚动条隐现会让居中卡片横向偏移几个像素）
+        hint.innerHTML = brainReady ? `全部 ${onCount}/${SERIES_TOTAL} 已开启 ✅<br>地狱 & 脑王均可挑战` : `全部 ${onCount}/${SERIES_TOTAL} 已开启 ✅<br>地狱可用 · 脑王需地狱通关<strong>${BRAIN_HELL_WINS_REQ}</strong>次`;
     }
     updatePresetButtons();
 }
@@ -707,34 +716,34 @@ function unlockSeries(catKey) {
 
 /**
  * 统计当前处于开启状态的系列数量。
- * @returns {number} 0~5 之间
+ * @returns {number} 0~SERIES_TOTAL 之间
  */
 function getSeriesOnCount() {
-    const knownKeys = [ "basic", "special", "physics", "symmetry", "tactical" ];
+    const knownKeys = [ "basic", "special", "physics", "poker", "symmetry", "tactical" ];
     return knownKeys.filter(k => seriesState[k] === true).length;
 }
 
 /**
- * 判断"脑王"是否已解锁：地狱通关达到指定次数且 5 个系列全开。
+ * 判断"脑王"是否已解锁：地狱通关达到指定次数且系列开关达到与地狱相同的门槛。
  * @returns {boolean} true 表示可以挑战脑王
  */
 function checkBrainUnlocked() {
     let hellWins = wins.hell || 0;
     let seriesCount = getSeriesOnCount();
-    return hellWins >= BRAIN_HELL_WINS_REQ && seriesCount >= 5;
+    return hellWins >= BRAIN_HELL_WINS_REQ && seriesCount >= HELL_SERIES_REQ;
 }
 
 /* ---------- 10. 难度预设 ---------- */
 
 /**
- * 刷新难度按钮的锁定样式：困难需 3 个系列、地狱需 5 个、脑王另需通关次数；
- * 简单 / 中等不设系列门槛，方便新手直接开始。
+ * 刷新难度按钮的锁定样式：困难需 3 个系列、地狱与脑王需 5 个系列
+ * （脑王另需地狱通关次数）；简单 / 中等不设系列门槛，方便新手直接开始。
  * @sideeffect 切换各难度按钮的 locked 类
  */
 function updatePresetButtons() {
     let onCount = getSeriesOnCount();
     let hardLocked = onCount < 3;
-    let hellLocked = onCount < 5;
+    let hellLocked = onCount < HELL_SERIES_REQ;
     let brainLocked = !checkBrainUnlocked();
     // 简单 / 中等始终可用：不受系列开关数量限制
     [ "btnEasy", "btnMedium" ].forEach(id => {
@@ -774,7 +783,7 @@ function updatePresetButtons() {
 function checkPresetAllowed(d) {
     let onCount = getSeriesOnCount();
     if (d === "brain") return checkBrainUnlocked();
-    if (d === "hell") return onCount >= 5;
+    if (d === "hell") return onCount >= HELL_SERIES_REQ;
     // 简单 / 中等不设系列门槛，仅困难要求至少 3 个系列开启
     if (d === "easy" || d === "medium") return true;
     return onCount >= 3;
@@ -1097,7 +1106,7 @@ function renderRecordList() {
  */
 
 /**
- * 挑战面板的展示顺序：新手教学 → 基础挑战 → 四个系列挑战。
+ * 挑战面板的展示顺序：新手教学 → 基础挑战 → 五个系列挑战。
  * 系列行的中文名与图标优先取全局 CATEGORY，取不到时退回这里的兜底值。
  */
 const CHALLENGE_PANEL_ROWS = [ {
@@ -1116,6 +1125,10 @@ const CHALLENGE_PANEL_ROWS = [ {
     key: "physics",
     icon: "☢️",
     fallbackName: "物理律系列"
+}, {
+    key: "poker",
+    icon: "🃏",
+    fallbackName: "扑克牌系列"
 }, {
     key: "symmetry",
     icon: "‼️",
@@ -1146,7 +1159,7 @@ function escapeChallengeHtml(v) {
  *   ✅ 已完成  教学 teachFinished；基础挑战 tutorialCompleted 或 step>=5；
  *              系列挑战 seriesUnlocked[cat] 或 step>=5
  *   🕹️ 进行中  未完成但 step>0，徽标带 n/5
- *   🔒 未解锁  基础挑战未完成时四个系列统一锁定；教学未完成显示「未完成」；
+ *   🔒 未解锁  基础挑战未完成时五个系列统一锁定；教学未完成显示「未完成」；
  *              门禁已开放但 step=0 的项显示「未开始 0/5」
  *
  * 右侧按钮的行为：基础挑战行 未完成显示
@@ -1174,7 +1187,7 @@ function renderChallengeList() {
         basicStep = parseInt(Store.get("tutorialStep"), 10) || 0;
         // tutorialCompleted 是基础挑战完成标记，同时兼容只写了 step 的进度
         basicCompleted = Store.get("tutorialCompleted") === "true" || basicStep >= 5;
-        [ "special", "physics", "symmetry", "tactical" ].forEach(cat => {
+        [ "special", "physics", "poker", "symmetry", "tactical" ].forEach(cat => {
             seriesInfo[cat] = {
                 step: parseInt(Store.get("tutorial_" + cat), 10) || 0,
                 unlocked: !!seriesUnlocked[cat]
@@ -1239,7 +1252,7 @@ function renderChallengeList() {
             const done = info.unlocked || info.step >= 5;
             const step = done ? 5 : Math.max(0, Math.min(5, info.step));
             if (!basicCompleted) {
-                // 系列挑战门禁依赖基础挑战：未通关时四个系列统一显示未解锁
+                // 系列挑战门禁依赖基础挑战：未通关时五个系列统一显示未解锁
                 badge = "🔒 未解锁";
                 pct = 0;
             } else if (done) {
@@ -1260,13 +1273,15 @@ function renderChallengeList() {
         }
 
         // 每行右侧的练习 / 挑战入口（教学行没有对应入口，不放按钮）
+        // 练习走独立的练习入口：顶部改为「XX练习」+ 退出按钮，不写挑战进度
         let action = "";
         if (row.key === "basic") {
             action = `<button class="challenge-entry-btn ${basicCompleted ? "is-practice" : "is-challenge"}" onclick="openPracticeMode()">${basicCompleted ? "练习" : "基础挑战"}</button>`;
         } else if (row.key !== "teach") {
             const sInfo = seriesInfo[row.key] || { step: 0, unlocked: false };
             const sUnlocked = sInfo.unlocked || sInfo.step >= 5;
-            action = `<button class="challenge-entry-btn ${sUnlocked ? "is-practice" : "is-challenge"}" onclick="startCategoryTutorial('${row.key}')">${sUnlocked ? "练习" : "挑战"}</button>`;
+            const entry = sUnlocked ? `startCategoryPractice('${row.key}')` : `startCategoryTutorial('${row.key}')`;
+            action = `<button class="challenge-entry-btn ${sUnlocked ? "is-practice" : "is-challenge"}" onclick="${entry}">${sUnlocked ? "练习" : "挑战"}</button>`;
         }
         const badgeText = progress ? badge + " " + progress : badge;
         html += `<div class="challenge-item" data-key="${row.key}">`;
@@ -1469,17 +1484,24 @@ function closeWelcomeModal() {
 }
 
 /**
- * 关闭"挑战完成"弹窗；基础挑战完成后继续引导玩家前往系列挑战。
- * @sideeffect 可能把棋盘参数切回标准值，并打开进阶引导框
+ * 关闭"挑战完成"弹窗：先切回标准参数并自动开一局新游戏，
+ * 基础挑战完成后继续引导玩家前往系列挑战。
+ * @sideeffect 把棋盘参数切回标准值、重置为普通对局，并可能打开进阶引导框
  */
 function closeTutorialComplete() {
     AudioFX.confirm();
     document.getElementById("overlay").style.display = "none";
     document.getElementById("tutorialCompleteModal").style.display = "none";
+    // 基础挑战完成（currentTutorialType 为空）后仍保留「更多关卡」引导；
+    // 该判断必须放在 newGame 之前，newGame 内部的 fullReset 会清掉系列标记
+    let wasBasic = !currentTutorialType;
     // 挑战关使用 T=5 的专属配比，结束后切回标准参数，
     // 避免下一局沿用 10×10 / 5 颗雷的挑战配置
     if (!isPresetDifficulty(diff)) applyStandardParams();
-    if (!currentTutorialType) setTimeout(() => {
+    isPracticeMode = false;
+    // 点击完成弹窗后自动进行一次"新游戏"：棋盘、计时与记录都回到普通对局状态
+    if (typeof newGame === "function") newGame();
+    if (wasBasic) setTimeout(() => {
         document.getElementById("overlay").style.display = "block";
         document.getElementById("moreTutorialGuide").style.display = "block";
         AudioFX.modalOpen();
@@ -1722,7 +1744,7 @@ window.gotoMineInfo = gotoMineInfo;
 
 /**
  * 自由模式参数面板的「恢复默认」：按当前进度恢复四项标准参数
- * （四系列挑战全解锁前 8×8/4/2/3，全解锁后 10×10/6/3/4），
+ * （四个原有系列挑战全解锁前 8×8/4/2/3，全解锁后 10×10/6/3/4），
  * 与退出教学 / 创造后回到的标准档保持一致。
  * @sideeffect 改写 S/SR/SC/T/TY/SP 与四个参数显示，并脱离预设难度
  */

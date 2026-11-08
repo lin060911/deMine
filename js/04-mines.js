@@ -1,7 +1,7 @@
 /* ==========================================================================
  * 模块 04 · 地雷定义与战术结算（js/04-mines.js）
  *
- * 职责：定义 5 个系列共 22 种地雷的元数据与影响函数 f()，并把一份「已放置
+ * 职责：定义 6 个系列共 26 种地雷的元数据与影响函数 f()，并把一份「已放置
  *       地雷」结算成整盘影响值矩阵（含战术雷的连锁结算）。
  * 依赖：全局棋盘尺寸 SR / SC（00-core）与系列开启状态 seriesState（01-storage）。
  * 对外：CATEGORY、M、applyTacticalEffects、addVal、getEnabledMineKeys、
@@ -40,21 +40,82 @@ const CATEGORY = {
         order: 2,
         emoji: "☢️"
     },
+    // 扑克牌系列：以 5×5 的花色图形整体作为影响核，红桃 / 方块为负、黑桃 / 梅花为正
+    poker: {
+        name: "扑克牌系列",
+        order: 3,
+        emoji: "🃏"
+    },
     // 对称系列：同一个影响核在多个对称位置重复落子
     symmetry: {
         name: "对称系列",
-        order: 3,
+        order: 4,
         emoji: "‼️"
     },
     // 战术系列：不改几何形状，而是改写其他雷的结算方式
     tactical: {
         name: "战术系列",
-        order: 4,
+        order: 5,
         emoji: "🔫"
     }
 };
 
-/* ---------- 2. 图鉴总表：记录字段与影响核分组 ---------- */
+/* ---------- 2. 扑克牌图形核：5×5 花色矩阵 ---------- */
+/* 矩阵元素就是该相对格的增量：正数抬升、负数抵消、0 表示不影响；
+ * 中心格固定为 [2,2]。四种花色共用同一条 addPattern 叠加路径，
+ * 图鉴的 active 坐标表由 patternActiveCells 从矩阵推导，避免两处手写不一致。 */
+const POKER_PATTERN = {
+    // 红桃：整朵花形为负影响，中心也落在 -1 区域内
+    heart: [
+        [ 0, -1, 0, -1, 0 ],
+        [ -1, -1, -1, -1, -1 ],
+        [ -1, -1, -1, -1, -1 ],
+        [ 0, -1, -1, -1, 0 ],
+        [ 0, 0, -1, 0, 0 ]
+    ],
+    // 黑桃：整朵花形为 +2，中心是叶柄与桃心的交汇处
+    spade: [
+        [ 0, 0, 2, 0, 0 ],
+        [ 0, 2, 2, 2, 0 ],
+        [ 2, 2, 2, 2, 2 ],
+        [ 2, 2, 2, 2, 2 ],
+        [ 0, 2, 0, 2, 0 ]
+    ],
+    // 方块：菱形轮廓为负影响，外圈留空
+    diamond: [
+        [ 0, 0, -1, 0, 0 ],
+        [ 0, -1, -1, -1, 0 ],
+        [ -1, -1, -1, -1, -1 ],
+        [ 0, -1, -1, -1, 0 ],
+        [ 0, 0, -1, 0, 0 ]
+    ],
+    // 梅花：上部三瓣 + 中心竖茎 + 下部落叶的花形，范围内全部 +2（含中心）
+    club: [
+        [ 0, 0, 2, 0, 0 ],
+        [ 0, 2, 2, 2, 0 ],
+        [ 0, 0, 2, 0, 0 ],
+        [ 2, 2, 0, 2, 2 ],
+        [ 2, 2, 0, 2, 2 ]
+    ]
+};
+
+/**
+ * 从图形核矩阵推导图鉴预览的受影响格坐标（只收录非 0 格）。
+ * 定义 M 时即调用，图例坐标与真实结算矩阵因此保持同源。
+ * @param {number[][]} pattern 图形核矩阵
+ * @returns {number[][]} [行, 列] 坐标数组
+ */
+function patternActiveCells(pattern) {
+    const cells = [];
+    for (let r = 0; r < pattern.length; r++) {
+        for (let c = 0; c < pattern[r].length; c++) {
+            if (pattern[r][c] !== 0) cells.push([ r, c ]);
+        }
+    }
+    return cells;
+}
+
+/* ---------- 3. 图鉴总表：记录字段与影响核分组 ---------- */
 /* 图鉴记录字段约定：
  *   category  所属系列 key，用于图鉴分组与解锁筛选
  *   n / e     中文名 / 图鉴与棋盘上使用的 emoji
@@ -75,11 +136,12 @@ const CATEGORY = {
  * 影响核分组的阅读顺序：
  *   基础系列是纯几何核（矩形、线形），核与核之间可以直接叠加；
  *   异形、物理律系列仍是几何核，但允许负值、强度衰减与非矩形形状；
+ *   扑克牌系列把 5×5 的花色图形整体作为一个核，正负由花色决定；
  *   对称系列是同一个几何核在多个对称位置重复落子；
  *   战术系列的 f() 大多只写自身，真正的语义在 applyTacticalEffects 中结算。
  */
 const M = {
-    /* ---------- 3. 基础系列：纯几何影响核 ---------- */
+    /* ---------- 4. 基础系列：纯几何影响核 ---------- */
     // 基准核：3x3（含中心）+1，其他雷的影响范围都以它为单位描述
     normal: {
         category: "basic",
@@ -161,7 +223,7 @@ const M = {
             center: [ 2, 2 ]
         }
     },
-    /* ---------- 4. 异形系列：非矩形与稀疏影响核 ---------- */
+    /* ---------- 5. 异形系列：非矩形与稀疏影响核 ---------- */
     // 十字核：横竖各 2 格 +1，中心格只计一次；形状不属于矩形影响核，归入异形系列
     chiliPlus: {
         category: "special",
@@ -272,7 +334,7 @@ const M = {
             center: [ 2, 2 ]
         }
     },
-    /* ---------- 5. 物理律系列：带符号与强度梯度的核 ---------- */
+    /* ---------- 6. 物理律系列：带符号与强度梯度的核 ---------- */
     // 负影响核：3x3 -1，用于抵消周围雷的正向累加
     anti: {
         category: "physics",
@@ -365,7 +427,68 @@ const M = {
             values: [ [ 1, 1, 1, 1, 1 ], [ 1, -1, -1, -1, 1 ], [ 1, -1, -2, -1, 1 ], [ 1, -1, -1, -1, 1 ], [ 1, 1, 1, 1, 1 ] ]
         }
     },
-    /* ---------- 6. 对称系列：同一影响核在对称位置重复落子 ---------- */
+    /* ---------- 7. 扑克牌系列：5×5 花色图形核 ---------- */
+    // 红桃核：红桃花形范围内全部 -1（含中心），花形外不受影响
+    heart: {
+        category: "poker",
+        n: "红桃雷",
+        e: "♥️",
+        cls: "heart-bomb",
+        tip: "红桃花形5×5 -1",
+        f: (r, c, v) => addPattern(r, c, v, POKER_PATTERN.heart),
+        preview: {
+            size: 5,
+            active: patternActiveCells(POKER_PATTERN.heart),
+            center: [ 2, 2 ],
+            values: POKER_PATTERN.heart
+        }
+    },
+    // 黑桃核：黑桃花形范围内全部 +2（含中心），花形外不受影响
+    spade: {
+        category: "poker",
+        n: "黑桃雷",
+        e: "♠️",
+        cls: "spade-bomb",
+        tip: "黑桃花形5×5 +2",
+        f: (r, c, v) => addPattern(r, c, v, POKER_PATTERN.spade),
+        preview: {
+            size: 5,
+            active: patternActiveCells(POKER_PATTERN.spade),
+            center: [ 2, 2 ],
+            values: POKER_PATTERN.spade
+        }
+    },
+    // 方块核：菱形轮廓范围内全部 -1（含中心）
+    diamond: {
+        category: "poker",
+        n: "方块雷",
+        e: "♦️",
+        cls: "diamond-bomb",
+        tip: "方块花形5×5 -1",
+        f: (r, c, v) => addPattern(r, c, v, POKER_PATTERN.diamond),
+        preview: {
+            size: 5,
+            active: patternActiveCells(POKER_PATTERN.diamond),
+            center: [ 2, 2 ],
+            values: POKER_PATTERN.diamond
+        }
+    },
+    // 梅花核：梅花花形范围内全部 +2（含中心竖茎），花形外不受影响
+    club: {
+        category: "poker",
+        n: "梅花雷",
+        e: "♣️",
+        cls: "club-bomb",
+        tip: "梅花花形5×5 +2",
+        f: (r, c, v) => addPattern(r, c, v, POKER_PATTERN.club),
+        preview: {
+            size: 5,
+            active: patternActiveCells(POKER_PATTERN.club),
+            center: [ 2, 2 ],
+            values: POKER_PATTERN.club
+        }
+    },
+    /* ---------- 8. 对称系列：同一影响核在对称位置重复落子 ---------- */
     // 对称核：在自身与中心对称点各落一个 3x3 +1
     mirror: {
         category: "symmetry",
@@ -501,7 +624,7 @@ const M = {
             } ]
         }
     },
-    /* ---------- 7. 战术系列：f() 只写自身，语义在结算阶段展开 ---------- */
+    /* ---------- 9. 战术系列：f() 只写自身，语义在结算阶段展开 ---------- */
     // 特殊语义：本格 +1；邻域内每有一枚其他雷，就把该雷的 3x3 再加 1
     // 图例给两张：单独放置（只影响本格）与 3x3 内有普通雷（放大普通雷的范围）
     amplifier: {
@@ -650,7 +773,7 @@ const M = {
     }
 };
 
-/* ---------- 8. 战术连锁结算：护盾的优先级最高 ---------- */
+/* ---------- 10. 战术连锁结算：护盾的优先级最高 ---------- */
 /**
  * 把战术雷的特殊语义结算到影响矩阵上（原地修改 board）。
  * 结算顺序固定为：首轮护盾清零 → 放大器加成 → 虹吸器计数 → 末轮护盾清零。
@@ -716,7 +839,7 @@ function applyTacticalEffects(board, placed) {
     }
 }
 
-/* ---------- 9. 影响核写入辅助 ---------- */
+/* ---------- 11. 影响核写入辅助 ---------- */
 /**
  * 以 (r,c) 为中心，把增量 n 累加到半径 dr x dc 的矩形区域内（含中心）。
  * 越界格子直接跳过，因此棋盘边缘的雷也能安全调用。
@@ -735,7 +858,29 @@ function addVal(r, c, dr, dc, v, n) {
     }
 }
 
-/* ---------- 10. 图鉴筛选与随机牌池抽样 ---------- */
+/**
+ * 把一张奇数边长的图形核按中心 (r,c) 叠加到影响矩阵上：核内每个元素就是
+ * 该相对格的增量（可为正、负或 0），越界格直接跳过。
+ * 扑克牌系列的四种花色共用本函数，增删花色只需改 POKER_PATTERN。
+ * @param {number} r 中心行
+ * @param {number} c 中心列
+ * @param {number[][]} v 目标影响值矩阵
+ * @param {number[][]} pattern 图形核矩阵（3×3 / 5×5 等奇数边长）
+ * @sideeffect 直接修改入参 v
+ */
+function addPattern(r, c, v, pattern) {
+    const half = (pattern.length - 1) / 2;
+    for (let dr = 0; dr < pattern.length; dr++) {
+        for (let dc = 0; dc < pattern[dr].length; dc++) {
+            const n = pattern[dr][dc];
+            if (!n) continue;
+            let y = r + dr - half, x = c + dc - half;
+            if (y >= 0 && y < SR && x >= 0 && x < SC) v[y][x] += n;
+        }
+    }
+}
+
+/* ---------- 12. 图鉴筛选与随机牌池抽样 ---------- */
 /**
  * 返回当前已开启系列中的全部雷型 key。
  * 顺序跟随 M 的声明顺序；需要随机性时由调用方自行打乱。

@@ -121,7 +121,7 @@ function shuffleArr(arr) {
  */
 function genTutorialGame(categoryKey) {
     // 未指定系列时的默认牌库：普通雷 + 基础系列中较易理解的 4 种特殊雷
-    // （十字辣椒已归入异形系列，不再出现在基础挑战的牌库中）
+    // （十字辣椒已归入异形系列，不再出现在基础挑战的牌库中；扑克牌系列同样不进入）
     let allowed = [ "normal", "big5", "high", "chiliV", "chiliH" ];
     let forced = null;
     if (categoryKey) {
@@ -271,7 +271,7 @@ function renderMineInfo() {
     const list = document.getElementById("mineInfoList");
     let html = "";
     // 图鉴按固定系列顺序展示，不受对象属性枚举顺序影响
-    const catOrder = [ "basic", "special", "physics", "symmetry", "tactical" ];
+    const catOrder = [ "basic", "special", "physics", "poker", "symmetry", "tactical" ];
     catOrder.forEach(catKey => {
         let unlocked = seriesUnlocked[catKey];
         let cat = CATEGORY[catKey];

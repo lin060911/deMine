@@ -147,7 +147,7 @@
 
     <!-- 区块：挑战弹窗
          主按钮条「🎯挑战」打开，样式与「难度」弹窗一致；集中展示
-         教学 / 基础挑战 / 四个系列挑战的进度，每行右侧的「练习 / 挑战」
+         教学 / 基础挑战 / 五个系列挑战的进度，每行右侧的「练习 / 挑战」
          按钮负责进入对应的练习或挑战 -->
     <div class="game-modal" id="challengeModal" style="display:none;">
         <div class="game-modal-card">
@@ -163,7 +163,7 @@
                 </div>
                 <div class="sidebar-section">
                     <div class="tip-note">
-                        ✅ 完成基础挑战（5 关）解锁四个系列挑战<br>
+                        ✅ 完成基础挑战（5 关）解锁五个系列挑战<br>
                         🏅 通关系列挑战解锁该系列地雷与难度开关
                     </div>
                 </div>
@@ -227,8 +227,8 @@
     <!-- 区块：难度锁定与解锁提示弹窗群
          这一组弹窗在难度条件不满足或刚好满足时出现，用来解释原因或庆祝解锁：
            · #presetLockedModal   系列开关不足 3 个时尝试「困难」
-           · #hellLockedModal     地狱难度要求 5 个系列全部开启
-           · #brainUnlockedModal  地狱通关满 10 次后的脑王解锁庆祝
+           · #hellLockedModal     地狱难度要求至少 5 个系列开启（共 6 个）
+           · #brainUnlockedModal  地狱通关满 10 次且系列开关达 5 个时的脑王解锁庆祝
            · #brainLockedModal    脑王双条件未满足时说明当前进度
          显示与关闭都由 08-ui.js 的难度判定函数与 close* 函数负责 -->
     <div class="auto-modal" id="presetLockedModal" style="display:none;">
@@ -241,7 +241,7 @@
     <div class="auto-modal" id="hellLockedModal" style="display:none;">
         <div class="icon">👿</div>
         <h2>地狱之门紧闭</h2>
-        <p>需要开启<b>全部5个</b>系列开关<br>才能挑战地狱难度！<br>当前已开启 <span id="hellLockedCount">0</span>/5 个</p>
+        <p>需要开启<b>至少5个</b>（共6个）系列开关<br>才能挑战地狱难度！<br>当前已开启 <span id="hellLockedCount">0</span>/6 个</p>
         <button onclick="closeHellLockedModal()">知道了</button>
     </div>
 
@@ -255,7 +255,7 @@
     <div class="auto-modal" id="brainLockedModal" style="display:none;">
         <div class="icon">😓</div>
         <h2>脑王难度锁定中</h2>
-        <p>需要同时满足以下条件：<br>1️⃣ 地狱难度通关≥<b>10</b>次（当前 <span id="brainHellWins">0</span>/10）<br>2️⃣ 开启<b>全部5个</b>系列开关（当前 <span id="brainSeriesCount">0</span>/5）</p>
+        <p>需要同时满足以下条件：<br>1️⃣ 地狱难度通关≥<b>10</b>次（当前 <span id="brainHellWins">0</span>/10）<br>2️⃣ 开启<b>至少5个</b>（共6个）系列开关（当前 <span id="brainSeriesCount">0</span>/6）</p>
         <button onclick="closeBrainLockedModal()">知道了</button>
     </div>
 
@@ -280,11 +280,15 @@
 
     <!-- 区块：教学总进度条
          标题、进度文本与填充宽度全部由 09-tutorial.js 在教学中更新；
-         不在教学流程中时由 09-tutorial.js / 10-game.js 将其隐藏 -->
+         不在教学流程中时由 09-tutorial.js / 10-game.js 将其隐藏。
+         练习模式下换成「XX练习」标题 + 退出练习按钮，进度文本与轨道隐藏，
+         退出按钮调用 09-tutorial.js 的 exitPracticeMode() 回到标准参数新局 -->
     <div id="tutorialProgressBar">
         <div class="progress-header">
             <span class="progress-title" id="tutorialTitle">基础挑战</span>
             <span class="progress-text" id="tutorialProgressText">0/5</span>
+            <button class="practice-exit-btn" id="practiceExitBtn" type="button"
+                    onclick="exitPracticeMode()" style="display:none;">退出练习</button>
         </div>
         <div class="progress-track">
             <div class="progress-fill" id="tutorialProgressFill"></div>
@@ -341,15 +345,15 @@
     </div>
 
     <!-- 区块：教学完成弹窗
-         单关教学通过后由 09-tutorial.js 弹出，三个按钮分别进入下一关、
-         退出教学或转入基础挑战；按钮文案与显隐由教学流程决定 -->
+         单关教学通过后由 09-tutorial.js 弹出，「下一关」推进关卡、
+         末关显示「完成」与「进入基础挑战」；退出教学统一由地雷槽底部
+         （教学气泡之外）的按钮（#teachExitBtn）负责，本弹窗不再提供退出入口 -->
     <div class="teach-complete-modal" id="teachCompleteModal">
         <div class="icon" id="teachCompleteIcon">🎉</div>
         <h2 id="teachCompleteTitle">做得好！</h2>
         <p id="teachCompleteText">你已完成本关教学！</p>
         <div id="teachModalBtns">
             <button id="teachNextBtn" onclick="teachNextLevel()">下一关 ➡️</button>
-            <button id="teachExitBtn" onclick="teachExit()" style="margin-left:10px;background:#e53e3e;color:#fff;">退出教学</button>
             <button id="teachPracticeBtn" onclick="teachExitToPractice()" style="margin-left:10px;background:#4299e1;color:#fff;display:none;">📖 进入基础挑战</button>
         </div>
     </div>
@@ -397,8 +401,8 @@
     <!-- 区块：地雷 dock（含教学气泡）
          #slot 是玩家放置地雷的来源，由 06-render.js 的 renderSlot() 渲染；
          内嵌 #teachBubble 是教学提示气泡，规则高亮卡、文案与进度由
-         09-tutorial.js 按关卡填写。「清空放置」位于槽位内部底部（绝对定位，
-         不参与宽度计算），数量由 renderSlot() 同步、0 颗时置灰，教学模式下自动隐藏 -->
+         09-tutorial.js 按关卡填写。槽位内部底部还有「清空放置」入口
+         （绝对定位、不参与宽度计算，教学模式下随槽位隐藏） -->
     <div class="mine-slot-box" id="slot" style="display:none;">
         <div class="teach-bubble" id="teachBubble">
             <div class="teach-progress" id="teachProgress"></div>
@@ -418,6 +422,15 @@
         <div class="slot-clear-bar" id="slotClearBar">
             <button class="slot-clear-btn" id="slotClearBtn" type="button">🧹 清空放置<span class="slot-clear-count" id="slotClearCount">0</span></button>
         </div>
+    </div>
+
+    <!-- 区块：退出教学
+         完全独立于 #slot / 教学气泡的按钮条，排在地雷槽正下方，
+         默认隐藏、仅教学模式下（body.teach-mode）显示；每关完成弹窗里
+         不再单独提供退出入口 -->
+    <div class="teach-exit-bar" id="teachExitBar">
+        <button class="teach-exit-btn" id="teachExitBtn" type="button"
+                onclick="teachExit()">⬅️ 退出教学</button>
     </div>
 
     <!-- 区块：预设开局卡片
@@ -480,8 +493,8 @@
                     <li>解锁后可随时调整开关，无需切换模式</li>
                     <li>简单/中等：无系列门槛，可直接开始✅</li>
                     <li>困难：需开启≥3个系列开关</li>
-                    <li>地狱👿：需开启<b>全部</b>系列开关</li>
-                    <li>脑王🤯：地狱通关≥10次 + 全部系列开启</li>
+                    <li>地狱👿：需开启<b>至少5个</b>（共6个）系列开关</li>
+                    <li>脑王🤯：地狱通关≥10次 + 开启<b>至少5个</b>（共6个）系列开关</li>
                     <li>🔧自由模式：可自定义参数，不记录成绩</li>
                 </ul>
                 </div>
@@ -666,21 +679,24 @@
                 <button class="apply-input-btn" onclick="RMSave.exportSave()">📤 导出</button>
                 <button class="apply-input-btn" onclick="RMSave.pickFile()">📥 导入</button>
                 <button class="apply-input-btn rm-detail-btn" onclick="RMSave.showDetails()">📄 详情</button>
-                <button class="clear-input-btn" onclick="RMSave.resetSave()">🗑️ 清空存档</button>
             </div>
             <input type="file" id="saveFileInput" accept="application/json,.json" style="display:none">
             <div class="save-hint" id="saveHint">存档将导出为 JSON 文件<br>换设备 / 清缓存前可备份 🧳</div>
+            <div class="save-manage-row">
+                <button class="clear-input-btn" onclick="RMSave.resetSave()">🗑️ 清空存档</button>
+            </div>
+
         </div>
         <!-- 关于：版本号由 12-settings.js 从 RM.VERSION 写入，
              更新公告为静态摘要，避免多处版本号不一致 -->
         <div class="sidebar-section" id="AboutSection">
             <div class="sidebar-title about-title">ℹ️ 关于</div>
-            <div class="about-version">🔧 版本号 <strong id="aboutVersion">v1.3.6</strong></div>
+            <div class="about-version">🔧 版本号 <strong id="aboutVersion">v1.3.8</strong></div>
             <div class="about-announce">
                 <div class="about-announce-title">📣 更新公告</div>
                 <ul class="about-announce-list">
-                    <li><b>V1.3.6</b>：炸弹信息的影响范围图例更准确——环形雷本格标 0；镜像 / 阴阳 / 负镜像改为中心点示意；对称·叁雷改为横竖两条平分线；战术系列改为多张图例加说明。十字辣椒归入异形系列（🔶）；对角辣椒、大对角辣椒图标改为 ❌。</li>
-                    <li><b>V1.3.5</b>：系列开关按「始终开启 / 可选扩展」分组；锁定状态改为「🔒未解锁 / ✅已解锁」并显示各系列炸弹清单；基础系列开关加锁并提示始终开启；新增「🧭信息」跳转查看炸弹详情。</li>
+                    <li><b>V1.3.8</b>：挑战完成弹窗点击后自动开新局；练习模式顶部改为「XX练习」+ 退出按钮，不再累加挑战进度；教学模式底部新增「退出教学」按钮（完成弹窗内的退出按钮移除）；脑王门槛改为开启 5 个系列，与地狱相同。</li>
+                    <li><b>V1.3.7</b>：新增「🃏扑克牌系列」，位于物理律系列之后：♥️红桃 / ♦️方块为负、♠️黑桃 / ♣️梅花为正的 5×5 花色图形核，共 4 种新雷，图鉴、创造模式与槽位同步可用。地狱难度改为「开启 5 个系列」。</li>
                 </ul>
             </div>
             <div class="about-foot">© 2026 L1Nzy · lin060911@qq.com</div>
@@ -694,7 +710,7 @@
 
     <!-- 区块：页脚
          署名与联系方式，纯静态文本，脚本不依赖 -->
-    <footer class="sidebar-version">ReverseMinesweeper v1.3.6<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
+    <footer class="sidebar-version">ReverseMinesweeper v1.3.8<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
 
     <!-- 区块：脚本加载区（顺序即依赖）
          17 个外部脚本按 00 → 16 的书写顺序同步执行，共享同一个全局作用域：

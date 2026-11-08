@@ -3059,6 +3059,10 @@ input[type="range"] {
     inset: 0;
     z-index: 1200;
     overflow-y: auto;
+    /* 预留滚动条槽位：弹窗内容高度会随数据变化（例如系列全开时提示少一行），
+       滚动条忽隐忽现会让 margin:auto 居中的卡片横向偏移几个像素；
+       固定槽位后卡片位置与内容高度无关 */
+    scrollbar-gutter: stable;
     padding: 24px 16px calc(24px + env(safe-area-inset-bottom, 0px));
     background: rgba(12, 23, 36, .34);
     -webkit-backdrop-filter: blur(12px) saturate(130%);
@@ -3133,6 +3137,8 @@ input[type="range"] {
     max-height: calc(84vh - 76px);
     padding: 16px 20px 20px;
     overflow-y: auto;
+    /* 与弹窗外层同理：内容高度变化时不让内部滚动条改变内容可用宽度 */
+    scrollbar-gutter: stable;
     -webkit-overflow-scrolling: touch;
 }
 
@@ -4024,6 +4030,7 @@ body.drag-mode .cell.mine-here {
 }
 
 .rm-undo-btn {
+    background: #ffb051;
     width: 100%;
     margin-top: 8px;
 }
@@ -8828,3 +8835,118 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
         font-size: 10.5px;
     }
 }
+
+/* ==========================================================================
+   第 64 段：扑克牌系列地雷图形
+   --------------------------------------------------------------------------
+   职责：为扑克牌系列的四种花色雷提供图形尺寸，保证棋盘格、地雷槽、图鉴
+         三个位置的 emoji 视觉重量与既有雷种一致。
+   依赖：04-mines.js 中 M[].cls 的类名（heart-bomb / spade-bomb /
+         diamond-bomb / club-bomb）；花色 emoji 本身由 M[].e 渲染。
+   约束：本段只新增选择器，不覆盖前面任何规则；尺寸沿用现有的 22px 档，
+         不改变地雷卡布局与配色令牌。
+   ========================================================================== */
+/* 64.1 花色图形尺寸 */
+.heart-bomb,
+.spade-bomb,
+.diamond-bomb,
+.club-bomb {
+    font-size: 22px;
+}
+
+/* ==========================================================================
+ * 65. 练习模式进度条 / 教学退出按钮
+ * --------------------------------------------------------------------------
+ *   65.1 顶部进度条的练习形态：隐藏 n/5 文本与进度轨道，标题右侧显示
+ *        红色「退出练习」按钮（显隐由 09-tutorial.js 的 applyPracticeBar 控制）
+ *   65.2 教学模式的「退出教学」按钮：完全位于教学气泡（#slot）之外，
+ *        由 body.teach-mode 控制显隐，红色、图标 🔙
+ * 两个退出按钮统一沿用挑战入口「挑战」按钮的红色浅底样式
+ * （红色描边 + 红色淡底 + 深红文字）。
+ * 本段在文件最末，只新增选择器，不覆盖前面任何既有规则。
+ * ========================================================================== */
+
+/* ---- 65.1 练习模式进度条 ---- */
+#tutorialProgressBar.practice-mode .progress-header {
+    margin-bottom: 0;
+}
+
+#tutorialProgressBar .practice-exit-btn {
+    display: none;
+    flex: none;
+}
+
+/* ---- 65.2 教学气泡之外的「退出教学」 ---- */
+/* 退出条完全独立于地雷槽 / 教学气泡：作为 #slot 之后的兄弟节点排在其下方，
+   默认隐藏，教学模式下由 body.teach-mode 显示。 */
+.teach-exit-bar {
+    display: none;
+    justify-content: center;
+    align-items: center;
+    width: min(100%, 560px);
+    margin: 10px auto 0;
+    padding: 0;
+}
+
+body.teach-mode .teach-exit-bar {
+    display: flex;
+}
+
+/* ---- 两个退出按钮共用「挑战」按钮的红色浅底样式 ---- */
+#tutorialProgressBar .practice-exit-btn,
+.teach-exit-btn {
+    align-items: center;
+    justify-content: center;
+    height: 30px;
+    padding: 0 14px;
+    border: 1px solid rgba(229, 62, 62, .28);
+    border-radius: 9px;
+    background: rgba(229, 62, 62, .1);
+    color: #c53030;
+    font-size: 11.5px;
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+        background-color .2s ease,
+        box-shadow .2s ease,
+        transform .2s var(--rm-spring);
+}
+
+#tutorialProgressBar .practice-exit-btn:hover,
+.teach-exit-btn:hover {
+    background: rgba(229, 62, 62, .18);
+    box-shadow: 0 4px 12px rgba(229, 62, 62, .16);
+    transform: translateY(-1px);
+}
+
+#tutorialProgressBar .practice-exit-btn:active,
+.teach-exit-btn:active {
+    transform: scale(.97);
+}
+
+.teach-exit-btn {
+    display: inline-flex;
+    gap: 4px;
+    min-width: 128px;
+}
+
+/* 窄屏：两个退出按钮同步收窄，避免挤压标题与气泡正文 */
+@media (max-width: 700px) {
+    #tutorialProgressBar .practice-exit-btn,
+    .teach-exit-btn {
+        height: 28px;
+        padding: 0 12px;
+        font-size: 11px;
+    }
+
+    .teach-exit-bar {
+        width: 100%;
+    }
+
+    .teach-exit-btn {
+        min-width: 112px;
+    }
+}
+

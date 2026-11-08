@@ -47,7 +47,7 @@ const CREATE_MAX_CELLS = 400;
 
 /**
  * 收集创造模式可用的雷种键。
- * 创造模式不参与系列解锁限制：图鉴里的 22 种地雷全部可用，
+ * 创造模式不参与系列解锁限制：图鉴里的全部地雷（26 种）都可用，
  * 出题人可以自由组合任意系列的影响核（主局仍受系列开关控制）。
  * @returns {string[]} 雷种键数组，顺序沿用 M 的定义顺序
  */
@@ -391,15 +391,15 @@ function renderCreateBoard() {
 }
 
 /**
- * 渲染雷种面板：按系列分组，一行一个系列（基础 5 种、异形 5 种、其余系列各 4 种），
- * 22 张卡片按系列分布，作者能按影响核分组快速找雷。每张卡显示雷种图标、名称与
- * 已放数量；总数达到上限时全部置灰。
+ * 渲染雷种面板：按系列分组，一行一个系列（基础 5 种、异形 5 种，物理律 /
+ * 扑克牌 / 对称 / 战术各 4 种），26 张卡片按系列分布，作者能按影响核分组快速找雷。
+ * 每张卡显示雷种图标、名称与已放数量；总数达到上限时全部置灰。
  * @sideeffect 重建 #createMineSlot 的子节点（系列行 + 卡片）并绑定拖拽事件。
  */
 function renderCreateMineSlot() {
     let container = document.getElementById("createMineSlot");
     container.innerHTML = "";
-    // 全部 22 种雷都出现在面板里，逐个 filter 统计会白扫 22 遍，
+    // 全部 26 种雷都出现在面板里，逐个 filter 统计会白扫 26 遍，
     // 这里一次遍历得到每种雷的已放数量
     let used = {};
     for (let key in createPlaced) {
@@ -412,7 +412,7 @@ function renderCreateMineSlot() {
     let placedCount = Object.keys(createPlaced).length;
     // 达到上限后整块面板置灰，避免继续放置的请求被静默忽略
     let disabled = placedCount >= maxMines;
-    // 系列行按 CATEGORY.order 排序：基础 → 异形 → 物理律 → 对称 → 战术
+    // 系列行按 CATEGORY.order 排序：基础 → 异形 → 物理律 → 扑克牌 → 对称 → 战术
     Object.keys(CATEGORY).sort((a, b) => CATEGORY[a].order - CATEGORY[b].order).forEach(catKey => {
         let types = all.filter(t => M[t].category === catKey);
         if (!types.length) return;
@@ -443,10 +443,22 @@ function renderCreateMineSlot() {
 
 /* ---------- 5. 题库码生成与分享 ---------- */
 
+/* 题库码的雷种索引表：历史 22 种按旧版字典序冻结，新增雷种只能追加到末尾。
+ * 题库码只存 1 字节索引、没有版本号与键名，改动已有顺序会让旧码解码成别的雷种，
+ * 因此 11-create.js 的编码与解码都必须使用这张固定表，不能用 Object.keys(M).sort()。 */
+const MINE_CODE_TYPES = [
+    "amplifier", "anti", "big5", "bigBlackhole", "blackhole",
+    "chiliBigDiag", "chiliDiag", "chiliH", "chiliPlus", "chiliV",
+    "eight", "high", "locator", "mirror", "negativeMirror", "normal",
+    "radiation", "ring", "shield", "siphon", "triSym", "yinYang",
+    // 扑克牌系列（新增）：按字典序追加在历史索引之后，旧题库码的 0~21 保持不变
+    "club", "diamond", "heart", "spade"
+];
+
 /**
  * 把当前创造棋盘编码成可分享的题库码（Base64 文本）。
  * 编码格式：第 1 字节为行数、第 2 字节为列数；之后每个地雷固定 3 字节，
- * 依次为行号、列号、雷种索引（索引取自 Object.keys(M).sort() 的顺序）。
+ * 依次为行号、列号、雷种索引（索引取自 MINE_CODE_TYPES 的固定顺序）。
  * @sideeffect 把结果写入 #puzzleCodeOutput，并启用分享按钮。
  */
 function generatePuzzleCode() {
@@ -457,8 +469,8 @@ function generatePuzzleCode() {
     showCreateError("");
     let rows = createRows, cols = createCols;
     let placed = createPlaced;
-    // 按排序后的雷种键确定索引：与对象属性插入顺序无关，解码端可稳定还原
-    let allTypes = Object.keys(M).sort();
+    // 索引取自固定表：与对象属性枚举顺序、后续新增雷种都无关
+    let allTypes = MINE_CODE_TYPES;
     let typeIndex = {};
     allTypes.forEach((t, idx) => typeIndex[t] = idx);
     let numMines = Object.keys(placed).length;
@@ -613,8 +625,8 @@ function applyPuzzleCode() {
         // 尺寸必须落在创造模式的合法区间内，否则视为损坏的题库码
         if (rows < 4 || rows > 20 || cols < 4 || cols > 20) throw new Error("棋盘大小超出范围");
         if (rows * cols > 400) throw new Error("棋盘面积超出 400 格上限");
-        // 解码端的索引表必须与编码端一致：同样按排序后的雷种键生成
-        let allTypes = Object.keys(M).sort();
+        // 解码端与编码端共用同一张固定索引表，旧题库码的雷种不会错位
+        let allTypes = MINE_CODE_TYPES;
         let placed = {};
         let offset = 2;
         // 逐条读取 3 字节记录；不足一条的尾部字节直接忽略

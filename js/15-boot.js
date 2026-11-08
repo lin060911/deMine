@@ -12,7 +12,7 @@
  *      破坏性写入前调用 Store.backupCurrent() 留快照，可一键撤销。
  *   4) 存档详情：运行时创建 #rmSaveDetailOverlay / #rmSaveDetailModal，展示
  *      存储后端、编码体积、实时验签、各难度成绩、成就首末解锁时间与逐项时间、
- *      教学 / 基础 / 四系列挑战进度以及设置摘要。
+ *      教学 / 基础 / 五系列挑战进度以及设置摘要。
  * 依赖：00-core 的 RM（toast / onError / warn / missingModules）、
  *       01-storage 的 Store（exportFile / parseFile / importFile / profile /
  *       profileOfFile / previewMergeFile / getStatus / verify / inspect /
@@ -399,33 +399,33 @@
             mgGain: achDelta > 0
         });
 
-        // 挑战完成：基础挑战 + 四个系列挑战共 5 项，小字补充新手教学状态
+        // 挑战完成：基础挑战 + 五个系列挑战共 6 项，小字补充新手教学状态
         function teachSub(p) {
             return p.teachingDone ? "教学 ✅ 已完成" : "教学 未完成";
         }
         rows.push({
             k: "挑战完成",
-            cur: cell(cur.challengesDone + "/5", teachSub(cur)),
-            ov: cell(ov.challengesDone + "/5", teachSub(ov)),
-            mg: cell(mg.challengesDone + "/5", teachSub(mg)),
+            cur: cell(cur.challengesDone + "/" + SERIES_TOTAL, teachSub(cur)),
+            ov: cell(ov.challengesDone + "/" + SERIES_TOTAL, teachSub(ov)),
+            mg: cell(mg.challengesDone + "/" + SERIES_TOTAL, teachSub(mg)),
             ovLoss: ov.challengesDone < cur.challengesDone,
             mgGain: mg.challengesDone > cur.challengesDone
         });
 
-        // 系列解锁 / 开关：上限都是 5，三列统一显示 x/5 便于横向对比
+        // 系列解锁 / 开关：上限随系列总数变化，三列统一显示 x/n 便于横向对比
         rows.push({
             k: "系列解锁",
-            cur: cell(cur.seriesUnlocked + "/5"),
-            ov: cell(ov.seriesUnlocked + "/5"),
-            mg: cell(mg.seriesUnlocked + "/5"),
+            cur: cell(cur.seriesUnlocked + "/" + SERIES_TOTAL),
+            ov: cell(ov.seriesUnlocked + "/" + SERIES_TOTAL),
+            mg: cell(mg.seriesUnlocked + "/" + SERIES_TOTAL),
             ovLoss: ov.seriesUnlocked < cur.seriesUnlocked,
             mgGain: mg.seriesUnlocked > cur.seriesUnlocked
         });
         rows.push({
             k: "系列开关",
-            cur: cell(cur.seriesOn + "/5"),
-            ov: cell(ov.seriesOn + "/5"),
-            mg: cell(mg.seriesOn + "/5"),
+            cur: cell(cur.seriesOn + "/" + SERIES_TOTAL),
+            ov: cell(ov.seriesOn + "/" + SERIES_TOTAL),
+            mg: cell(mg.seriesOn + "/" + SERIES_TOTAL),
             ovLoss: ov.seriesOn < cur.seriesOn,
             mgGain: mg.seriesOn > cur.seriesOn
         });
@@ -1040,7 +1040,7 @@
         }
         parts.push("</div>");
 
-        // 🎯 挑战：新手教学 / 基础挑战 / 四个系列挑战
+        // 🎯 挑战：新手教学 / 基础挑战 / 五个系列挑战
         parts.push('<div class="rm-detail-sec"><div class="rm-detail-title">🎯 挑战</div>');
         var teach = insp.teaching || { done: false, total: 12 };
         var teachTotal = teach.total || 12;
@@ -1080,8 +1080,8 @@
         parts.push(dRow("音量", "🎵 背景音乐 " + (typeof snd.bgm === "number" ? snd.bgm : 50) +
             "% · 💥 音效 " + (typeof snd.sfx === "number" ? snd.sfx : 50) + "%"));
         var series = insp.series || {};
-        parts.push(dRow("开启系列", (series.onCount || 0) + " / 5 · 已解锁 " +
-            (series.unlockedCount || 0) + " / 5", "muted"));
+        parts.push(dRow("开启系列", (series.onCount || 0) + " / " + SERIES_TOTAL + " · 已解锁 " +
+            (series.unlockedCount || 0) + " / " + SERIES_TOTAL, "muted"));
         parts.push("</div>");
 
         parts.push("</div>"); // .rm-detail-body 结束

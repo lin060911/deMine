@@ -21,12 +21,33 @@
 
 /* ---------- 1. 挑战通关推进 ---------- */
 
+/* 练习通关后换题的定时器句柄：防止重复进入 checkWin 时叠加多个换题计时 */
+let _practiceNextTid = 0;
+
 /**
  * 挑战（基础 / 系列）通关后的推进：累计进度、解锁系列、进入下一关。
  * 第 5 关通关时弹出完成弹窗，否则显示轻提示并自动切到下一关。
+ * 练习模式走独立分支：不写进度、不解锁、不弹完成弹窗、不退出练习，
+ * 只做一次轻提示后自动换一道同系列的练习题。
  * @sideeffect 写入 Store 中的挑战进度，切换棋盘并可能解锁系列
  */
 function onTutorialWin() {
+    // 练习局不参与进度与解锁：轻提示后留在练习模式，自动换下一道题
+    if (isPracticeMode) {
+        // 胜利后任何一次重绘都会再次触发 checkWin，用句柄保证只安排一次换题
+        if (_practiceNextTid) return;
+        try {
+            RM.toast("练习完成！换一道题继续 ~ o((>ω< ))o", 1400);
+        } catch (e) {}
+        let cat = currentTutorialType;
+        _practiceNextTid = setTimeout(function() {
+            _practiceNextTid = 0;
+            // 期间玩家可能已点「退出练习 / 新游戏」：不再换题
+            if (!isPracticeMode || !isTutorialMode) return;
+            setupTutorialBoard(cat, true);
+        }, 600);
+        return;
+    }
     tutorialStep++;
     let cat = currentTutorialType;
     if (!cat) Store.set("tutorialStep", tutorialStep.toString()); else Store.set("tutorial_" + cat, tutorialStep.toString());
@@ -90,9 +111,10 @@ function onTutorialWin() {
 
 /**
  * 开始（或继续）基础挑战：从 Store 读取已通关的关卡数，直接进入对应关卡。
+ * @param {boolean} [practice] 是否为练习模式：练习不写进度、顶部只显示练习标题
  * @sideeffect 关闭遮罩，设置挑战模式状态并初始化挑战棋盘
  */
-function startTutorial() {
+function startTutorial(practice) {
     AudioFX.confirm();
     document.getElementById("overlay").style.display = "none";
     document.getElementById("tutorialPrompt").style.display = "none";
@@ -100,7 +122,7 @@ function startTutorial() {
     currentTutorialType = null;
     isTutorialMode = true;
     tutorialStep = parseInt(Store.get("tutorialStep")) || 0;
-    setupTutorialBoard(null);
+    setupTutorialBoard(null, practice);
 }
 
 /**
@@ -127,15 +149,24 @@ function openTutorialSelector() {
 /**
  * 初始化一局挑战：基础挑战固定 8×8、共 4 颗雷；系列挑战固定 10×10、5 颗雷。
  * @param {string|null} catKey 系列键；null 表示基础挑战
+ * @param {boolean} [practice] 是否为练习模式：练习局不写进度、顶部只显示练习标题
  * @sideeffect 重置棋局、写入棋盘参数与挑战状态，渲染棋盘
  */
-function setupTutorialBoard(catKey) {
+function setupTutorialBoard(catKey, practice) {
+    // 换题 / 切关时取消尚未执行的练习换题计时，避免旧计时覆盖新棋盘
+    if (_practiceNextTid) {
+        clearTimeout(_practiceNextTid);
+        _practiceNextTid = 0;
+    }
     // 生成期间用"加载中"占位遮住棋盘与地雷槽，生成完立即收起
     showBoardLoading();
     try {
         fullReset();
         currentTutorialType = catKey;
         isTutorialMode = true;
+        // fullReset 统一清空模式标记，这里按入口显式恢复练习标记：
+        // 练习局不写挑战进度、不触发解锁，退出后回到标准参数的新局
+        isPracticeMode = !!practice;
         window._guideLockedSeries = null;
         window._guideLockedDifficulty = null;
         // 必须显式写 SR/SC，否则会沿用上一局（如 hard 的 12×12）
@@ -168,6 +199,7 @@ function setupTutorialBoard(catKey) {
 
 /**
  * 刷新挑战进度条与标题：基础挑战与各系列挑战分别读取自己的进度。
+ * 练习模式下不展示 n/5 进度，改为「XX练习」标题 + 退出练习按钮。
  * @param {string|null} catKey 系列键；null 表示基础挑战
  * @sideeffect 显示进度条，写入 tutorialStep 与标题文本
  */
@@ -175,6 +207,14 @@ function showTutorialProgress(catKey) {
     let bar = document.getElementById("tutorialProgressBar");
     bar.style.display = "block";
     let title = document.getElementById("tutorialTitle");
+    if (isPracticeMode) {
+        // 练习不计进度：标题只写「XX练习」，进度文本与轨道由退出按钮取代
+        title.textContent = (catKey && CATEGORY[catKey] ? CATEGORY[catKey].name : "基础") + "练习";
+        applyPracticeBar(true);
+        updateTutorialProgress();
+        return;
+    }
+    applyPracticeBar(false);
     if (!catKey) {
         title.textContent = "基础挑战";
         tutorialStep = parseInt(Store.get("tutorialStep")) || 0;
@@ -183,6 +223,46 @@ function showTutorialProgress(catKey) {
         tutorialStep = parseInt(Store.get("tutorial_" + catKey)) || 0;
     }
     updateTutorialProgress();
+}
+
+/**
+ * 切换顶部进度条的「挑战 / 练习」两种形态：练习时隐藏进度文本与轨道、
+ * 显示「退出练习」按钮；挑战时反向恢复。
+ * @param {boolean} on 是否进入练习形态
+ * @sideeffect 修改 #tutorialProgressText / 进度轨道 / #practiceExitBtn 的显隐
+ */
+function applyPracticeBar(on) {
+    let text = document.getElementById("tutorialProgressText");
+    let track = document.querySelector("#tutorialProgressBar .progress-track");
+    let btn = document.getElementById("practiceExitBtn");
+    let bar = document.getElementById("tutorialProgressBar");
+    if (text) text.style.display = on ? "none" : "";
+    if (track) track.style.display = on ? "none" : "";
+    if (btn) btn.style.display = on ? "inline-flex" : "none";
+    if (bar) bar.classList.toggle("practice-mode", on);
+}
+
+/**
+ * 退出练习：清掉练习与教学标记、恢复标准参数并直接开一局新游戏。
+ * 与挑战完成时的自动新局保持同一套收尾（见 08-ui 的 closeTutorialComplete）。
+ * @sideeffect 隐藏进度条、重置模式标记并重新生成棋盘
+ */
+function exitPracticeMode() {
+    AudioFX.confirm();
+    // 取消可能存在的练习换题计时，避免退出后又换出一块练习棋盘
+    if (_practiceNextTid) {
+        clearTimeout(_practiceNextTid);
+        _practiceNextTid = 0;
+    }
+    isPracticeMode = false;
+    isTutorialMode = false;
+    currentTutorialType = null;
+    document.getElementById("tutorialProgressBar").style.display = "none";
+    applyPracticeBar(false);
+    // 练习棋盘是 10×10 / 5 雷的挑战配比，退出后回到当前进度的标准参数
+    applyStandardParams();
+    newGame();
+    if (typeof guideRefresh === "function") guideRefresh();
 }
 
 /**
@@ -231,9 +311,10 @@ window.showBasicRequiredModal = showBasicRequiredModal;
 /**
  * 开始某个系列的挑战：先过基础挑战门禁，再续玩该系列自己的进度。
  * @param {string} catKey 系列键
+ * @param {boolean} [practice] 是否为练习模式：练习不读进度、不写进度
  * @sideeffect 关闭遮罩、设置挑战状态并初始化棋盘
  */
-function startCategoryTutorial(catKey) {
+function startCategoryTutorial(catKey, practice) {
     AudioFX.confirm();
     // 门禁：基础挑战未完成时，系列挑战一律不可进入
     if (catKey && !isBasicChallengeDone()) {
@@ -242,13 +323,23 @@ function startCategoryTutorial(catKey) {
     }
     currentTutorialType = catKey;
     isTutorialMode = true;
-    // 已解锁的系列续玩本系列进度，未解锁的系列从第 0 关开始
-    tutorialStep = seriesUnlocked[catKey] ? parseInt(Store.get("tutorial_" + catKey)) || 0 : 0;
+    // 已解锁的系列续玩本系列进度，未解锁的系列从第 0 关开始；
+    // 练习模式不读进度，内部进度值固定为满进度（顶部不展示 n/5）
+    tutorialStep = practice ? 5 : (seriesUnlocked[catKey] ? parseInt(Store.get("tutorial_" + catKey)) || 0 : 0);
     document.getElementById("overlay").style.display = "none";
-    setupTutorialBoard(catKey);
+    setupTutorialBoard(catKey, practice);
     closeChallengeEntryPanels();
     // 进入系列挑战不改变存档进度，但顺手刷新挑战面板，保证弹窗数据最新
     if (typeof renderChallengeList === "function") renderChallengeList();
+}
+
+/**
+ * 开始某个系列的练习：复用系列挑战的棋盘与流程，但不记进度、不解锁。
+ * @param {string} catKey 系列键
+ * @sideeffect 同 startCategoryTutorial，额外置练习标记
+ */
+function startCategoryPractice(catKey) {
+    startCategoryTutorial(catKey, true);
 }
 
 /**
@@ -625,12 +716,13 @@ function openTeachMode() {
 }
 
 /**
- * 从主界面直接开始基础挑战（练习入口）。
- * @sideeffect 转交给 startTutorial
+ * 从主界面直接开始基础挑战的练习：顶部显示「基础练习」+ 退出练习按钮，
+ * 不写挑战进度，通关后自动开新局。
+ * @sideeffect 转交给 startTutorial 并标记练习模式
  */
 function openPracticeMode() {
     AudioFX.confirm();
-    startTutorial();
+    startTutorial(true);
     closeChallengeEntryPanels();
 }
 
@@ -1114,15 +1206,14 @@ function teachLevelComplete() {
     document.getElementById("teachCompleteTitle").textContent = `${lvl.title} 完成！`;
     let isLast = teachLevelIdx === TEACH_LEVELS.length - 1;
     let nextBtn = document.getElementById("teachNextBtn");
-    let exitBtn = document.getElementById("teachExitBtn");
     let practiceBtn = document.getElementById("teachPracticeBtn");
     if (isLast) {
-        // 最后一关：主按钮变为"完成"，隐藏退出、显示"去练习"
+        // 最后一关：主按钮变为"完成"，显示"去练习"；退出教学统一走
+        // 教学气泡底部的「退出教学」按钮（#teachExitBtn）
         document.getElementById("teachCompleteText").innerHTML = "🎓 恭喜完成全部教学！<br>准备好挑战基础挑战了吗？";
         nextBtn.textContent = "完成 🏆";
         nextBtn.onclick = teachExit;
         nextBtn.style.display = "";
-        exitBtn.style.display = "none";
         practiceBtn.style.display = "";
         try {
             Store.set("teachFinished", "true");
@@ -1132,13 +1223,13 @@ function teachLevelComplete() {
             window.Achievements.unlock("finish_tutorial");
         }
     } else {
-        // 非最后一关：主按钮进入下一关，"退出"和"练习"保持可用
+        // 非最后一关：主按钮进入下一关，"练习"入口保持可用；
+        // 退出教学统一由教学气泡底部的按钮负责
         let nextLvl = TEACH_LEVELS[teachLevelIdx + 1];
         document.getElementById("teachCompleteText").innerHTML = `做得好！接下来学习：${nextLvl.title}`;
         nextBtn.textContent = "下一步 ➡️";
         nextBtn.onclick = teachNextLevel;
         nextBtn.style.display = "";
-        exitBtn.style.display = "";
         practiceBtn.style.display = "none";
         AudioFX.win();
     }

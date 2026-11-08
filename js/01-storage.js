@@ -60,9 +60,14 @@
 
     /* 难度顺序：与 00-core 的 PRE、08-ui 的成绩列表保持一致 */
     var DIFFS = [ "easy", "medium", "hard", "hell", "brain" ];
-    /* 系列顺序：与 04-mines 的 CATEGORY 保持一致 */
-    var SERIES = [ "basic", "special", "physics", "symmetry", "tactical" ];
-    var SERIES_NONBASIC = [ "special", "physics", "symmetry", "tactical" ];
+    /* 系列位序：顺序决定存档位图的 bit 序号，新增系列只能追加到数组末尾；
+     * 界面展示顺序由 04-mines 的 CATEGORY.order 决定，两者互不影响。 */
+    var SERIES = [ "basic", "special", "physics", "symmetry", "tactical", "poker" ];
+    /* 结构化挑战进度段的写入顺序：二进制布局固定为这 4 个系列，
+     * 新增系列（扑克牌）的进度改走附加 JSON 键 tutorial_poker，避免旧存档错位。 */
+    var SERIES_STORED_NONBASIC = [ "special", "physics", "symmetry", "tactical" ];
+    /* 挑战面板与存档汇总使用的全部非基础系列（含扑克牌），顺序与 CATEGORY.order 一致 */
+    var SERIES_NONBASIC = [ "special", "physics", "poker", "symmetry", "tactical" ];
 
     /* 成就 id 顺序：存档位图的位序；缺失时退化为通用 JSON 保存（不失数据） */
     var ACH_IDS = (RM && Array.isArray(RM.ACH_IDS)) ? RM.ACH_IDS.slice(0) : null;
@@ -706,7 +711,7 @@
      * 与 Store.get 的返回值完全一致，业务模块无需感知二进制格式。 */
 
     function defaultSeriesObj() {
-        return { basic: true, special: false, physics: false, symmetry: false, tactical: false };
+        return { basic: true, special: false, physics: false, symmetry: false, tactical: false, poker: false };
     }
 
     /**
@@ -732,6 +737,8 @@
         m.tutorial_physics = "0";
         m.tutorial_symmetry = "0";
         m.tutorial_tactical = "0";
+        // 扑克牌系列没有独立的二进制段，进度以附加 JSON 键保存（与其它 tutorial_ 键同前缀）
+        m.tutorial_poker = "0";
         m.placeMode_v1 = "drag";
         m.mineInfluenceHint = "false";
         m.mineEffectPreview = "false";
@@ -1001,15 +1008,16 @@
     }
 
     /**
-     * 编码挑战进度：基础 + 四个系列各 3 bit 以内的步数（用 1 字节表示 0~5）。
+     * 编码挑战进度：基础 + 4 个早期系列各 1 字节步数（0~5），再跟 1 字节完成标记。
+     * 布局固定为历史版本，新增系列（扑克牌）不写入本段，改用附加 JSON 键。
      * @param {Writer} w 写入器
      * @param {Object} map rawMap
      */
     function encodeChallenges(w, map) {
         w.u8(readStep(map, "tutorialStep"));
         var i;
-        for (i = 0; i < SERIES_NONBASIC.length; i++) {
-            w.u8(readStep(map, "tutorial_" + SERIES_NONBASIC[i]));
+        for (i = 0; i < SERIES_STORED_NONBASIC.length; i++) {
+            w.u8(readStep(map, "tutorial_" + SERIES_STORED_NONBASIC[i]));
         }
         var flags = 0;
         if (map.tutorialCompleted === "true") flags |= 1;
@@ -1019,14 +1027,15 @@
 
     /**
      * 解码挑战进度，写入 tutorialStep / tutorial_<系列> 与完成标记。
+     * 只解出二进制段内的 4 个系列；扑克牌进度由 decodeExtras 从附加 JSON 补回。
      * @param {Reader} r 读取器
      * @param {Object} map 目标 rawMap
      */
     function decodeChallenges(r, map) {
         map.tutorialStep = String(clamp(r.u8(), 0, 5));
         var i;
-        for (i = 0; i < SERIES_NONBASIC.length; i++) {
-            map["tutorial_" + SERIES_NONBASIC[i]] = String(clamp(r.u8(), 0, 5));
+        for (i = 0; i < SERIES_STORED_NONBASIC.length; i++) {
+            map["tutorial_" + SERIES_STORED_NONBASIC[i]] = String(clamp(r.u8(), 0, 5));
         }
         var flags = r.u8();
         if (flags & 1) map.tutorialCompleted = "true";
@@ -1056,7 +1065,7 @@
     }
 
     /**
-     * 编码系列开关与解锁状态：各用 5 bit。
+     * 编码系列开关与解锁状态：各用一个 u8 位图（当前使用 6 bit，剩余位留给后续系列）。
      * @param {Writer} w 写入器
      * @param {Object} map rawMap
      */
@@ -2182,7 +2191,7 @@
     }
 
     /**
-     * 汇总挑战：基础 + 四个系列 + 教学完成状态。
+     * 汇总挑战：基础 + 五个非基础系列 + 教学完成状态。
      * @param {Object} map rawMap
      * @returns {{list:Array, teachingDone:boolean, basicDone:boolean, doneCount:number}}
      */
@@ -2569,15 +2578,19 @@ let brainUnlockedNotified = Store.get("brainUnlockedNotified") === "true";
 
 /**
  * 读取系列开启状态；存储值必须是普通对象，否则返回默认状态。
+ * 旧存档没有扑克牌键时按「未开启」补齐，避免调用方读到 undefined。
  * @returns {{basic:boolean,special:boolean,physics:boolean,
- *   symmetry:boolean,tactical:boolean}}
+ *   symmetry:boolean,tactical:boolean,poker:boolean}}
  */
 function getSeriesState() {
     let saved = Store.get("seriesState");
     if (saved) {
         try {
             const v = JSON.parse(saved);
-            if (v && typeof v === "object" && !Array.isArray(v)) return v;
+            if (v && typeof v === "object" && !Array.isArray(v)) {
+                if (v.poker === undefined) v.poker = false;
+                return v;
+            }
         } catch (e) {}
     }
     return {
@@ -2585,7 +2598,8 @@ function getSeriesState() {
         special: false,
         physics: false,
         symmetry: false,
-        tactical: false
+        tactical: false,
+        poker: false
     };
 }
 
@@ -2599,15 +2613,19 @@ function saveSeriesState(s) {
 
 /**
  * 读取系列解锁状态；存储值必须是普通对象，否则返回默认状态。
+ * 旧存档没有扑克牌键时按「未解锁」补齐，避免调用方读到 undefined。
  * @returns {{basic:boolean,special:boolean,physics:boolean,
- *   symmetry:boolean,tactical:boolean}}
+ *   symmetry:boolean,tactical:boolean,poker:boolean}}
  */
 function getSeriesUnlocked() {
     let saved = Store.get("seriesUnlocked");
     if (saved) {
         try {
             const v = JSON.parse(saved);
-            if (v && typeof v === "object" && !Array.isArray(v)) return v;
+            if (v && typeof v === "object" && !Array.isArray(v)) {
+                if (v.poker === undefined) v.poker = false;
+                return v;
+            }
         } catch (e) {}
     }
     return {
@@ -2615,7 +2633,8 @@ function getSeriesUnlocked() {
         special: false,
         physics: false,
         symmetry: false,
-        tactical: false
+        tactical: false,
+        poker: false
     };
 }
 

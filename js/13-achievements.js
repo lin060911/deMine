@@ -358,13 +358,13 @@
         cat: "隐藏",
         emoji: "😨",
         name: "场面一度十分混乱",
-        desc: "单局用上五大系列的道具并通关",
+        desc: "单局用上六大系列的道具并通关",
         tip: "哇。。好多雷啊。。",
         type: "special",
         hidden: true,
         check: function() {
-            // 本局使用过的雷种系列数达到 5 个
-            return _achState.currentRunCategories && _achState.currentRunCategories.size >= 5;
+            // 本局使用过的雷种系列数达到 6 个（基础 + 五个可选系列）
+            return _achState.currentRunCategories && _achState.currentRunCategories.size >= 6;
         }
     }, {
         id: "hidden_flawless",
@@ -815,7 +815,7 @@
             setCounter("play_shared_5", _achState.sharedWins);
             window._currentIsShared = false;
         }
-        if (_achState.currentRunCategories && _achState.currentRunCategories.size >= 5) unlock("hidden_chaos");
+        if (_achState.currentRunCategories && _achState.currentRunCategories.size >= 6) unlock("hidden_chaos");
         // 通用 special 判定：非隐藏且未解锁的成就逐个执行 check，
         // 单个判定抛异常时忽略该成就，不影响其余成就结算
         ACHIEVEMENTS.forEach(a => {

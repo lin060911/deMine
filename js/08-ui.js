@@ -2,11 +2,12 @@
  * 模块 08 · 界面与弹窗（js/08-ui.js）
  *
  * 职责：管理侧边栏与信息栏折叠、难度弹窗与系列开关、成绩记录渲染、
- *       胜利判定与通关庆祝，以及所有弹窗的打开 / 关闭策略。
- * 依赖：00-core 的全局状态与工具（RM、G、diff、S / SR / SC）；01-storage 的
- *       Store 与成绩 / 系列状态（wins、rec、lt、seriesState）；02-audio 的
- *       AudioFX；04-mines 的 M / CATEGORY；06-render、07-board 提供的渲染与
- *       交互。
+ *       胜利判定与通关庆祝，以及所有弹窗的打开 / 关闭策略；
+ *       硬核模式的通关成绩在这里单独记账（与普通成绩互不覆盖）。
+ * 依赖：00-core 的全局状态与工具（RM、G、diff、isHardcoreMode、S / SR / SC）；
+ *       01-storage 的 Store 与成绩 / 系列状态（wins、rec、lt、hcWins、hcRec、
+ *       hcLt、seriesState）；02-audio 的 AudioFX；04-mines 的 M / CATEGORY；
+ *       06-render、07-board 提供的渲染与交互。
  * 对外：window.closeAllModals、window.syncMainPanel、window.gotoSeriesChallenge、
  *       window.onLockedSeriesClick、window.openDifficultyModal、window.renderChallengeList
  *       等界面入口。
@@ -356,6 +357,8 @@ function openDifficultyModal() {
     closeSidebarsExcept(null);
     renderSeriesSwitches();
     updatePresetButtons();
+    // 硬核开关是跨局偏好：每次打开都按当前状态刷新外观与锁定提示
+    if (typeof syncHardcoreUI === "function") syncHardcoreUI();
     const m = document.getElementById("difficultyModal");
     if (m) m.style.display = "block";
     if (typeof guideRefresh === "function") guideRefresh();
@@ -669,12 +672,12 @@ function renderSeriesSwitches() {
         let need;
         if (onCount < 3) need = "困难需<strong>≥3</strong>个 · 地狱/脑王需<strong>≥" + HELL_SERIES_REQ + "</strong>个";
         else if (onCount < HELL_SERIES_REQ) need = "困难可用✅ · 地狱/脑王需<strong>≥" + HELL_SERIES_REQ + "</strong>个";
-        else if ((wins.hell || 0) >= BRAIN_HELL_WINS_REQ) need = "地狱 & 脑王均可挑战 ✅";
+        else if (getHellWinCount() >= BRAIN_HELL_WINS_REQ) need = "地狱 & 脑王均可挑战 ✅";
         else need = "地狱可用✅ · 脑王需地狱通关<strong>" + BRAIN_HELL_WINS_REQ + "</strong>次";
         hint.innerHTML = `已开启<strong> ${onCount}/${SERIES_TOTAL} </strong>个系列<br>${need}`;
     } else {
         hint.className = "switch-hint unlock-hint";
-        let brainReady = (wins.hell || 0) >= BRAIN_HELL_WINS_REQ;
+        let brainReady = getHellWinCount() >= BRAIN_HELL_WINS_REQ;
         // 与上面几种档位保持同样的两行结构：避免全开时提示少一行导致
         // 弹窗内容高度变化（滚动条隐现会让居中卡片横向偏移几个像素）
         hint.innerHTML = brainReady ? `全部 ${onCount}/${SERIES_TOTAL} 已开启 ✅<br>地狱 & 脑王均可挑战` : `全部 ${onCount}/${SERIES_TOTAL} 已开启 ✅<br>地狱可用 · 脑王需地狱通关<strong>${BRAIN_HELL_WINS_REQ}</strong>次`;
@@ -724,11 +727,23 @@ function getSeriesOnCount() {
 }
 
 /**
+ * 地狱难度的累计通关次数：普通局与硬核局合并计算，用于脑王解锁门槛。
+ * 成绩栏仍分别展示两条记录，门槛只看"通关过多少次地狱"。
+ * @returns {number} 非负整数
+ */
+function getHellWinCount() {
+    let n = wins.hell || 0;
+    // 硬核成绩变量由 01-storage 提供；极简运行环境缺失时按 0 处理
+    if (typeof hcWins !== "undefined") n += hcWins.hell || 0;
+    return n;
+}
+
+/**
  * 判断"脑王"是否已解锁：地狱通关达到指定次数且系列开关达到与地狱相同的门槛。
  * @returns {boolean} true 表示可以挑战脑王
  */
 function checkBrainUnlocked() {
-    let hellWins = wins.hell || 0;
+    let hellWins = getHellWinCount();
     let seriesCount = getSeriesOnCount();
     return hellWins >= BRAIN_HELL_WINS_REQ && seriesCount >= HELL_SERIES_REQ;
 }
@@ -798,7 +813,7 @@ function checkPresetAllowed(d) {
 function showPresetLockedModal(d) {
     document.getElementById("overlay").style.display = "block";
     if (d === "brain") {
-        document.getElementById("brainHellWins").textContent = wins.hell || 0;
+        document.getElementById("brainHellWins").textContent = getHellWinCount();
         document.getElementById("brainSeriesCount").textContent = getSeriesOnCount();
         document.getElementById("brainLockedModal").style.display = "block";
     } else if (d === "hell") {
@@ -918,6 +933,8 @@ function enterPresetPending(d) {
     document.getElementById("presetStartTagText").textContent = labelMap[d] || d;
     document.getElementById("presetStartCard").style.display = "flex";
     AudioFX.modalOpen();
+    // 预设待开局时棋盘尚未生成：同步隐藏「地块准确数」提示，避免残留上一局数字
+    if (typeof refreshHardcoreStat === "function") refreshHardcoreStat();
 }
 
 /* ---------- 11. 参数调整与成绩记录 ---------- */
@@ -976,7 +993,9 @@ function applySet() {
 
 /**
  * 通关结算：记录本局用时、最快纪录与通关次数，并检查脑王解锁条件。
- * @sideeffect 写入 lt / rec / wins 并持久化，刷新成绩列表
+ * 硬核模式的成绩写入独立的 mineHardcoreWins / Records / LastTimes，
+ * 与普通成绩互不覆盖；地狱通关次数在脑王门槛判定时合并计算。
+ * @sideeffect 写入 lt / rec / wins（或硬核三组）并持久化，刷新成绩列表
  */
 function saveRec() {
     if (!diff) return;
@@ -986,16 +1005,29 @@ function saveRec() {
         return;
     }
     const _ms = RM.timer.ms();
-    lt[diff] = _ms;
-    Store.save("mineLastTimes", lt);
-    // 只有比历史最快更短才刷新纪录
-    if (rec[diff] === null || _ms < rec[diff]) {
-        rec[diff] = _ms;
-        Store.save("mineRecords", rec);
+    if (isHardcoreMode) {
+        // 硬核局单独记账：普通难度的通关次数与最快纪录保持不变
+        hcLt[diff] = _ms;
+        Store.save("mineHardcoreLastTimes", hcLt);
+        if (hcRec[diff] === null || _ms < hcRec[diff]) {
+            hcRec[diff] = _ms;
+            Store.save("mineHardcoreRecords", hcRec);
+        }
+        hcWins[diff] = (hcWins[diff] || 0) + 1;
+        Store.save("mineHardcoreWins", hcWins);
+    } else {
+        lt[diff] = _ms;
+        Store.save("mineLastTimes", lt);
+        // 只有比历史最快更短才刷新纪录
+        if (rec[diff] === null || _ms < rec[diff]) {
+            rec[diff] = _ms;
+            Store.save("mineRecords", rec);
+        }
+        wins[diff] = (wins[diff] || 0) + 1;
+        Store.save("mineWins", wins);
     }
-    wins[diff] = (wins[diff] || 0) + 1;
-    Store.save("mineWins", wins);
     renderRecordList();
+    // 地狱通关（普通或硬核）都可能凑满脑王门槛，统一在门槛函数里合并计数
     if (diff === "hell" && !brainUnlockedNotified) {
         if (checkBrainUnlocked()) {
             brainUnlockedNotified = true;
@@ -1052,6 +1084,9 @@ const RECORD_META = {
  *
  * 条目结构与「挑战」面板统一：每行一张浅灰圆角卡，顶部一行是
  * 难度名 + 通关次数徽标，下面一行是「最快」与最近一次用时两项数据。
+ * 完成过硬核通关的难度，会在同一张卡内、普通成绩下方追加一条
+ * 用虚线分隔的「🪚 硬核」子行（未完成过硬核通关则不显示），
+ * 使硬核记录与所属难度始终放在同一个面板里。
  * 列宽与字号与挑战条目一致。
  * @sideeffect 重写 #achRecordList 的 innerHTML，并更新折叠标题右侧摘要
  */
@@ -1084,6 +1119,21 @@ function renderRecordList() {
         html += `<span>最快 <b class="record-best">${fmtTime(rec[d])}</b></span>`;
         html += `<span>本次 <b class="record-current">${fmtTime(lt[d])}</b></span>`;
         html += `</div>`;
+        // 硬核成绩：不单独成卡，只在该难度完成过硬核通关时追加一条子行
+        const hcWin = (typeof hcWins !== "undefined" && hcWins[d]) ? hcWins[d] : 0;
+        if (hcWin > 0) {
+            totalWins += hcWin;
+            html += `<div class="record-hc">`;
+            html += `<div class="record-row">`;
+            html += `<span class="record-label">🪚 硬核</span>`;
+            html += `<span class="record-badge">${hcWin} 次</span>`;
+            html += `</div>`;
+            html += `<div class="record-meta">`;
+            html += `<span>最快 <b class="record-best">${fmtTime(typeof hcRec !== "undefined" ? hcRec[d] : null)}</b></span>`;
+            html += `<span>本次 <b class="record-current">${fmtTime(typeof hcLt !== "undefined" ? hcLt[d] : null)}</b></span>`;
+            html += `</div>`;
+            html += `</div>`;
+        }
         html += `</div>`;
     });
     list.innerHTML = html;

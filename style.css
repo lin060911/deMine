@@ -8950,3 +8950,132 @@ body.teach-mode .teach-exit-bar {
     }
 }
 
+/* ==========================================================================
+ * 66. 硬核模式：棋盘配色 / 开关 / 地块准确数 / 成绩条目
+ * --------------------------------------------------------------------------
+ * 本段在文件最末，只新增选择器并覆盖少量既有配色，靠书写顺序与更高特异性生效。
+ *   66.1 主棋盘硬核配色：数字格灰白、0 格蓝色，不随局面变化
+ *   66.2 难度弹窗「🪚 硬核模式」区块与开关
+ *   66.3 设置栏两项地块提示的锁定态
+ *   66.4 棋盘上方的「地块准确数」提示
+ *   66.5 成绩栏的硬核子行（与所属难度共用同一张成绩卡）
+ * 约束：硬核配色只在 body.hc-mode 下生效，教学棋盘与创造棋盘不受影响；
+ *       本段不修改三态类（.cell-valid / .cell-low / .cell-over）的任何规则。
+ * ========================================================================== */
+
+/* ---- 66.1 主棋盘硬核配色 ----
+   updateCell 在硬核模式下只写 hc-num / hc-zero 两个类：数字格取灰白，
+   数值为 0 的空地取传统扫雷的蓝色；颜色只由题面数字决定，与局面无关。 */
+body.hc-mode #board .cell.hc-num {
+    background: linear-gradient(180deg, #f2f4f7, #e2e6ec);
+    box-shadow: inset 0 0 0 1px rgba(120, 134, 150, .22);
+}
+
+body.hc-mode #board .cell.hc-zero {
+    background: linear-gradient(180deg, #5b9bd5, #4583c4);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .16);
+}
+
+/* 蓝底上的地雷 emoji 加一圈白光，保证在深色背景上仍然清晰 */
+body.hc-mode #board .cell.hc-zero.mine-here .cell-mine {
+    filter: drop-shadow(0 0 2px rgba(255, 255, 255, .92));
+}
+
+/* 悬停改为半透明白色描边，贴合传统扫雷的凸起手感，不引入状态色 */
+body.hc-mode #board .cell:hover {
+    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .75), 0 2px 8px rgba(18, 38, 58, .18);
+}
+
+/* 硬核模式不显示影响值角标与数字位移（提示开关本身已被锁定，这里是二层保险） */
+body.hc-mode #board .cell-influence {
+    display: none !important;
+}
+
+body.hc-mode #board .cell-num {
+    transform: none !important;
+}
+
+/* ---- 66.2 难度弹窗的硬核模式区块 ---- */
+#HardcoreSection .hardcore-title {
+    color: #2c5282;
+}
+
+/* 开启态用钢蓝色而不是普通开关的绿色，和"硬核"语义对齐 */
+#HardcoreSection .switch-toggle.on {
+    background: linear-gradient(180deg, #7fb2e5, #4a86c8);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, .06), 0 2px 6px rgba(74, 134, 200, .28);
+}
+
+#HardcoreSection .switch-hint.hardcore-on {
+    color: #2c5282;
+}
+
+/* ---- 66.3 设置栏地块提示的锁定态 ----
+   06-render.js 在硬核模式下给两个开关加 .locked：置灰 + 禁用指针光标，
+   点击仍会被 JS 接住并弹出"是否退出硬核模式"的确认框。 */
+.switch-toggle.locked {
+    cursor: not-allowed;
+    opacity: .5;
+    filter: grayscale(1);
+}
+
+.switch-toggle.locked:hover {
+    box-shadow: inset 0 1px 3px rgba(18, 38, 58, .08);
+}
+
+.hc-lock-note {
+    color: #2c5282;
+}
+
+/* ---- 66.4 棋盘上方的「地块准确数」 ----
+   .hud-meta 在主界面为 display: contents，故该提示作为 body 的普通 flex 子项
+   居中排布；显隐由 06-render.js 的 refreshHardcoreStat() 控制。 */
+.hud-meta .hc-info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    width: max-content;
+    margin: 2px auto 8px;
+    padding: 5px 14px;
+    border-radius: 99px;
+    background: rgba(74, 134, 200, .14);
+    box-shadow: inset 0 0 0 1px rgba(74, 134, 200, .22);
+    color: #2c5282;
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: .02em;
+}
+
+.hud-meta .hc-info #hcAccNum {
+    color: #1a365d;
+    font-weight: 800;
+}
+
+/* ---- 66.5 成绩栏的硬核子行 ----
+   硬核成绩与所属难度共用同一张成绩卡：在普通成绩下方用虚线分隔出一条
+   「🪚 硬核」子行，只有该难度完成过硬核通关时才渲染
+   （08-ui.js renderRecordList），不额外新增成绩卡。 */
+#achRecordList > .record-item .record-hc {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(74, 134, 200, .38);
+}
+
+#achRecordList > .record-item .record-hc .record-label {
+    color: #2c5282;
+}
+
+#achRecordList > .record-item .record-hc .record-badge {
+    background: rgba(74, 134, 200, .16);
+    color: #2c5282;
+}
+
+/* 窄屏：准确数提示与硬核条目跟随其它成绩卡一起收窄 */
+@media (max-width: 700px) {
+    .hud-meta .hc-info {
+        padding: 4px 11px;
+        font-size: 11.5px;
+    }
+}
+

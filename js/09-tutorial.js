@@ -844,6 +844,8 @@ function renderTeachBoard() {
         }
     }
     sizeCellsIn(b);
+    // 教学棋盘固定使用三态配色，不参与硬核配色：进入教学后隐藏准确数提示
+    if (typeof refreshHardcoreStat === "function") refreshHardcoreStat();
 }
 
 /* ---------- 8. 教学槽位与落子 ---------- */

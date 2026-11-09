@@ -388,6 +388,8 @@ function renderCreateBoard() {
     }
     area.appendChild(board);
     sizeCellsIn(board);
+    // 创造棋盘不走主棋盘渲染：这里同步一次，让「地块准确数」提示保持隐藏
+    if (typeof refreshHardcoreStat === "function") refreshHardcoreStat();
 }
 
 /**

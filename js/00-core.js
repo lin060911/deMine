@@ -22,7 +22,7 @@ var RM = window.RM || {};
 window.RM = RM;
 
 /* 程序标识串：仅随日志输出，用于问题定位，不参与任何游戏逻辑 */
-RM.VERSION = "1.3.8";
+RM.VERSION = "1.3.9";
 
 /* 程序英文名：页脚署名、存档导出与导入校验统一使用这一写法 */
 RM.APP_NAME = "ReverseMinesweeper";
@@ -298,6 +298,12 @@ let diff = null;
 
 /* 是否为自由创造模式：该模式不限时，也不计入成绩与胜场 */
 let isFreeMode = false;
+
+/* 是否开启「硬核模式」：跨局偏好，存在存档 mineHardcoreMode。
+ * 开启后主棋盘只按题面数字上色（数字格灰白 / 0 格蓝），不再随局面变化；
+ * 地块提示两项开关被锁定；预设难度的成绩记入独立的硬核成绩。
+ * 教学棋盘与创造棋盘使用各自的渲染路径，不受该标记影响。 */
+let isHardcoreMode = false;
 
 /* 预设难度已选中、玩家尚未点开始：等待开始确认卡片 */
 let isPresetPending = false;

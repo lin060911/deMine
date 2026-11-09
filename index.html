@@ -41,7 +41,7 @@
           13) 右侧栏开关、记录侧栏（成绩 / 成就）与成就解锁弹层
           14) 创造侧栏、设置侧栏（存档管理 + 关于）
           15) 页脚：署名与联系方式
-          16) 脚本加载区：js/ 共 18 个模块文件，本页加载 00 ~ 16 共 17 个脚本
+          16) 脚本加载区：js/ 共 17 个模块文件（00 ~ 16），本页按序全部加载
 
          阅读提示：本文件只负责结构与文案，交互全部由底部 00 ~ 16 号脚本
          接管；每个区块前的「区块：xxx」注释会说明该区块由谁操作。
@@ -131,7 +131,21 @@
                  再把炸弹信息分区滚进视野，并由引导层高亮（08-ui.js `gotoMineInfo()` /
                  16-guide.js 信息跳转引导），样式沿用记录栏成绩跳转 -->
             <div class="tip-note series-info-note">💣 各系列炸弹信息请到 <button class="tip-note-link" id="mineJumpBtn" type="button"
-                    onclick="gotoMineInfo()" title="跳转到信息栏的炸弹信息">🧭信息</button> 栏查看ヾ(•ω•`)o</div>
+                    onclick="gotoMineInfo()" title="跳转到信息栏的炸弹信息">🧭信息</button> 栏查看 o((>ω< ))o</div>
+        </div>
+
+        <!-- 硬核模式：跨局偏好开关，开启后主棋盘只按题面数字上色
+             （数字格灰白 / 空地蓝色），三态提示与两项地块提示全部关闭；
+             成绩按硬核独立统计（06-render.js setHardcoreMode / syncHardcoreUI，
+             08-ui.js saveRec / renderRecordList） -->
+        <div class="sidebar-section" id="HardcoreSection">
+            <div class="sidebar-title hardcore-title">🎲 玩法</div>
+            <div class="switch-row">
+                <div class="switch-label">🪚 硬核模式</div>
+                <div class="switch-toggle" id="hardcoreToggle" role="switch" aria-checked="false"
+                     onclick="toggleHardcoreMode()"></div>
+            </div>
+            <div class="switch-hint" id="hardcoreHint">开启后隐藏 🟩🟨🟥 三态地块颜色提示<br>地块提示的两项功能将被锁定</div>
         </div>
 
         <!-- 成绩入口说明：仅「📝记录」三个字是跳转入口，点击后
@@ -323,6 +337,9 @@
         <div class="hud-meta">
             <div class="timer-box" id="timer">00:00.00</div>
             <div class="info">已放置：<span id="placed">0</span> / 总雷数：<span id="max">0</span></div>
+            <!-- 硬核模式独立提示：地块准确数 = 有数字的格子中当前影响值等于题目数字的个数，
+                 0 值空地不计入；显隐与数值由 06-render.js 的 refreshHardcoreStat() 维护 -->
+            <div class="info hc-info" id="hcInfo" style="display:none;">🪚 地块准确数：<span id="hcAccNum">0</span>/<span id="hcAccTotal">0</span></div>
         </div>
     </section>
 
@@ -485,6 +502,13 @@
                     <li>🟩 合适：该格子的当前影响值 [等于] 显示数字（正确）。</li>
                     <li>🟨 偏低：该格子的当前影响值 [小于] 显示数字（还需在周围加雷）。</li>
                     <li>🟥 偏高：该格子的当前影响值 [大于] 显示数字（还需减少影响值）。</li>
+                </ul>
+                <h3>🪚 硬核模式</h3>
+                <ul>
+                    <li>在「🕹️难度 → 游戏选择」里开启：隐藏 🟩🟨🟥 三态配色，<br>数字格变成灰白色、数值为 0 的空地变成蓝色（传统扫雷色系），颜色不再随局面变化。</li>
+                    <li>开启期间「🔺实时影响」与「👀效果预览」被锁定；想开启会先问是否退出硬核模式。</li>
+                    <li>通关条件不变；棋盘上方会显示独立的「🪚 地块准确数：x/x」，只统计有数字的格子（蓝色空地不计入）。</li>
+                    <li>预设难度的硬核通关成绩单独统计，并并入「📝记录」里对应难度的同一张成绩卡，以「🪚 硬核」子行展示（完成过硬核通关才出现）。</li>
                 </ul>
                 <h3>🔓 系列开关机制</h3>
                 <ul>
@@ -669,6 +693,8 @@
                 <div class="switch-toggle" id="effectPreviewToggle" onclick="toggleEffectPreview()"></div>
             </div>
             <div class="switch-hint">开启后，<strong>拖拽</strong>地雷时（鼠标 / 触屏）悬浮在棋盘格上，会显示<strong>放置后</strong>受影响地块的三色状态及影响值<br><br></div>
+            <!-- 硬核模式锁定提示：两项地块提示在硬核模式下不可开启 -->
+            <div class="switch-hint hc-lock-note" id="hcLockNote" style="display:none;">🪚 硬核模式已开启：以上两项地块提示被锁定，点击开关可退出硬核模式</div>
         </div>
         <!-- 存档管理：紧凑签名容器 + 详情查看；导出 / 导入 / 清空 /
              详情四个入口，接线在 15-boot.js，导入会先验签并弹三选一确认框，
@@ -691,12 +717,12 @@
              更新公告为静态摘要，避免多处版本号不一致 -->
         <div class="sidebar-section" id="AboutSection">
             <div class="sidebar-title about-title">ℹ️ 关于</div>
-            <div class="about-version">🔧 版本号 <strong id="aboutVersion">v1.3.8</strong></div>
+            <div class="about-version">🔧 版本号 <strong id="aboutVersion">v1.3.9</strong></div>
             <div class="about-announce">
                 <div class="about-announce-title">📣 更新公告</div>
                 <ul class="about-announce-list">
+                    <li><b>V1.3.9</b>：新增「🪚 硬核模式」：隐藏三态配色，数字格灰白、空地蓝色（传统扫雷色系）；地块提示两项功能锁定；新增「地块准确数」提示（只统计有数字的格子）；硬核成绩并入对应难度的成绩卡显示。</li>
                     <li><b>V1.3.8</b>：挑战完成弹窗点击后自动开新局；练习模式顶部改为「XX练习」+ 退出按钮，不再累加挑战进度；教学模式底部新增「退出教学」按钮（完成弹窗内的退出按钮移除）；脑王门槛改为开启 5 个系列，与地狱相同。</li>
-                    <li><b>V1.3.7</b>：新增「🃏扑克牌系列」，位于物理律系列之后：♥️红桃 / ♦️方块为负、♠️黑桃 / ♣️梅花为正的 5×5 花色图形核，共 4 种新雷，图鉴、创造模式与槽位同步可用。地狱难度改为「开启 5 个系列」。</li>
                 </ul>
             </div>
             <div class="about-foot">© 2026 L1Nzy · lin060911@qq.com</div>
@@ -710,7 +736,7 @@
 
     <!-- 区块：页脚
          署名与联系方式，纯静态文本，脚本不依赖 -->
-    <footer class="sidebar-version">ReverseMinesweeper v1.3.8<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
+    <footer class="sidebar-version">ReverseMinesweeper v1.3.9<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
 
     <!-- 区块：脚本加载区（顺序即依赖）
          17 个外部脚本按 00 → 16 的书写顺序同步执行，共享同一个全局作用域：

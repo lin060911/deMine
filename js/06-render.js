@@ -9,7 +9,8 @@
  *       Store（01-storage）；checkWin（08-ui）；教学渲染分支（09-tutorial）。
  * 对外：render、renderSlot、setInfluenceHint、toggleInfluenceHint、
  *       setEffectPreview、toggleEffectPreview、previewPlacementEffect、
- *       clearPlacementPreview、appendInfluenceBadge、RM.renderEngine。
+ *       clearPlacementPreview、appendInfluenceBadge、RM.renderEngine、
+ *       setHardcoreMode、toggleHardcoreMode、syncHardcoreUI、refreshHardcoreStat。
  * 设计要点：
  *   1) 采用差量渲染：棋盘网格只在尺寸变化或结构校验失败时重建，之后每次
  *      只更新发生变化的格子，避免整盘重建导致落雷动画重播与焦点丢失。
@@ -30,6 +31,9 @@ let influenceHintOn = Store.get("mineInfluenceHint") === "true";
  * @sideeffect 写 Store、改 #influenceHintToggle 的 class，可能调用 render
  */
 function setInfluenceHint(on, silent) {
+    // 硬核模式与地块提示互斥：非静默请求在开关入口已给出退出提示，
+    // 这里兜底一次，避免其它调用方绕过锁定把提示重新打开
+    if (isHardcoreMode && on) on = false;
     influenceHintOn = !!on;
     // 存储写入失败不影响当前会话内的开关状态
     try {
@@ -51,8 +55,13 @@ function setInfluenceHint(on, silent) {
 
 /**
  * 切换影响值提示开关（按钮 onclick 入口）。
+ * 硬核模式下锁定该功能，改为询问是否退出硬核模式。
  */
 function toggleInfluenceHint() {
+    if (isHardcoreMode) {
+        askExitHardcore("influence");
+        return;
+    }
     setInfluenceHint(!influenceHintOn);
 }
 
@@ -70,6 +79,8 @@ let _previewSig = "";
  * @sideeffect 写 Store、切换 #effectPreviewToggle 的 class，关闭时清除预览高亮
  */
 function setEffectPreview(on, silent) {
+    // 与实时影响一致：硬核模式下不允许开启效果预览
+    if (isHardcoreMode && on) on = false;
     effectPreviewOn = !!on;
     try {
         Store.set("mineEffectPreview", effectPreviewOn ? "true" : "false");
@@ -82,9 +93,157 @@ function setEffectPreview(on, silent) {
 
 /**
  * 切换效果预览开关（按钮 onclick 入口）。
+ * 硬核模式下锁定该功能，改为询问是否退出硬核模式。
  */
 function toggleEffectPreview() {
+    if (isHardcoreMode) {
+        askExitHardcore("preview");
+        return;
+    }
     setEffectPreview(!effectPreviewOn);
+}
+
+/* ---------- 1.2 硬核模式：配色、地块提示锁定与准确数 ---------- */
+/* 硬核模式是跨局偏好（存档键 mineHardcoreMode），状态本体在 00-core 的
+ * isHardcoreMode。本段负责读取 / 持久化开关、锁定两项地块提示、刷新
+ * 「地块准确数」提示，并把开关外观同步到难度弹窗与设置栏。
+ * 约束：只影响主棋盘；教学棋盘（09-tutorial）与创造棋盘（11-create）
+ * 走各自的渲染路径，配色保持原样。 */
+
+/* 硬核模式界面节点缓存：每次落子都会刷新准确数，避免重复查询 DOM */
+let _hcInfoEl = null, _hcAccNumEl = null, _hcAccTotalEl = null;
+
+/**
+ * 同步硬核模式的开关外观与锁定态：难度弹窗里的硬核开关、说明文案，
+ * 以及设置栏两项地块提示的锁定样式。
+ * @sideeffect 切换 body.hc-mode 与若干节点的 class / 文本 / title
+ */
+function syncHardcoreUI() {
+    let tg = document.getElementById("hardcoreToggle");
+    if (tg) {
+        tg.classList.toggle("on", isHardcoreMode);
+        tg.setAttribute("aria-checked", isHardcoreMode ? "true" : "false");
+    }
+    let hint = document.getElementById("hardcoreHint");
+    if (hint) {
+        hint.className = isHardcoreMode ? "switch-hint hardcore-on" : "switch-hint";
+        hint.innerHTML = isHardcoreMode
+            ? "已开启：隐藏三态地块颜色提示<br>「🔺实时影响」「👀效果预览」功能已锁定"
+            : "开启后隐藏 🟩🟨🟥 三态地块颜色提示<br>地块提示的两项功能将被锁定</div>";
+    }
+    // 两项地块提示在硬核模式下不可开启：只加锁定外观，点击仍给出退出提示
+    [ "influenceHintToggle", "effectPreviewToggle" ].forEach(function(id) {
+        let el = document.getElementById(id);
+        if (!el) return;
+        el.classList.toggle("locked", isHardcoreMode);
+        el.title = isHardcoreMode ? "硬核模式下不可开启，点击可退出硬核模式" : "";
+    });
+    // 设置栏里给出一行明确的锁定说明，避免玩家以为是按钮坏了
+    let lockNote = document.getElementById("hcLockNote");
+    if (lockNote) lockNote.style.display = isHardcoreMode ? "" : "none";
+    // 棋盘配色由 CSS 中以 body.hc-mode 限定的选择器接管
+    if (document.body) document.body.classList.toggle("hc-mode", isHardcoreMode);
+}
+
+/**
+ * 硬核模式下试图开启地块提示时的统一出口：先询问是否退出硬核模式。
+ * @param {string} kind influence 表示实时影响，preview 表示效果预览
+ * @sideeffect 打开通用确认弹窗；确认后退出硬核并开启对应提示
+ */
+function askExitHardcore(kind) {
+    // 确认框由 08-ui 提供；测试环境或极简页面缺失时直接忽略
+    if (typeof openConfirmModal !== "function") return;
+    let label = kind === "preview" ? "「👀 效果预览」" : "「🔺 实时影响」";
+    openConfirmModal({
+        icon: "🪚",
+        title: "硬核模式已开启",
+        body: label + "属于地块提示，硬核模式下无法开启。<br>是否退出硬核模式并开启它？",
+        buttons: [
+            { label: "退出硬核模式", cls: "rm-btn-danger", act: "exit" },
+            { label: "取消", cls: "rm-btn-cancel", act: "cancel" }
+        ],
+        onAction: function(act) {
+            if (act !== "exit") return;
+            setHardcoreMode(false, true);
+            if (window.RM && RM.toast) RM.toast("已退出硬核模式");
+            if (kind === "preview") setEffectPreview(true);
+            else setInfluenceHint(true);
+        }
+    });
+}
+
+/**
+ * 设置硬核模式：持久化状态、必要时关闭两项地块提示，并立即刷新棋盘与提示。
+ * @param {boolean} on 是否开启
+ * @param {boolean} [silent] 静默模式：不发声、不弹 toast（初始化 / 内部切换用）
+ * @sideeffect 写 Store、改全局状态与 DOM，并调用 render 重绘主棋盘
+ */
+function setHardcoreMode(on, silent) {
+    isHardcoreMode = !!on;
+    try {
+        Store.set("mineHardcoreMode", isHardcoreMode ? "true" : "false");
+    } catch (e) {}
+    // 硬核模式与地块提示互斥：开启时强制关闭两项提示（静默写存档，不触发提示）
+    if (isHardcoreMode) {
+        if (influenceHintOn) setInfluenceHint(false, true);
+        if (effectPreviewOn) setEffectPreview(false, true);
+    }
+    syncHardcoreUI();
+    // 教学 / 创造棋盘不走主棋盘渲染，只刷新准确数提示的显隐
+    if (typeof createModeActive !== "undefined" && createModeActive) {
+        refreshHardcoreStat();
+    } else if (typeof teachActive !== "undefined" && teachActive) {
+        refreshHardcoreStat();
+    } else if (typeof G !== "undefined" && G.tar && G.tar.length === SR) {
+        // 只重绘棋盘配色，不调用 render()：避免通关后切换开关再次触发胜利结算
+        try {
+            if (window.RM && RM.renderEngine) RM.renderEngine.render();
+        } catch (e3) {}
+        refreshHardcoreStat();
+    } else {
+        refreshHardcoreStat();
+    }
+    if (silent) return;
+    try {
+        if (isHardcoreMode && AudioFX.locked) AudioFX.locked();
+        else if (AudioFX.toggle) AudioFX.toggle(isHardcoreMode);
+    } catch (e2) {}
+    if (window.RM && RM.toast) RM.toast(isHardcoreMode ? "🪚 硬核模式已开启" : "已退出硬核模式");
+}
+
+/** 切换硬核模式（难度弹窗开关的 onclick 入口）。 */
+function toggleHardcoreMode() {
+    setHardcoreMode(!isHardcoreMode);
+}
+
+/**
+ * 刷新「地块准确数」：只统计**有数字的格子**中当前影响值等于题面数字的个数，
+ * 分母也是这些有数字格子的数量；0 值空地不计入（硬核配色下它们显示为蓝色）。
+ * 教学 / 创造棋盘、棋盘未生成时不显示（这两类棋盘不使用硬核配色）。
+ * @sideeffect 改写 #hcInfo / #hcAccNum / #hcAccTotal 的显隐与文本
+ */
+function refreshHardcoreStat() {
+    if (!_hcInfoEl) _hcInfoEl = document.getElementById("hcInfo");
+    if (!_hcInfoEl) return;
+    let teach = (typeof teachActive !== "undefined" && teachActive);
+    let create = (typeof createModeActive !== "undefined" && createModeActive);
+    let ready = !!(G && G.tar && G.p && G.tar.length === SR && G.p.length === SR && SR > 0);
+    let show = !!isHardcoreMode && !teach && !create && ready;
+    _hcInfoEl.style.display = show ? "" : "none";
+    if (!show) return;
+    if (!_hcAccNumEl) _hcAccNumEl = document.getElementById("hcAccNum");
+    if (!_hcAccTotalEl) _hcAccTotalEl = document.getElementById("hcAccTotal");
+    let ok = 0, total = 0;
+    for (let r = 0; r < SR; r++) {
+        for (let c = 0; c < SC; c++) {
+            // 0 值格子在硬核下是蓝色空地，不参与"准确数"统计
+            if (G.tar[r][c] === 0) continue;
+            total++;
+            if (G.p[r][c] === G.tar[r][c]) ok++;
+        }
+    }
+    if (_hcAccNumEl && _hcAccNumEl.textContent !== String(ok)) _hcAccNumEl.textContent = String(ok);
+    if (_hcAccTotalEl && _hcAccTotalEl.textContent !== String(total)) _hcAccTotalEl.textContent = String(total);
 }
 
 /**
@@ -540,8 +699,13 @@ function appendInfluenceBadge(cell, cur, tar) {
         var t = G.tar[r][c], p = G.p[r][c], k = r + "," + c;
         var type = G.placed[k] || null;
 
-        // ① 三态背景：与目标值相等为正确，偏低 / 偏高各一种提示色
-        setStatus(el, p === t ? "cell-valid" : (p < t ? "cell-low" : "cell-over"));
+        // ① 背景：硬核模式按题面数字取固定配色（数字格灰白 / 0 格蓝色），
+        // 不随当前影响值变化；普通模式维持三态提示
+        if (isHardcoreMode) {
+            setStatus(el, t !== 0 ? "hc-num" : "hc-zero");
+        } else {
+            setStatus(el, p === t ? "cell-valid" : (p < t ? "cell-low" : "cell-over"));
+        }
 
         // ② 目标数字：0 不显示数字，8 以上统一套用 n8 配色
         var numEl = el.childNodes[0];
@@ -622,7 +786,10 @@ function appendInfluenceBadge(cell, cur, tar) {
                 d.dataset.r = r;
                 d.dataset.c = c;
                 var t = G.tar[r][c], p = G.p[r][c], k = r + "," + c;
-                if (p === t) d.classList.add("cell-valid");
+                // 背景与差量路径共用同一套规则：硬核模式只按题面数字上色
+                if (isHardcoreMode) {
+                    d.classList.add(t !== 0 ? "hc-num" : "hc-zero");
+                } else if (p === t) d.classList.add("cell-valid");
                 else if (p < t) d.classList.add("cell-low");
                 else d.classList.add("cell-over");
                 var numSpan = null;
@@ -751,6 +918,8 @@ var _maxEl = null;
  * @sideeffect 修改棋盘与槽位 DOM，可能触发胜利结算
  */
 function render() {
+    // 硬核模式的「地块准确数」跟随每次重绘刷新；教学 / 创造棋盘自动隐藏
+    refreshHardcoreStat();
     // 教学模式使用独立的棋盘与槽位渲染器
     if (typeof teachActive !== "undefined" && teachActive) {
         renderTeachBoard();
@@ -919,3 +1088,15 @@ function hideBoardLoading() {
     let s = document.getElementById("slot");
     if (s) s.style.display = "";
 }
+
+/* ---------- 14. 硬核模式初始化 ----------
+ * 读取持久化的硬核偏好；开启时保证两项地块提示处于关闭态，避免旧存档里
+ * 同时存有"硬核开 + 提示开"的矛盾组合，最后同步开关外观与准确数提示。
+ * 放在文件末尾：此时本模块的节点缓存与函数均已初始化。 */
+isHardcoreMode = Store.get("mineHardcoreMode") === "true";
+if (isHardcoreMode) {
+    setInfluenceHint(false, true);
+    setEffectPreview(false, true);
+}
+syncHardcoreUI();
+refreshHardcoreStat();

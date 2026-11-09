@@ -7,7 +7,7 @@
  * 依赖：00-core 的 RM（命名空间、RM.ACH_IDS、RM.warn）；window.localStorage。
  * 对外：window.Store（基础读写、受保护读写、导入导出、合并预览、导入前快照、
  *   完整性校验、存档摘要与详情、下载），以及顶层的 lt / rec / wins /
- *   seriesState / seriesUnlocked 等派生状态与系列读写函数。
+ *   hcLt / hcRec / hcWins / seriesState / seriesUnlocked 等派生状态与系列读写函数。
  *
  * 存档格式（详见 docs/SAVE-FORMAT.md）：
  *   明文数据 → 位打包 / varint 编码（成就用 45 位比特位图 + 时间差编码）
@@ -743,6 +743,18 @@
         m.mineInfluenceHint = "false";
         m.mineEffectPreview = "false";
         m.mineSoundSettings = stringify({ bgm: 50, sfx: 50 });
+        m.mineHardcoreMode = "false";
+        /* 硬核成绩与普通成绩分开统计：形状与 mineWins / mineRecords /
+         * mineLastTimes 一致，只是不参与普通成绩的展示与合并 */
+        m.mineHardcoreWins = stringify({
+            easy: 0, medium: 0, hard: 0, hell: 0, brain: 0
+        });
+        m.mineHardcoreRecords = stringify({
+            easy: null, medium: null, hard: null, hell: null, brain: null
+        });
+        m.mineHardcoreLastTimes = stringify({
+            easy: null, medium: null, hard: null, hell: null, brain: null
+        });
         return m;
     }
 
@@ -2326,6 +2338,25 @@
         out.mineRecords = stringify(rec);
         out.mineLastTimes = stringify(last);
 
+        /* 硬核成绩：与普通成绩同一套"只增不减"规则，避免合并导入时丢失 */
+        var curHcWins = parseJSON(cur.mineHardcoreWins, {});
+        var fileHcWins = parseJSON(file.mineHardcoreWins, {});
+        var curHcRec = parseJSON(cur.mineHardcoreRecords, {});
+        var fileHcRec = parseJSON(file.mineHardcoreRecords, {});
+        var curHcLast = parseJSON(cur.mineHardcoreLastTimes, {});
+        var fileHcLast = parseJSON(file.mineHardcoreLastTimes, {});
+        var hcWins = {}, hcRec = {}, hcLast = {};
+        for (i = 0; i < DIFFS.length; i++) {
+            d = DIFFS[i];
+            hcWins[d] = Math.max(readNumOr0(curHcWins[d]), readNumOr0(fileHcWins[d]));
+            hcRec[d] = minTime(curHcRec[d], fileHcRec[d]);
+            hcLast[d] = (curHcLast[d] === null || curHcLast[d] === undefined) ? fileHcLast[d] : curHcLast[d];
+            if (hcLast[d] === undefined) hcLast[d] = null;
+        }
+        out.mineHardcoreWins = stringify(hcWins);
+        out.mineHardcoreRecords = stringify(hcRec);
+        out.mineHardcoreLastTimes = stringify(hcLast);
+
         /* 成就：返回完整状态对象，避免丢失计数器与标记 */
         var mergedAch = mergeAchievementState(
             parseJSON(cur.achievementState_v1, null),
@@ -2563,6 +2594,33 @@ let rec = Store.guard("mineRecords", {
 
 /* 各难度的累计通关次数 */
 let wins = Store.guard("mineWins", {
+    easy: 0,
+    medium: 0,
+    hard: 0,
+    hell: 0,
+    brain: 0
+});
+
+/* 硬核模式的最近一次用时（毫秒），与普通成绩分开统计 */
+let hcLt = Store.guard("mineHardcoreLastTimes", {
+    easy: null,
+    medium: null,
+    hard: null,
+    hell: null,
+    brain: null
+});
+
+/* 硬核模式各难度的最快纪录（毫秒），null 表示该难度尚无硬核纪录 */
+let hcRec = Store.guard("mineHardcoreRecords", {
+    easy: null,
+    medium: null,
+    hard: null,
+    hell: null,
+    brain: null
+});
+
+/* 硬核模式各难度的累计通关次数；为 0 的难度不在成绩栏显示硬核条目 */
+let hcWins = Store.guard("mineHardcoreWins", {
     easy: 0,
     medium: 0,
     hard: 0,

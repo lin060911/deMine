@@ -388,6 +388,28 @@
             });
         }
 
+        // 硬核成绩：与普通成绩分开统计，按难度逐行展示，参与丢失 / 增加判定
+        for (i = 0; i < DIFFS.length; i++) {
+            d = DIFFS[i];
+            var chw = (cur.hcWins && cur.hcWins[d]) || 0;
+            var ohw = (ov.hcWins && ov.hcWins[d]) || 0;
+            var mhw = (mg.hcWins && mg.hcWins[d]) || 0;
+            var chr = (cur.hcRec && cur.hcRec[d] !== undefined) ? cur.hcRec[d] : null;
+            var ohr = (ov.hcRec && ov.hcRec[d] !== undefined) ? ov.hcRec[d] : null;
+            var mhr = (mg.hcRec && mg.hcRec[d] !== undefined) ? mg.hcRec[d] : null;
+            // 与普通成绩同一套判定：覆盖后次数变少、纪录变慢或消失都算丢失
+            var hcRecLoss = (chr === null) ? false : (ohr === null || ohr > chr);
+            var hcRecGain = (chr === null && mhr !== null) || (chr !== null && mhr !== null && mhr < chr);
+            rows.push({
+                k: "🪚 硬核·" + (DIFF_LABEL[d] || d),
+                cur: cell(chw + " 次", fmt(chr)),
+                ov: cell(ohw + " 次", fmt(ohr)),
+                mg: cell(mhw + " 次", fmt(mhr)),
+                ovLoss: ohw < chw || hcRecLoss,
+                mgGain: mhw > chw || hcRecGain
+            });
+        }
+
         // 成就：合并只会增加，因此只要有增量就标绿
         var achDelta = mg.achCount - cur.achCount;
         rows.push({
@@ -1003,6 +1025,26 @@
             var lastTxt = (r.last === null || r.last === undefined) ? "本次 无" : "本次 " + fmt(r.last);
             parts.push(dRow(DIFF_LABEL[r.key] || r.key,
                 "最快 " + fmt(r.best) + " · 通关 " + (r.wins || 0) + " 次（" + lastTxt + "）"));
+        }
+        parts.push("</div>");
+
+        // 🪚 硬核成绩：与普通成绩分开统计；没有硬核通关时给一句引导说明
+        var hc = insp.hardcore || { total: 0, records: [] };
+        var hcList = hc.records || [];
+        parts.push('<div class="rm-detail-sec"><div class="rm-detail-title">🪚 硬核成绩 <small>' +
+            (hc.total ? "累计 " + esc(hc.total + " 次") : "暂无硬核通关") + "</small></div>");
+        var hcShown = 0;
+        for (var hci = 0; hci < hcList.length; hci++) {
+            var hcr = hcList[hci];
+            // 与成绩栏一致：没完成过硬核通关的难度不单列
+            if (!hcr.wins) continue;
+            hcShown++;
+            var hcLastTxt = (hcr.last === null || hcr.last === undefined) ? "本次 无" : "本次 " + fmt(hcr.last);
+            parts.push(dRow("🪚 硬核" + (DIFF_LABEL[hcr.key] || hcr.key),
+                "最快 " + fmt(hcr.best) + " · 通关 " + (hcr.wins || 0) + " 次（" + hcLastTxt + "）"));
+        }
+        if (!hcShown) {
+            parts.push('<div class="rm-detail-empty">还没有硬核通关记录；开启硬核模式通关预设难度后会显示在这里。</div>');
         }
         parts.push("</div>");
 

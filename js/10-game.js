@@ -42,8 +42,12 @@ function newGame() {
         // 先套用预设参数并进入待开局，尺寸只由难度决定，不受上一局影响
         applyPresetParams(diff);
         enterPresetPending(diff);
+        // 待开局阶段就确定本局硬核快照，地块提示锁定与开关状态保持一致
+        applyGameHardcore();
         return;
     }
+    // 参数确定后立即计算本局硬核快照：只有预设难度与自由模式会继承偏好
+    applyGameHardcore();
     // 生成期间用"加载中"占位遮住棋盘与地雷槽，生成完立即收起
     showBoardLoading();
     try {
@@ -71,6 +75,10 @@ function fullReset() {
     isPresetPending = false;
     pendingDiff = null;
     currentTutorialType = null;
+    // 上一局的硬核快照与结算标记全部作废；各入口在参数确定后调用
+    // applyGameHardcore() 重新计算本局是否硬核
+    gameHardcore = false;
+    winSettled = false;
     document.getElementById("tutorialProgressBar").style.display = "none";
     // 练习形态的进度条（隐藏进度轨道 + 退出按钮）一并还原，避免串到下一局
     if (typeof applyPracticeBar === "function") applyPracticeBar(false);
@@ -114,6 +122,12 @@ function fullReset() {
     try {
         syncMainPanel();
     } catch (e) {}
+    // 硬核快照已清空：同步一次开关 / 锁定态与准确数提示，避免沿用上一局外观
+    if (typeof syncHardcoreUI === "function") syncHardcoreUI();
+    if (typeof refreshHardcoreStat === "function") refreshHardcoreStat();
+    // 重置后可能既没有题目也没有雷卡（例如预设门槛校验失败）：此时隐藏
+    // 棋盘与地雷槽，避免留下空白棋盘
+    if (typeof syncBoardVisibility === "function") syncBoardVisibility();
 }
 
 /* ---------- 3. 预设开局与清空放置 ---------- */
@@ -129,6 +143,8 @@ function beginPresetGame() {
     AudioFX.confirm();
     // 参数只取决于当前难度，生成前重设一次，避免跨模式残留的尺寸参与生成
     if (isPresetDifficulty(diff)) applyPresetParams(diff);
+    // 待开局确认后重新计算一次本局硬核快照（防止等待期间偏好被改动）
+    applyGameHardcore();
     document.getElementById("presetStartCard").style.display = "none";
     // 生成期间用"加载中"占位遮住棋盘与地雷槽，生成完立即收起
     showBoardLoading();
@@ -184,6 +200,13 @@ window.onload = () => {
         brainUnlockedNotified = true;
         Store.set("brainUnlockedNotified", "true");
     }
+    // 刷新后自动生成的首局使用当前进度的标准（固定）参数，并没有对应的预设
+    // 难度：按自由难度归类——不计时、不写成绩、不参与难度类成就，也不会像
+    // 题库码局那样在通关后回退参数。isRefreshFreeGame 只用于让难度按钮继续
+    // 按真实门槛显示锁定态（自由模式会绕开锁定外观，不能直接复用）。
+    isFreeMode = true;
+    diff = "free";
+    isRefreshFreeGame = true;
     updatePresetButtons();
     newGame();
     applyBrainEgg();

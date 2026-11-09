@@ -741,7 +741,8 @@
         m.tutorial_poker = "0";
         m.placeMode_v1 = "drag";
         m.mineInfluenceHint = "false";
-        m.mineEffectPreview = "false";
+        // 效果预览是默认开启的拖拽预演功能；旧存档的关闭值由 06-render 做一次性迁移
+        m.mineEffectPreview = "true";
         m.mineSoundSettings = stringify({ bgm: 50, sfx: 50 });
         m.mineHardcoreMode = "false";
         /* 硬核成绩与普通成绩分开统计：形状与 mineWins / mineRecords /
@@ -1982,6 +1983,7 @@
                     migrated: Store.migrated
                 },
                 records: records.list,
+                hardcore: { total: records.hcTotal, records: records.hcList },
                 achievements: ach,
                 challenges: ch.list,
                 teaching: { done: ch.teachingDone, total: 12 },
@@ -2158,7 +2160,24 @@
             total += w;
             list.push({ key: d, wins: w, best: r, last: l });
         }
-        return { list: list, wins: wins, rec: rec, last: last, total: total };
+        /* 硬核成绩与普通成绩结构一致，单独汇总后供存档对比 / 详情展示，
+         * 不并入普通成绩，避免"覆盖后丢失"的判定把两者混在一起 */
+        var hcWins = parseJSON(map.mineHardcoreWins, {});
+        var hcRec = parseJSON(map.mineHardcoreRecords, {});
+        var hcLast = parseJSON(map.mineHardcoreLastTimes, {});
+        var hcList = [], hcTotal = 0;
+        for (i = 0; i < DIFFS.length; i++) {
+            d = DIFFS[i];
+            w = readNumOr0(hcWins[d]);
+            r = (hcRec[d] === null || hcRec[d] === undefined) ? null : readNumOr0(hcRec[d]);
+            l = (hcLast[d] === null || hcLast[d] === undefined) ? null : readNumOr0(hcLast[d]);
+            hcTotal += w;
+            hcList.push({ key: d, wins: w, best: r, last: l });
+        }
+        return {
+            list: list, wins: wins, rec: rec, last: last, total: total,
+            hcList: hcList, hcWins: hcWins, hcRec: hcRec, hcLast: hcLast, hcTotal: hcTotal
+        };
     }
 
     /**
@@ -2288,6 +2307,11 @@
             rec: rec.rec,
             last: rec.last,
             records: rec.list,
+            hcTotal: rec.hcTotal,
+            hcWins: rec.hcWins,
+            hcRec: rec.hcRec,
+            hcLast: rec.hcLast,
+            hcRecords: rec.hcList,
             achCount: ach.unlocked,
             achTotal: ach.total,
             achFirstAt: ach.firstAt,

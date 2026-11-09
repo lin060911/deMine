@@ -1180,16 +1180,16 @@
         });
     }
     /**
-     * 启动成就系统：先安装钩子，再初始化侧栏并渲染面板，最后触发首局。
-     * 钩子必须先于 newGame，统计范围才能覆盖启动后的第一局。
-     * @sideeffect 安装全局钩子、绑定侧栏事件并开始一局游戏。
+     * 启动成就系统：先安装钩子，再初始化侧栏并渲染面板。
+     * 首局由 10-game 的 window.onload 统一触发（本模块只保证钩子先于首局装好），
+     * 避免启动时重复生成两局棋盘。
+     * @sideeffect 安装全局钩子、绑定侧栏事件并渲染成就 / 成绩面板。
      */
     function init() {
         installHooks();
         initToggle();
         renderAchievements();
         renderRecordList();
-        newGame();
     }
     // 脚本可能晚于 DOMContentLoaded 执行，两种时机都要能完成启动
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();

@@ -636,12 +636,17 @@ function applyPuzzleCode() {
             let r = view.getUint8(offset);
             let c = view.getUint8(offset + 1);
             let typeIdx = view.getUint8(offset + 2);
+            // 坐标必须落在声明的棋盘范围内，避免越界数据污染题面矩阵
+            if (r >= rows || c >= cols) throw new Error("地雷坐标超出棋盘范围");
             // 类型索引必须落在当前雷种表内，否则无法确定地雷类型
             if (typeIdx >= allTypes.length) throw new Error("未知地雷类型索引");
             let type = allTypes[typeIdx];
             placed[r + "," + c] = type;
             offset += 3;
         }
+        // 空题没有可放置的地雷：装配后 G.max === 0、G.placed 也为空，
+        // 会被 checkWin 判成"立即通关"，因此必须拒绝（同一份码分享端也不会生成）
+        if (Object.keys(placed).length === 0) throw new Error("题库码中没有地雷");
         // 全部校验通过后才重置对局，解码失败不会清掉玩家正在玩的这局
         // 重置、组装与渲染期间用"加载中"占位遮住棋盘与地雷槽，完成立即收起；
         // 内层任何一步抛异常也会在 finally 收掉占位，再交给外层 catch 提示
@@ -676,15 +681,16 @@ function applyPuzzleCode() {
             applyTacticalEffects(tar, placed);
             G.tar = tar;
             G.placed = {};
+            // 分享关卡不属于任何预设难度：必须在 render / checkWin 之前清掉
+            // 难度标记，否则极端题面（如 0 雷）会按上一局的难度立即记账
+            diff = null;
+            isFreeMode = false;
             // 装配完成后统一重绘棋盘与记录表，并开始计时
             resetP();
             render();
             renderRecordList();
             document.getElementById("win").style.display = "none";
             document.getElementById("timer").style.display = "block";
-            // 分享关卡不属于任何预设难度，清空难度标记
-            diff = null;
-            isFreeMode = false;
             ts = true;
             startTi();
             AudioFX.confirm();

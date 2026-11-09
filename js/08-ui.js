@@ -760,6 +760,9 @@ function updatePresetButtons() {
     let hardLocked = onCount < 3;
     let hellLocked = onCount < HELL_SERIES_REQ;
     let brainLocked = !checkBrainUnlocked();
+    // 自由模式不做难度预设的门槛展示；但"刷新后的首局"只是按自由难度归类，
+    // 难度按钮仍要按真实门槛显示锁定态，等玩家主动选难度后再切换外观
+    const freeStyle = isFreeMode && !isRefreshFreeGame;
     // 简单 / 中等始终可用：不受系列开关数量限制
     [ "btnEasy", "btnMedium" ].forEach(id => {
         let btn = document.getElementById(id);
@@ -768,18 +771,18 @@ function updatePresetButtons() {
     let btnHard = document.getElementById("btnHard");
     if (btnHard) {
         // 自由模式下难度由玩家自定，预设按钮不显示锁定态
-        if (isFreeMode || !hardLocked) btnHard.classList.remove("locked");
+        if (freeStyle || !hardLocked) btnHard.classList.remove("locked");
         else btnHard.classList.add("locked");
     }
     let btnHell = document.getElementById("btnHell");
     if (btnHell) {
-        if (isFreeMode) {
+        if (freeStyle) {
             btnHell.classList.remove("locked");
         } else if (hellLocked) btnHell.classList.add("locked"); else btnHell.classList.remove("locked");
     }
     let btnBrain = document.getElementById("btnBrain");
     if (btnBrain) {
-        if (isFreeMode) {
+        if (freeStyle) {
             btnBrain.classList.remove("locked");
         } else if (brainLocked) btnBrain.classList.add("locked"); else btnBrain.classList.remove("locked");
     }
@@ -861,6 +864,8 @@ function setPre(d) {
     if (d === "free") {
         isFreeMode = true;
         diff = "free";
+        // 玩家主动选择自由模式：难度按钮从此按自由模式的外观处理
+        isRefreshFreeGame = false;
         window._guideLockedDifficulty = null;
         document.getElementById("customPanel").classList.add("visible");
         updatePresetButtons();
@@ -876,6 +881,8 @@ function setPre(d) {
         return;
     }
     isFreeMode = false;
+    // 选定预设难度后不再是"刷新后的自由局"，难度按钮恢复正常锁定外观
+    isRefreshFreeGame = false;
     window._guideLockedDifficulty = null;
     // 用预设整体覆盖棋盘参数，避免沿用上一局教学 5×5 或创造 15×15 的尺寸
     applyPresetParams(d);
@@ -1005,7 +1012,8 @@ function saveRec() {
         return;
     }
     const _ms = RM.timer.ms();
-    if (isHardcoreMode) {
+    // 用开局快照判定：本局硬核才写硬核成绩，中途切换偏好不改变本局记账口径
+    if (gameHardcore) {
         // 硬核局单独记账：普通难度的通关次数与最快纪录保持不变
         hcLt[diff] = _ms;
         Store.save("mineHardcoreLastTimes", hcLt);
@@ -1454,13 +1462,19 @@ function setGoldenBackground() {
 /**
  * 主棋盘通关判定：雷全部放完且每格影响值与目标完全一致时判定胜利。
  * 教学关卡有自己的过关逻辑，因此这里直接跳过。
+ * 结算只允许发生一次：胜利后窗口缩放等重绘路径会再次调用 render → checkWin，
+ * 用 winSettled 拦住重复记账；该标记由 10-game 的 fullReset 重置。
  * @sideeffect 停表并播放对应难度的通关反馈、写入成绩
  */
 function checkWin() {
     if (teachActive) return;
+    // 已经结算过的对局：直接返回，避免重复累加通关次数 / 覆盖纪录
+    if (winSettled) return;
     // 两个条件缺一不可：雷的数量放满，且每格影响值与目标值逐格一致
     if (Object.keys(G.placed).length !== G.max) return;
     for (let r = 0; r < SR; r++) for (let c = 0; c < SC; c++) if (G.p[r][c] !== G.tar[r][c]) return;
+    // 通过判定后立刻标记，后续任何重绘都不再进入结算流程
+    winSettled = true;
     // 先停表再结算，保证记录的是通关瞬间的用时
     stopTi();
     if (isTutorialMode) {

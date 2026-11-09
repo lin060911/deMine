@@ -3193,12 +3193,6 @@ body:has(#board[style*="none"]) .board-tray {
     display: none;
 }
 
-/* 创造模式或预设确认态下隐藏主局状态行，避免两套数据同时显示造成误读 */
-body:has(.create-mode-panel.visible) .hud-meta,
-body:has(.preset-start-card:not([style*="none"])) .hud-meta {
-    display: none;
-}
-
 .create-info-bar {
     display: flex;
     flex-wrap: wrap;
@@ -5416,11 +5410,6 @@ body > footer.sidebar-version {
     width: 100%;
     max-width: 900px;
     margin-top: 15px;
-}
-
-body:has(.create-mode-panel.visible) .hud-meta,
-body:has(.preset-start-card:not([style*="none"])) .hud-meta {
-    display: contents;
 }
 
 #createBoardArea {
@@ -9074,6 +9063,91 @@ body.hc-mode #board .cell-num {
 /* 窄屏：准确数提示与硬核条目跟随其它成绩卡一起收窄 */
 @media (max-width: 700px) {
     .hud-meta .hc-info {
+        padding: 4px 11px;
+        font-size: 11.5px;
+    }
+}
+
+/* ---- 66.6 状态行在创造 / 预设待开局时隐藏 ----
+   .hud-meta 在 39 段被设为 display:contents（其子项直接参与 body 布局），
+   因此"隐藏状态行"的规则必须写在它之后才能生效；这里放在文件末尾统一处理，
+   避免像旧版那样在前后两处写同一选择器、靠书写顺序互相覆盖。
+   状态行包含计时、已放置 / 总雷数与硬核准确数，创造模式与预设确认态下
+   两套数据不应同时出现。 */
+body:has(.create-mode-panel.visible) .hud-meta,
+body:has(.preset-start-card:not([style*="none"])) .hud-meta {
+    display: none;
+}
+
+/* ==========================================================================
+ * 67. 状态行：已放置雷数与地块准确数
+ * --------------------------------------------------------------------------
+ * .hud-meta 在主界面为 display: contents（第 39 段），因此 .hud-stats 作为
+ * body 的普通 flex 子项参与居中布局：宽屏把「💣 已放置雷数」与硬核
+ * 「🧩 地块准确数」排在同一行，窄屏（≤700px）改为上下两行。
+ * 已放置雷数复用硬核准确数的胶囊外观，配色改为墨绿色系；
+ * 准确数的显隐仍由 06-render.js 的 refreshHardcoreStat() 控制。
+ * 约束：不改动 .hud-meta 的 display: contents 与 66.6 的隐藏规则。
+ * ========================================================================== */
+.hud-stats {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    width: max-content;
+    max-width: 100%;
+    margin: 2px auto 8px;
+}
+
+.hud-stats .info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    width: max-content;
+    max-width: 100%;
+    margin: 0;
+    padding: 5px 14px;
+    border-radius: 99px;
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: .02em;
+}
+
+/* 已放置雷数：墨绿色胶囊，与硬核准确数同一套视觉语言 */
+.hud-stats .placed-info {
+    background: rgba(47, 122, 89, .14);
+    box-shadow: inset 0 0 0 1px rgba(47, 122, 89, .24);
+    color: #1f5c3a;
+}
+
+.hud-stats .placed-info #placed,
+.hud-stats .placed-info #max {
+    color: #123f28;
+    font-weight: 800;
+}
+
+/* 硬核准确数：保留 66.4 的钢蓝色胶囊，只去掉原先的单行居中边距 */
+.hud-stats .hc-info {
+    margin: 0;
+    width: max-content;
+}
+
+.hud-stats .hc-info #hcAccNum {
+    color: #1a365d;
+    font-weight: 800;
+}
+
+/* 窄屏：两项状态改为上下两行，胶囊尺寸跟随其它状态行收窄 */
+@media (max-width: 700px) {
+    .hud-stats {
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .hud-stats .info {
         padding: 4px 11px;
         font-size: 11.5px;
     }

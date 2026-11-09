@@ -22,7 +22,7 @@ var RM = window.RM || {};
 window.RM = RM;
 
 /* 程序标识串：仅随日志输出，用于问题定位，不参与任何游戏逻辑 */
-RM.VERSION = "1.3.9";
+RM.VERSION = "1.3.11";
 
 /* 程序英文名：页脚署名、存档导出与导入校验统一使用这一写法 */
 RM.APP_NAME = "ReverseMinesweeper";
@@ -299,11 +299,27 @@ let diff = null;
 /* 是否为自由创造模式：该模式不限时，也不计入成绩与胜场 */
 let isFreeMode = false;
 
+/* 自由难度是否来自"刷新后的首局"：页面载入时自动生成的那局使用当前进度的
+ * 标准参数、没有对应的预设难度，按自由难度归类（不计时 / 不记账）。
+ * 自由模式本身会让难度按钮跳过锁定外观，因此用该标记区分：
+ * 刷新局仍按真实门槛显示锁定态，玩家主动选择自由模式后才取消锁定外观。
+ * 由 10-game 的 window.onload 置位，08-ui 的 setPre 在选择难度时清除。 */
+let isRefreshFreeGame = false;
+
 /* 是否开启「硬核模式」：跨局偏好，存在存档 mineHardcoreMode。
  * 开启后主棋盘只按题面数字上色（数字格灰白 / 0 格蓝），不再随局面变化；
- * 地块提示两项开关被锁定；预设难度的成绩记入独立的硬核成绩。
+ * 地块提示两项开关被锁定；预设难度与自由模式的成绩记入独立的硬核成绩。
  * 教学棋盘与创造棋盘使用各自的渲染路径，不受该标记影响。 */
 let isHardcoreMode = false;
+
+/* 本局的硬核快照：开局时由 applyGameHardcore() 按模式计算，整局保持不变。
+ * 与 isHardcoreMode（偏好）分开，避免对局中途切换开关改变配色或刷硬核成绩。
+ * 只有预设难度与自由模式会继承偏好；教学 / 挑战 / 练习 / 创造 / 题库码恒为 false。 */
+let gameHardcore = false;
+
+/* 本局是否已完成通关结算：checkWin 只允许结算一次，防止胜利后
+ * 窗口缩放等重绘路径重复写入成绩 / 通关次数。由 fullReset 重置。 */
+let winSettled = false;
 
 /* 预设难度已选中、玩家尚未点开始：等待开始确认卡片 */
 let isPresetPending = false;

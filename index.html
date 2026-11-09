@@ -145,7 +145,7 @@
                 <div class="switch-toggle" id="hardcoreToggle" role="switch" aria-checked="false"
                      onclick="toggleHardcoreMode()"></div>
             </div>
-            <div class="switch-hint" id="hardcoreHint">开启后隐藏 🟩🟨🟥 三态地块颜色提示<br>地块提示的两项功能将被锁定</div>
+            <div class="switch-hint" id="hardcoreHint">开启后隐藏 🟩🟨🟥 三态地块颜色提示<br>仅预设难度 / 自由模式生效，硬核局中地块提示将锁定</div>
         </div>
 
         <!-- 成绩入口说明：仅「📝记录」三个字是跳转入口，点击后
@@ -332,14 +332,17 @@
         </div>
 
         <!-- 区块：计时与放置数
-             计时器由 03-timer.js 约每 33ms 刷新一次；放置数与总雷数由
-             06-render.js 的 render() 同步（不变量：DOM 数字要等于状态雷数） -->
+             计时器由 03-timer.js 约每 33ms 刷新一次；已放置 / 总雷数由
+             06-render.js 的 render() 同步（不变量：DOM 数字要等于状态雷数）。
+             已放置雷数与硬核「地块准确数」包在 .hud-stats 里：宽屏同一行、
+             窄屏上下两行；准确数只在硬核局显示（显隐与数值由 06-render.js
+             的 refreshHardcoreStat() 维护） -->
         <div class="hud-meta">
             <div class="timer-box" id="timer">00:00.00</div>
-            <div class="info">已放置：<span id="placed">0</span> / 总雷数：<span id="max">0</span></div>
-            <!-- 硬核模式独立提示：地块准确数 = 有数字的格子中当前影响值等于题目数字的个数，
-                 0 值空地不计入；显隐与数值由 06-render.js 的 refreshHardcoreStat() 维护 -->
-            <div class="info hc-info" id="hcInfo" style="display:none;">🪚 地块准确数：<span id="hcAccNum">0</span>/<span id="hcAccTotal">0</span></div>
+            <div class="hud-stats">
+                <div class="info placed-info">💣 已放置雷数：<span id="placed">0</span>/<span id="max">0</span></div>
+                <div class="info hc-info" id="hcInfo" style="display:none;">🧩 地块准确数：<span id="hcAccNum">0</span>/<span id="hcAccTotal">0</span></div>
+            </div>
         </div>
     </section>
 
@@ -492,24 +495,18 @@
                 <div class="sidebar-title rule-title">📖 规则信息</div>
                 <h3>💡 玩法：反向扫雷（布雷）</h3>
                 <ul>
-                    <li><strong>目标：</strong><br>在棋盘上放置规定数量的地雷（普通雷 + 特殊雷），使得棋盘上每个格子显示的数字，恰好等于它周围（或特定规则下）所有地雷对它的总影响值。</li>
-                    <li><strong>操作：</strong><br>点选：点击选中地雷，再点击棋盘放置<br>拖拽：将地雷拖到棋盘上松手<br>删除：右键点击（手机端长按地雷）。</li>
-                    <li><strong>胜利条件：</strong><br>所有地雷放完，且棋盘数字与地雷影响匹配（棋盘上都是🟩）。</li>
+                    <li><strong>目标：</strong><br>在棋盘上放置规定数量的地雷（普通雷 + 特殊雷），使得棋盘上每个格子显示的数字，恰好等于它周围（或特定规则下）所有地雷对它的总影响值</li>
+                    <li><strong>操作：</strong><br>点选：点击选中地雷，再点击棋盘放置<br>拖拽：将地雷拖到棋盘上松手<br>删除：右键点击（手机端长按地雷）</li>
+                    <li><strong>胜利条件：</strong><br>所有地雷放完，且棋盘数字与地雷影响匹配（棋盘上都是🟩）</li>
                 </ul>
                 <h3>🧩 地块状态解读</h3>
                 <p>游戏会根据你当前的布雷情况，实时用颜色提示每个格子：</p>
                 <ul>
-                    <li>🟩 合适：该格子的当前影响值 [等于] 显示数字（正确）。</li>
-                    <li>🟨 偏低：该格子的当前影响值 [小于] 显示数字（还需在周围加雷）。</li>
-                    <li>🟥 偏高：该格子的当前影响值 [大于] 显示数字（还需减少影响值）。</li>
+                    <li>🟩 合适：该格子的当前影响值 [等于] 显示数字（正确）</li>
+                    <li>🟨 偏低：该格子的当前影响值 [小于] 显示数字（还需在周围加雷）</li>
+                    <li>🟥 偏高：该格子的当前影响值 [大于] 显示数字（还需减少影响值）</li>
                 </ul>
-                <h3>🪚 硬核模式</h3>
-                <ul>
-                    <li>在「🕹️难度 → 游戏选择」里开启：隐藏 🟩🟨🟥 三态配色，<br>数字格变成灰白色、数值为 0 的空地变成蓝色（传统扫雷色系），颜色不再随局面变化。</li>
-                    <li>开启期间「🔺实时影响」与「👀效果预览」被锁定；想开启会先问是否退出硬核模式。</li>
-                    <li>通关条件不变；棋盘上方会显示独立的「🪚 地块准确数：x/x」，只统计有数字的格子（蓝色空地不计入）。</li>
-                    <li>预设难度的硬核通关成绩单独统计，并并入「📝记录」里对应难度的同一张成绩卡，以「🪚 硬核」子行展示（完成过硬核通关才出现）。</li>
-                </ul>
+
                 <h3>🔓 系列开关机制</h3>
                 <ul>
                     <li>基础系列始终开启，未解锁的系列显示为灰色</li>
@@ -520,6 +517,14 @@
                     <li>地狱👿：需开启<b>至少5个</b>（共6个）系列开关</li>
                     <li>脑王🤯：地狱通关≥10次 + 开启<b>至少5个</b>（共6个）系列开关</li>
                     <li>🔧自由模式：可自定义参数，不记录成绩</li>
+                </ul>
+
+                <h3>🪚 硬核模式</h3>
+                <ul>
+                    <li>在「🕹️难度 → 游戏选择」里开启：隐藏 🟩🟨🟥 三态配色，<br>数字格变成灰白色、数值为 0 的空地变成蓝色，颜色不再随局面变化</li>
+                    <li>仅在<strong>预设难度</strong>与<strong>自由模式</strong>生效：挑战 / 练习 / 题库码 / 教学 / 创造使用各自的配色，不受硬核影响</li>
+                    <li>游戏中途切换开关只改变偏好并保存，本局仍按开局时的状态结算，下一局才生效</li>
+                    <li>开启期间「🔺实时影响」与「👀效果预览」被锁定</li>
                 </ul>
                 </div>
             </div>
@@ -717,12 +722,12 @@
              更新公告为静态摘要，避免多处版本号不一致 -->
         <div class="sidebar-section" id="AboutSection">
             <div class="sidebar-title about-title">ℹ️ 关于</div>
-            <div class="about-version">🔧 版本号 <strong id="aboutVersion">v1.3.9</strong></div>
+            <div class="about-version">🔧 版本号 <strong id="aboutVersion">v1.3.11</strong></div>
             <div class="about-announce">
                 <div class="about-announce-title">📣 更新公告</div>
                 <ul class="about-announce-list">
-                    <li><b>V1.3.9</b>：新增「🪚 硬核模式」：隐藏三态配色，数字格灰白、空地蓝色（传统扫雷色系）；地块提示两项功能锁定；新增「地块准确数」提示（只统计有数字的格子）；硬核成绩并入对应难度的成绩卡显示。</li>
-                    <li><b>V1.3.8</b>：挑战完成弹窗点击后自动开新局；练习模式顶部改为「XX练习」+ 退出按钮，不再累加挑战进度；教学模式底部新增「退出教学」按钮（完成弹窗内的退出按钮移除）；脑王门槛改为开启 5 个系列，与地狱相同。</li>
+                    <li><b>V1.3.11</b>：状态行改为「💣 已放置雷数：n/m」并改用墨绿胶囊，硬核「🧩 地块准确数」与之同排（窄屏分两行）；「👀 效果预览」默认开启；刷新后的固定参数局归类为自由难度；没有题目且地雷槽无雷时隐藏棋盘与地雷槽。</li>
+                    <li><b>V1.3.10</b>：修复硬核模式对局中途切换可刷硬核成绩的问题（本局按开局快照结算）；修复胜利后缩放窗口会重复记账的问题；硬核模式限定在预设难度与自由模式；存档对比与详情补充硬核成绩；合并重复的界面样式规则、修正启动时重复生成两局的问题。</li>
                 </ul>
             </div>
             <div class="about-foot">© 2026 L1Nzy · lin060911@qq.com</div>
@@ -736,7 +741,7 @@
 
     <!-- 区块：页脚
          署名与联系方式，纯静态文本，脚本不依赖 -->
-    <footer class="sidebar-version">ReverseMinesweeper v1.3.9<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
+    <footer class="sidebar-version">ReverseMinesweeper v1.3.11<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
 
     <!-- 区块：脚本加载区（顺序即依赖）
          17 个外部脚本按 00 → 16 的书写顺序同步执行，共享同一个全局作用域：

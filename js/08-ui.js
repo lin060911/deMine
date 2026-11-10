@@ -4,7 +4,9 @@
  * 职责：管理侧边栏与信息栏折叠、难度弹窗与系列开关、成绩记录渲染、
  *       胜利判定与通关庆祝，以及所有弹窗的打开 / 关闭策略；
  *       硬核模式的通关成绩在这里单独记账（与普通成绩互不覆盖）。
- * 依赖：00-core 的全局状态与工具（RM、G、diff、isHardcoreMode、S / SR / SC）；
+ * 依赖：00-core 的全局状态与工具（RM、G、diff、isHardcoreMode、S / SR / SC、
+ *       T / K、freeRectExpanded、LIMIT、PRE、applyBoardParams、
+ *       syncBoardParamDisplays）；
  *       01-storage 的 Store 与成绩 / 系列状态（wins、rec、lt、hcWins、hcRec、
  *       hcLt、seriesState）；02-audio 的 AudioFX；04-mines 的 M / CATEGORY；
  *       06-render、07-board 提供的渲染与交互。
@@ -867,6 +869,15 @@ function setPre(d) {
         // 玩家主动选择自由模式：难度按钮从此按自由模式的外观处理
         isRefreshFreeGame = false;
         window._guideLockedDifficulty = null;
+        // 自由模式改用新参数模型：面板初值取 PRE.free，地雷种类数按
+        // type + 1 推导（普通雷 + 特殊雷种类），旧配比里的特殊雷总数不再参与
+        const pf = PRE.free;
+        applyBoardParams({ size: pf.size, total: pf.total, kinds: pf.type + 1 });
+        // 每次进入自由模式都回到正方形棋盘：矩形设置不跨会话残留
+        freeRectExpanded = false;
+        SR = SC = S;
+        syncFreeParamDisplays();
+        syncFreeRectPanel();
         document.getElementById("customPanel").classList.add("visible");
         updatePresetButtons();
         renderSeriesSwitches();
@@ -947,50 +958,124 @@ function enterPresetPending(d) {
 /* ---------- 11. 参数调整与成绩记录 ---------- */
 
 /**
- * 调整自由模式的一个棋盘参数，并保证参数之间的约束不被破坏。
- * @param {string} key 参数名：size / total / type / spec
+ * 刷新自由模式面板上的参数数字：统一交给 00-core 的参数同步函数，
+ * 缺失的节点（旧版面板）由同步函数自行跳过。
+ * @sideeffect 写入 #size / #sr / #sc / #total / #kinds 的文本
+ */
+function syncFreeParamDisplays() {
+    if (typeof window.syncBoardParamDisplays === "function") window.syncBoardParamDisplays();
+}
+
+/**
+ * 按 freeRectExpanded 同步矩形棋盘的控件形态：展开时隐藏「棋盘大小」行、
+ * 显示行 / 列两行并把按钮切成「恢复正方形」；收起时相反。
+ * 只改 DOM 显隐与文案，不改动任何棋盘参数。
+ * @sideeffect 切换 #sizeRow / #srRow / #scRow 的 display，改写 #freeRectToggle
+ *   的文案、aria-pressed 与展开类
+ */
+function syncFreeRectPanel() {
+    const on = !!freeRectExpanded;
+    const sizeRow = document.getElementById("sizeRow");
+    const srRow = document.getElementById("srRow");
+    const scRow = document.getElementById("scRow");
+    // 行容器缺失时只跳过对应项，保证自由模式面板之外调用也不抛错
+    if (sizeRow) sizeRow.style.display = on ? "none" : "";
+    if (srRow) srRow.style.display = on ? "" : "none";
+    if (scRow) scRow.style.display = on ? "" : "none";
+    const btn = document.getElementById("freeRectToggle");
+    if (btn) {
+        btn.textContent = on ? "⤢ 恢复正方形" : "⤢ 单独设置行列";
+        btn.classList.toggle("on", on);
+        btn.setAttribute("aria-pressed", on ? "true" : "false");
+    }
+}
+
+/**
+ * 切换自由模式的矩形棋盘模式：展开时行 / 列从当前边长复制并显示两行，
+ * 收起时行 / 列回到边长并隐藏两行（矩形尺寸不保留）。
+ * @param {boolean} [expanded] 目标状态；省略表示在两种模式间取反
+ * @sideeffect 改写 freeRectExpanded / SR / SC 与面板显隐、按钮文案，脱离预设难度
+ */
+function toggleFreeRect(expanded) {
+    freeRectExpanded = typeof expanded === "boolean" ? expanded : !freeRectExpanded;
+    // 两种状态都以 S 为正方形基准：展开时用边长初始化行 / 列，收起时拉回边长
+    SR = S;
+    SC = S;
+    syncFreeParamDisplays();
+    syncFreeRectPanel();
+    AudioFX.pop();
+    // 参数形态被手动调整后即脱离预设难度
+    diff = null;
+}
+window.toggleFreeRect = toggleFreeRect;
+
+/**
+ * 调整自由模式的一个棋盘参数，并按 LIMIT 与当前棋盘动态收敛相关参数。
+ * 动态上限：总雷数不超过 SR×SC；地雷种类数不超过 min(26, 总雷数)。
+ * @param {string} key 参数名：size / sr / sc / total / kinds
  * @param {number} dir 增量，通常为 +1 或 -1
- * @sideeffect 写入 S / SR / SC / T / TY / SP 并刷新面板数字
+ * @sideeffect 写入 S / SR / SC / T / K，刷新参数显示并脱离预设难度
  */
 function setVal(key, dir) {
-    let [min, max] = LIMIT[key];
-    let val = key === "size" ? S : key === "total" ? T : key === "type" ? TY : SP;
-    val = Math.max(min, Math.min(max, val + dir));
+    const bounds = LIMIT[key];
+    // 只接受面板里的五个参数：未知 key 直接忽略，防止误改其它状态
+    if (!bounds) return;
+    let max = bounds[1];
+    if (key === "total") max = Math.min(max, Math.max(1, SR * SC));
+    else if (key === "kinds") max = Math.min(max, Math.max(1, Math.min(26, T)));
+    let cur;
+    if (key === "size") cur = S;
+    else if (key === "sr") cur = SR;
+    else if (key === "sc") cur = SC;
+    else if (key === "total") cur = T;
+    else cur = K;
+    const val = Math.max(bounds[0], Math.min(max, cur + dir));
     if (key === "size") {
-        // 棋盘为正方形：边长同时决定行列数
         S = val;
-        SR = val;
-        SC = val;
-    }
-    if (key === "total") T = val;
-    if (key === "type") TY = val;
-    if (key === "spec") SP = val;
-    // 三个参数互相约束：特殊雷不超过总雷数，特殊雷种类不超过特殊雷数量
-    SP = Math.min(SP, T);
-    TY = Math.min(TY, SP);
-    document.getElementById("size").textContent = S;
-    document.getElementById("total").textContent = T;
-    document.getElementById("type").textContent = TY;
-    document.getElementById("spec").textContent = SP;
+        // 收起矩形模式时边长同时决定行列；展开时该行不可见，S 只作为
+        // 收起时的基准值保留，不会改动已单独设置的行 / 列
+        if (!freeRectExpanded) {
+            SR = val;
+            SC = val;
+        }
+    } else if (key === "sr") SR = val;
+    else if (key === "sc") SC = val;
+    else if (key === "total") T = val;
+    else K = val;
+    // 行列变化后面积可能变小：总雷数与种类数统一按新面积再收敛一次
+    T = Math.max(1, Math.min(T, Math.max(1, SR * SC)));
+    K = Math.max(1, Math.min(K, 26, T));
+    syncFreeParamDisplays();
     AudioFX.pop();
     // 参数被手动修改后即脱离预设难度
     diff = null;
 }
 
 /**
- * 应用当前参数并开始新局：自由模式直接开局，预设难度先进入待开始状态。
+ * 应用当前参数并开始新局：自由模式先收敛参数再直接开局，
+ * 预设难度保持原有流程，先进入待开始状态。
  * @sideeffect 关闭难度弹窗并调用 newGame / beginPresetGame
  */
 function applySet() {
     AudioFX.confirm();
     closeDifficultyModal();
-    SP = Math.min(SP, T);
-    TY = Math.min(TY, SP);
     if (isFreeMode) {
+        // 开局前再收敛一次：面板参数可能被脚本或旧状态改动过，
+        // 交给 00-core 统一保证 T ≤ SR×SC、K ≤ min(26, T)
+        applyBoardParams({
+            size: S,
+            // 收起矩形模式时以边长为准；展开时才采用单独设置的行 / 列
+            rows: freeRectExpanded ? SR : S,
+            cols: freeRectExpanded ? SC : S,
+            total: T,
+            kinds: K
+        });
         diff = "free";
         newGame();
         return;
     }
+    SP = Math.min(SP, T);
+    TY = Math.min(TY, SP);
     if (isPresetPending && pendingDiff) {
         beginPresetGame();
     } else {
@@ -1807,13 +1892,19 @@ window.gotoMineInfo = gotoMineInfo;
 /* ---------- 18. 自由模式恢复默认参数 ---------- */
 
 /**
- * 自由模式参数面板的「恢复默认」：按当前进度恢复四项标准参数
- * （四个原有系列挑战全解锁前 8×8/4/2/3，全解锁后 10×10/6/3/4），
- * 与退出教学 / 创造后回到的标准档保持一致。
- * @sideeffect 改写 S/SR/SC/T/TY/SP 与四个参数显示，并脱离预设难度
+ * 自由模式参数面板的「恢复默认」：按当前进度恢复标准参数
+ * （四个原有系列挑战全解锁前 8×8/4/3 种，全解锁后 10×10/6/4 种，
+ * 由 applyStandardParams 写入），与退出教学 / 创造后回到的标准档一致。
+ * 同时收起矩形棋盘模式，行 / 列回到边长。
+ * @sideeffect 改写 S/SR/SC/T/TY/SP/K 与面板显示，收起矩形模式，脱离预设难度
  */
 function resetCustomParams() {
     applyStandardParams();
+    // 恢复默认同样回到正方形棋盘：矩形展开状态与行 / 列设置一并清掉
+    freeRectExpanded = false;
+    SR = SC = S;
+    syncFreeParamDisplays();
+    syncFreeRectPanel();
     // 与 setVal 一致：参数被手动改动后即不属于任何预设难度
     diff = null;
     updatePresetButtons();

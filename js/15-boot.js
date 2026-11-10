@@ -25,7 +25,8 @@
  * 设计要点：
  *   1) 必须在 00 ~ 14 号模块之后加载：自检的前提是这些模块都已执行完毕。
  *   2) 验签优先：导入先 Store.parseFile() 验证 HMAC，失败只 toast、不打开弹窗；
- *      早期 {app, schema:1, data} 明文存档直接拒绝，不做迁移
+ *      早期 {app, schema:1, data} 明文存档直接拒绝，不做迁移；旧数据结构的
+ *      签名容器由 01-storage 在读取时拒绝并按默认值回退，这里只做一次提示
  *      （localStorage 里的旧键迁移由 01-storage.js 自动完成）。
  *   3) 预览优先：覆盖 / 合并前展示「当前 / 覆盖后 / 合并后」三列画像，
  *      确认后才写盘；合并路径只增不减，不做二次确认。
@@ -659,40 +660,114 @@
     }
 
     /* ---------- 5. 存档导出 / 选择文件 / 清空 / 撤销的接线 ---------- */
+
+    /**
+     * 记录一次"存档管理"入口的使用，用于解锁对应的隐藏成就。
+     * 六个对外入口在各自开头统一调用；13 号模块未加载或接口缺失时静默跳过，
+     * 不改变任何存档管理行为。
+     * @sideeffect 可能触发一次成就解锁与成就面板重绘
+     */
+    function markSaveManageUsed() {
+        try {
+            if (window.Achievements && typeof window.Achievements.unlock === "function") {
+                window.Achievements.unlock("hidden_savemanage");
+            }
+        } catch (e) {}
+    }
+
+    /**
+     * 把导出文件对象序列化并触发下载；浏览器不支持直接下载时退化为可复制的文本框。
+     * @param {Object} payload 导出文件对象（exportFile / exportRawMapFile 的返回值）
+     * @param {string} name 下载文件名
+     * @returns {boolean} true 表示已发起下载；false 表示已退化为文本框
+     * @sideeffect 触发下载或向 body 追加 textarea，并可能弹 toast
+     */
+    function downloadJsonFile(payload, name) {
+        // 紧凑序列化：签名容器是给机器读的，缩进美化只会成倍放大文件
+        var text = JSON.stringify(payload);
+        var downloaded = false;
+        try {
+            downloaded = Store.download(name, text);
+        } catch (e) {
+            downloaded = false;
+        }
+        if (downloaded) return true;
+        // 兜底：把 JSON 放进全屏 textarea，供玩家手动复制保存
+        var ta = document.createElement("textarea");
+        ta.value = text;
+        ta.readOnly = true;
+        ta.style.cssText = "position:fixed;left:0;top:0;width:100%;height:60%;z-index:99999;";
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        RM.toast("当前环境不支持直接下载，已生成文本框请手动复制保存", 5000);
+        return false;
+    }
+
     /**
      * 导出全部受管存档为紧凑签名容器 JSON 文件，并提示体积与完整性。
      * 浏览器不支持直接下载时退化为可复制的文本框，保证功能不中断。
      * @sideeffect 触发文件下载或向 body 追加 textarea，并弹出 toast
      */
     function exportSave() {
+        markSaveManageUsed();
         try {
             var payload = Store.exportFile();
-            // 紧凑序列化：签名容器是给机器读的，缩进美化只会成倍放大文件
-            var text = JSON.stringify(payload);
             var name = "反向扫雷-存档-" + dateStamp() + ".json";
-            var downloaded = false;
-            try {
-                downloaded = Store.download(name, text);
-            } catch (e) {
-                downloaded = false;
-            }
-            if (!downloaded) {
-                // 兜底：把 JSON 放进全屏 textarea，供玩家手动复制保存
-                var ta = document.createElement("textarea");
-                ta.value = text;
-                ta.readOnly = true;
-                ta.style.cssText = "position:fixed;left:0;top:0;width:100%;height:60%;z-index:99999;";
-                document.body.appendChild(ta);
-                ta.focus();
-                ta.select();
-                RM.toast("当前环境不支持直接下载，已生成文本框请手动复制保存", 5000);
-                return;
-            }
+            if (!downloadJsonFile(payload, name)) return;
             RM.toast("已导出签名存档（" + payload.size + " 字符 · ≈" + fmtBytes(payload.bytes) +
                 " · 完整性 ✅）", 3600);
         } catch (e) {
             RM.onError("boot:exportSave", e);
             RM.toast("导出失败：" + errMsg(e));
+        }
+    }
+
+    /**
+     * 测试者工具：生成并下载一份「全部系列解锁 + 所有预设难度可玩」的测试存档。
+     * 只构造导出文件、不写入当前存档；脑王门槛由 mineWins.hell = 10 满足。
+     * @sideeffect 触发一次文件下载（或退化为文本框），并弹出提示
+     */
+    function downloadTestSave() {
+        try {
+            var allSeries = {
+                basic: true,
+                special: true,
+                physics: true,
+                poker: true,
+                symmetry: true,
+                tactical: true
+            };
+            var payload = Store.exportRawMapFile({
+                seriesState: allSeries,
+                seriesUnlocked: allSeries,
+                // 脑王门槛：地狱通关 ≥ 10 次 + 5 个系列开关开启
+                mineWins: { easy: 0, medium: 0, hard: 0, hell: 10, brain: 0 },
+                // 教学与五个系列挑战标记完成，挑战面板直接显示可练习
+                tutorialStep: "5",
+                tutorialCompleted: "true",
+                teachFinished: "true",
+                tutorial_special: "5",
+                tutorial_physics: "5",
+                tutorial_symmetry: "5",
+                tutorial_tactical: "5",
+                tutorial_poker: "5",
+                placeMode_v1: "drag",
+                mineInfluenceHint: "false",
+                mineEffectPreview: "true",
+                mineSoundSettings: { bgm: 50, sfx: 50 },
+                mineHardcoreMode: "false",
+                // 抑制首访 / 每日欢迎与脑王解锁提示，便于连续测试
+                hasVisitedBefore: "true",
+                welcomeLastShown: (new Date).toDateString(),
+                brainUnlockedNotified: "true"
+            });
+            var name = "反向扫雷-测试存档-" + dateStamp() + ".json";
+            if (!downloadJsonFile(payload, name)) return;
+            RM.toast("已生成测试存档（全系列解锁 · 预设难度全开 · 脑王可用）", 4200);
+        } catch (e) {
+            RM.onError("boot:downloadTestSave", e);
+            RM.toast("生成测试存档失败：" + errMsg(e), 4200);
         }
     }
 
@@ -726,6 +801,7 @@
      */
     function importSave(file) {
         if (!file) return;
+        markSaveManageUsed();
         readFile(file, function(err, text) {
             if (err) {
                 RM.toast("导入失败：" + err.message);
@@ -774,6 +850,7 @@
      * @sideeffect 触发 #saveFileInput 的点击
      */
     function pickFile() {
+        markSaveManageUsed();
         var input = document.getElementById("saveFileInput");
         if (!input) {
             RM.toast("未找到文件选择框");
@@ -788,6 +865,7 @@
      * @sideeffect 删除存档键，1 秒后刷新页面
      */
     function resetSave() {
+        markSaveManageUsed();
         if (!window.confirm("确定要清空全部本地存档吗？\n" +
             "（成绩、成就、挑战进度、新手教学与外观设置都会被清空，且无法撤销）")) return;
         try {
@@ -811,6 +889,7 @@
      * @sideeffect 用快照覆盖当前存档，1 秒后刷新页面
      */
     function undoImport() {
+        markSaveManageUsed();
         var info = null;
         try {
             info = Store.backupInfo();
@@ -1050,7 +1129,9 @@
 
         // 🏆 成就：总数 / 首末解锁时间 + 按解锁时间升序的逐项列表
         var ach = insp.achievements || {};
-        var total = (sum && sum.total) || ach.total || 45;
+        // 总数优先取 13 号模块的汇总；两个来源都缺失时按编码表长度兜底
+        var total = (sum && sum.total) || ach.total ||
+            (RM && RM.ACH_IDS ? RM.ACH_IDS.length : 0);
         var unlocked = (sum && typeof sum.unlocked === "number") ? sum.unlocked : (ach.unlocked || 0);
         var hiddenCount = (sum && sum.hiddenUnlocked) || 0;
         var firstTxt = (sum && sum.firstAt) ? fmtLocal(sum.firstAt) :
@@ -1138,6 +1219,7 @@
      * @sideeffect 重写 #rmSaveDetailModal 内容并显示遮罩，播放弹窗音效
      */
     function showDetails() {
+        markSaveManageUsed();
         try {
             ensureDetailModal();
             detailModalEl.innerHTML = buildDetailHtml();
@@ -1257,7 +1339,8 @@
         resetSave: resetSave,
         undoImport: undoImport,
         showDetails: showDetails,
-        refreshHint: refreshHint
+        refreshHint: refreshHint,
+        downloadTestSave: downloadTestSave
     };
 
     /* ---------- 8. 启动收尾 ---------- */
@@ -1276,9 +1359,12 @@
         if (missing.length) {
             RM.toast("部分模块未加载，请检查 js/ 目录是否完整", 6000);
         }
-        // 启动即检测到完整性异常时只提示一次，避免玩家误以为进度正常
+        // 旧数据结构存档已被拒绝时只提示这一条：进度无法继承，但游戏可以正常开始；
+        // 其它完整性异常（备份接管 / 校验失败）仍按原有异常提示处理
         try {
-            if (Store && Store.tampered) {
+            if (Store && Store.legacyRejected) {
+                RM.toast("旧版本存档已不再兼容，已按新档开始", 6000);
+            } else if (Store && Store.tampered) {
                 var why = Store.integrity === "corrupt" ? "已重置为初始存档" : "已自动回退到备份";
                 RM.toast("检测到存档异常（" + why + "），建议导出存档并检查", 6000);
             }

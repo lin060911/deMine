@@ -68,7 +68,7 @@ function toggleInfluenceHint() {
 }
 
 /* ---------- 1.1 效果预览：拖拽落点预演 ---------- */
-// 初始化时读取存档中的开关状态，未存过则默认关闭
+// 初始化时读取存档中的开关状态：新存档默认开启，历史存档由下方一次性迁移补齐
 let effectPreviewOn = Store.get("mineEffectPreview") === "true";
 
 // 预览签名：记录当前正在预演"哪个雷型放在哪一格"，同一位置不重复结算

@@ -22,7 +22,7 @@ var RM = window.RM || {};
 window.RM = RM;
 
 /* 程序标识串：仅随日志输出，用于问题定位，不参与任何游戏逻辑 */
-RM.VERSION = "1.3.11";
+RM.VERSION = "1.4.1";
 
 /* 程序英文名：页脚署名、存档导出与导入校验统一使用这一写法 */
 RM.APP_NAME = "ReverseMinesweeper";
@@ -46,7 +46,13 @@ RM.ACH_IDS = [
     "total_20", "total_50", "total_150", "total_500", "total_night",
     "hidden_slide", "hidden_chaos", "hidden_flawless", "hidden_eco", "free_20x20",
     "brain_slow", "bgm_adjust", "new_game_spam", "crazy_thursday", "hidden_grass",
-    "hidden_icecream", "hidden_highvalue", "hidden_lowvalue", "hidden_teatime"
+    "hidden_icecream", "hidden_highvalue", "hidden_lowvalue", "hidden_teatime",
+    /* 1.4.0 扩展：新成就只能追加在末尾，位序必须与 13-achievements 的数据表一致 */
+    "unlock_poker", "hard_first", "hc_first", "hc_10",
+    "hc_easy", "hc_medium", "hc_hard", "hc_hell", "hc_brain",
+    "hidden_hc_free_20", "all_types_used", "create_all_types",
+    "hidden_free_26", "hidden_fullscreen", "hidden_savemanage",
+    "hidden_free_5x5", "hidden_del_100"
 ];
 
 /* 环形错误记录：只保留最近 50 条，长时间运行也不会无限增长 */
@@ -134,21 +140,35 @@ RM.onError = function(where, err) {
 
 /* ---------- 4. 棋盘参数与预设难度 ---------- */
 
-/* 当前棋盘参数：S 为边长，SR / SC 为行数与列数，T 为总雷数，
- * TY 为地雷类型数，SP 为特殊道具数。只允许 applyBoardParams 写入。
- * 初始值取入门档（8×8 / 4 雷），四个原有系列挑战全部完成后由
- * applyStandardParams 切到标准档（10×10 / 6 雷）。 */
-let S = 8, SR = 8, SC = 8, T = 4, TY = 2, SP = 3;
+/* 当前棋盘参数：S 为正方形边长，SR / SC 为行数与列数，T 为总雷数。
+ * 预设难度、教学与系列挑战沿用旧配比：TY 为特殊雷种类数、SP 为特殊雷数量；
+ * 自由模式改用新模型：K 为地雷种类数（含普通雷，范围 1 ~ min(26, T)），
+ * 自由模式不再使用 SP。只允许 applyBoardParams 写入。
+ * 初始值取入门档（8×8 / 4 雷 / 3 种），四个原有系列挑战全部完成后由
+ * applyStandardParams 切到标准档（10×10 / 6 雷 / 4 种）。 */
+let S = 8, SR = 8, SC = 8, T = 4, TY = 2, SP = 3, K = 3;
 
-/* 创造模式各参数的允许区间：[最小值, 最大值] */
+/* 自由模式参数面板是否展开为"单独设置行 / 列"的矩形棋盘模式。
+ * 收起时 SR = SC = S；展开时 S 不再参与棋盘尺寸，只在收起时作为基准值。 */
+let freeRectExpanded = false;
+
+/* 各参数的允许区间：size / sr / sc 为边长与行列数，total 为总雷数，
+ * kinds 为地雷种类数；type / spec 仅预设难度与教学内部使用。
+ * total 的上限还受 SR*SC 约束，kinds 的上限还受 min(26, T) 约束，
+ * 由 applyBoardParams 与 08-ui 的 setVal 动态收敛。 */
 const LIMIT = {
     size: [ 5, 20 ],
-    total: [ 5, 24 ],
+    sr: [ 5, 20 ],
+    sc: [ 5, 20 ],
+    total: [ 1, 400 ],
+    kinds: [ 1, 26 ],
     type: [ 0, 22 ],
     spec: [ 0, 99 ]
 };
 
-/* 六套预设难度：size 边长 / total 雷数 / type 类型数 / spec 特殊数 */
+/* 六套预设难度：size 边长 / total 雷数 / type 特殊雷种类 / spec 特殊雷数量。
+ * 预设与教学继续使用旧配比；自由模式入口（free）只借用这里的数值作为
+ * 面板初值，地雷种类数按 type + 1 推导（普通雷 + 特殊雷种类）。 */
 const PRE = {
     easy: {
         size: 8,
@@ -199,19 +219,22 @@ const DIFF_LABEL = {
 };
 
 /* 标准参数分两档：四个原有系列挑战全部完成前用入门档，全部完成后切到标准档。
- * 退出创造、教学、系列挑战等特殊模式后统一回到其中一档。 */
+ * 退出创造、教学、系列挑战等特殊模式后统一回到其中一档。
+ * type / spec 供预设与教学模式沿用旧配比，kinds 供自由模式新参数模型使用。 */
 const STD_PARAM_INTRO = {
     size: 8,
     total: 4,
     type: 2,
-    spec: 3
+    spec: 3,
+    kinds: 3
 };
 
 const STD_PARAM_FULL = {
     size: 10,
     total: 6,
     type: 3,
-    spec: 4
+    spec: 4,
+    kinds: 4
 };
 
 /**
@@ -230,29 +253,48 @@ function allSeriesChallengesDone() {
 }
 
 /**
- * 应用一组棋盘参数，并同步页面上的数字显示。
- * 所有模式切换都必须经由本函数，避免上一局的尺寸残留到下一局。
- * @param {{size:number,total:number,type:number,spec:number}} p 棋盘参数
- * @sideeffect 改写 S/SR/SC/T/TY/SP，并更新 #size/#total/#type/#spec 文本
+ * 应用一组棋盘参数，并同步页面上的参数显示。
+ * 参数对象可带 rows / cols 表示矩形棋盘（自由模式单独设置行列时使用），
+ * 缺省时按 size 生成正方形；kinds 缺省时按"普通雷 + 特殊雷种类"推导
+ * （预设与教学沿用旧配比时用得上）。所有模式切换都必须经由本函数。
+ * @param {{size?:number,rows?:number,cols?:number,total:number,type?:number,spec?:number,kinds?:number}} p 棋盘参数
+ * @sideeffect 改写 S/SR/SC/T/TY/SP/K，并按当前 DOM 结构刷新参数显示
  */
 function applyBoardParams(p) {
-    S = p.size;
-    SR = p.size;
-    SC = p.size;
+    if (!p) return;
+    var rows = p.rows != null ? p.rows : p.size;
+    var cols = p.cols != null ? p.cols : p.size;
+    S = p.size != null ? p.size : Math.max(rows, cols);
+    SR = rows;
+    SC = cols;
     T = p.total;
-    TY = p.type;
-    SP = p.spec;
-    // 数量约束：特殊道具数不得超过总雷数，地雷类型数不得超过特殊道具数
+    TY = p.type != null ? p.type : 0;
+    SP = p.spec != null ? p.spec : 0;
+    // 地雷种类数：自由模式显式给出；预设 / 教学按"普通雷 + 特殊雷种类"推导
+    K = p.kinds != null ? p.kinds : TY + 1;
+    // 数量约束：总雷数不超过格子数，特殊雷不超过总雷数，
+    // 特殊雷种类不超过特殊雷数量，地雷种类数不超过 26 且不超过总雷数
+    T = Math.max(1, Math.min(T, SR * SC));
     SP = Math.min(SP, T);
     TY = Math.min(TY, SP);
-    // 界面数字以状态为准：参数一变立刻回写，避免显示与棋盘不一致
-    var ids = { size: S, total: T, type: TY, spec: SP };
-    for (var k in ids) {
-        if (!Object.prototype.hasOwnProperty.call(ids, k)) continue;
+    K = Math.max(1, Math.min(K, 26, T));
+    syncBoardParamDisplays();
+}
+
+/**
+ * 按当前 DOM 结构刷新参数显示：自由模式面板用 size / sr / sc / total / kinds，
+ * 旧版预设面板的 type / spec 若仍存在也一并同步，缺失的节点直接跳过。
+ * @sideeffect 写入 #size / #sr / #sc / #total / #kinds / #type / #spec 的文本
+ */
+function syncBoardParamDisplays() {
+    var texts = { size: S, sr: SR, sc: SC, total: T, kinds: K, type: TY, spec: SP };
+    for (var k in texts) {
+        if (!Object.prototype.hasOwnProperty.call(texts, k)) continue;
         var el = document.getElementById(k);
-        if (el) el.textContent = ids[k];
+        if (el) el.textContent = texts[k];
     }
 }
+window.syncBoardParamDisplays = syncBoardParamDisplays;
 
 /**
  * 切回当前进度的标准参数：四个原有系列未全部完成用入门档，全部完成用标准档。

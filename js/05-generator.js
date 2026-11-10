@@ -4,9 +4,10 @@
  * 职责：按当前棋盘参数生成一局题目（随机局与系列挑战局），并维护答案矩阵
  *       G.tar、目标数量 G.max 与牌池 G.pool；同时提供影响值重算、图鉴面板
  *       渲染与"脑王"通关彩蛋。
- * 依赖：04 的 M / applyTacticalEffects、00-core 的 SR/SC/T/SP/TY 等参数、
- *       01-storage 的 Store；图鉴与预览依赖对应 CSS 类名。
- * 对外：genGame、genTutorialGame、setupTutorialParams、genPreHtml、
+ * 依赖：04 的 M / applyTacticalEffects / getEnabledMineKeys、00-core 的
+ *       SR/SC/T/TY/SP/K/isFreeMode 等参数、01-storage 的 Store；
+ *       图鉴与预览依赖对应 CSS 类名。
+ * 对外：genGame、genFreeGame、genTutorialGame、setupTutorialParams、genPreHtml、
  *       renderMineInfo、resetP、applyBrainEgg、lastChallengeTypes。
  * 设计要点：
  *   1) 出题思路是"先随机布雷、再反算目标值"：先随机决定每颗雷的位置与类型，
@@ -16,16 +17,27 @@
  *      逐格相等才算通关。G.placed 只记录玩家放置的雷，与 G.tar 并存。
  *   3) 影响核可正可负、可跨格叠加，因此目标值允许为负或大于 8，生成阶段
  *      不做截断，显示时才按配色区间归类。
+ *   4) 两条出题路径：预设难度、教学与系列挑战沿用 TY / SP 旧配比
+ *      （先定特殊雷种类与数量）；自由模式改用 T / K 新模型（K 为含普通雷的
+ *      地雷种类数，先定种类、再把剩余颗数在已选雷型中随机分配）。两条路径
+ *      共用同一套布雷、反算与战术结算流程，棋盘尺寸统一取 SR×SC。
  * ========================================================================== */
 
 /* ---------- 1. 随机出题：凑牌池 → 随机布雷 → 反算目标值 ---------- */
 /**
  * 生成一局随机题目，结果写入 G.tar / G.pool / G.max 并清空玩家进度。
- * 牌池组成：普通雷占 T-SP 颗（至少 1 颗），特殊雷共 SP 颗，且尽量让
- * TY 种特殊雷都出现；确定牌池后把雷随机放到互不重复的格子上。
+ * 自由模式（isFreeMode）走 T / K 新模型，见 genFreeGame；
+ * 其余模式沿用旧配比：普通雷占 T-SP 颗（至少 1 颗），特殊雷共 SP 颗，
+ * 且尽量让 TY 种特殊雷都出现；确定牌池后把雷随机放到互不重复的格子上。
  * @sideeffect 重置 G.tar / G.pool / G.max / G.placed，并调用 resetP
  */
 function genGame() {
+    // 自由模式使用新参数模型（T 总雷数 / K 地雷种类数），与预设 / 挑战的
+    // TY / SP 旧配比互不影响；其余模式保持原有生成逻辑，手感与旧成绩不变
+    if (isFreeMode) {
+        genFreeGame();
+        return;
+    }
     let enabled = getEnabledMineKeys();
     // 普通雷是保底雷型：即使未解锁也必须出现在牌池中
     if (!enabled.includes("normal")) enabled.unshift("normal");
@@ -87,6 +99,73 @@ function genGame() {
     G.tar = tar;
     G.pool = pool;
     G.max = T;
+    G.placed = {};
+    resetP();
+}
+
+/**
+ * 生成一局自由模式题目（新参数模型：T 总雷数 / K 地雷种类数）。
+ * 面积按 SR×SC 计算，T 与 K 先收敛到合法区间；牌池先保证「普通雷 1 颗 +
+ * 选中的 K-1 种特殊雷各 1 颗」，剩余颗数在普通雷与已选特殊雷之间随机分配，
+ * 因此牌池总数恒为 T（面积不足时收敛到面积），可用雷型足够时恰好 K 种。
+ * 矩形棋盘（SR≠SC）可直接使用：布雷与反算都按实际行列进行。
+ * @sideeffect 重置 G.tar / G.pool / G.max / G.placed，并调用 resetP
+ */
+function genFreeGame() {
+    // 面积决定总雷数上限：矩形棋盘按 SR×SC 计算，避免放不下
+    const area = Math.max(1, SR * SC);
+    const total = Math.max(1, Math.min(T, area));
+    // 可用雷型含普通雷；普通雷是保底雷型，未解锁也强制加入牌池
+    let enabled = getEnabledMineKeys();
+    if (!enabled.includes("normal")) enabled.unshift("normal");
+    let specials = enabled.filter(k => k !== "normal");
+    // 种类数收敛：不超过可用雷型数（含普通雷）、26 与总雷数；
+    // 可用特殊雷不足时按实际数量收敛，牌池仍然填满 total 颗
+    const kinds = Math.max(1, Math.min(K, 26, total, specials.length + 1));
+    // 打乱后取前 K-1 种特殊雷：保证每次开局出现的雷型不同且互不重复
+    specials = shuffleArr(specials);
+    const sel = specials.slice(0, kinds - 1);
+    // 牌池：普通雷 1 颗 + 选中特殊雷各 1 颗，先把"种类数"定死
+    let pool = { normal: 1 };
+    sel.forEach(t => {
+        pool[t] = 1;
+    });
+    // 剩余名额在普通雷与已选特殊雷之间随机分配，只影响数量、不影响种类
+    let remain = total - 1 - sel.length;
+    const candidates = [ "normal" ].concat(sel);
+    while (remain > 0) {
+        pool[candidates[Math.floor(Math.random() * candidates.length)]]++;
+        remain--;
+    }
+    // 补全所有雷型的计数，便于槽位与图鉴统一按 key 取值
+    for (let k of Object.keys(M)) {
+        if (pool[k] === undefined) pool[k] = 0;
+    }
+    // 展开成待放置的雷型队列，顺序不影响最终目标值
+    let mines = [];
+    for (let t in pool) for (let i = 0; i < pool[t]; i++) mines.push(t);
+    mines = mines.slice(0, total);
+    // 拒绝采样：坐标被占用就重抽；最多 total 颗雷且 total ≤ 面积，循环必然结束
+    let pos = new Set, ans = {};
+    while (mines.length) {
+        let r = Math.random() * SR | 0, c = Math.random() * SC | 0, k = r + "," + c;
+        if (!pos.has(k)) {
+            pos.add(k);
+            ans[k] = mines.pop();
+        }
+    }
+    // 目标值从全零矩阵开始，逐颗累加每颗雷的影响（与旧路径一致）
+    let tar = Array(SR).fill().map(() => Array(SC).fill(0));
+    for (let k in ans) {
+        let [r, c] = k.split(",");
+        M[ans[k]].f(+r, +c, tar);
+    }
+    // 战术雷依赖整份已放置集合，因此放在所有影响核之后统一结算
+    applyTacticalEffects(tar, ans);
+    // 写回本局状态：答案矩阵、牌池、目标数量，并清空玩家进度
+    G.tar = tar;
+    G.pool = pool;
+    G.max = total;
     G.placed = {};
     resetP();
 }
@@ -190,15 +269,14 @@ function genTutorialGame(categoryKey) {
 
 /**
  * 把页面参数显示同步为当前系列挑战的棋盘参数，并清空难度选中状态。
- * 只读全局 S/T/TY/SP 并写 DOM 文本，不改变任何棋盘数据。
- * @sideeffect 修改 #size / #total / #type / #spec 的文本，重置 diff
+ * 只读全局 S/SR/SC/T/K 并同步 DOM 文本，不改变任何棋盘数据；
+ * 同步统一走 00-core 的参数入口，旧版 #type / #spec 节点缺失时自动跳过，
+ * 09-tutorial 直接设置 TY / SP 后调用本函数也不会抛错。
+ * @sideeffect 写参数显示节点并重置 diff
  */
 function setupTutorialParams() {
     diff = null;
-    document.getElementById("size").textContent = S;
-    document.getElementById("total").textContent = T;
-    document.getElementById("type").textContent = TY;
-    document.getElementById("spec").textContent = SP;
+    if (typeof window.syncBoardParamDisplays === "function") window.syncBoardParamDisplays();
 }
 
 /* ---------- 3. 图鉴渲染：预览网格与图鉴面板 ---------- */

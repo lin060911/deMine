@@ -10,7 +10,7 @@
  *   hcLt / hcRec / hcWins / seriesState / seriesUnlocked 等派生状态与系列读写函数。
  *
  * 存档格式（详见 docs/SAVE-FORMAT.md）：
- *   明文数据 → 位打包 / varint 编码（成就用 45 位比特位图 + 时间差编码）
+ *   明文数据 → 位打包 / varint 编码（成就用按 RM.ACH_IDS 推导的比特位图 + 时间差编码）
  *            → LZSS 压缩（只在更小时采用）
  *            → SHA-256 计数器流 XOR 混淆
  *            → HMAC-SHA256 签名
@@ -46,7 +46,9 @@
     /* 容器格式与数据结构号：两者独立演进，一起写进存档便于排查 */
     var FORMAT = 2;
     var SCHEMA = 2;
-    var DATA_VERSION = 1;
+    /* 数据结构号：payload 首字节。递增后旧版 payload 会在 decodePayload 被拒绝，
+     * 读取端按"主档 → 备份档 → 默认值"回退，不保留旧结构解码分支。 */
+    var DATA_VERSION = 2;
 
     /* 容器布局：magic(4) + format(1) + flags(1) + payloadLen(2) + nonce(8)
      * = 16 字节头；尾部固定 32 字节 HMAC-SHA256 */
@@ -817,7 +819,7 @@
     }
 
     /**
-     * 编码成就状态：45 位解锁位图、按时间排序的解锁时间、计数器、过程标记。
+     * 编码成就状态：按 ACH_IDS 推导的解锁位图、按时间排序的解锁时间、计数器、过程标记。
      * 无成就状态时写入 present=0。
      * @param {Writer} w 写入器
      * @param {Object} map rawMap
@@ -1469,6 +1471,18 @@
     }
 
     /**
+     * 判断一次存档打开失败是否由数据结构版本不兼容引起。
+     * 版本不兼容意味着旧存档无法解码，读取端会按默认值重新开始，
+     * 界面据此给出一次性提示；其它失败（签名 / 截断）仍按完整性异常处理。
+     * @param {Object} res openEnvelope 的返回对象
+     * @returns {boolean} true 表示存档来自旧的数据结构
+     */
+    function isVersionRejected(res) {
+        return !!(res && !res.ok && typeof res.reason === "string" &&
+            res.reason.indexOf("数据结构版本不兼容") === 0);
+    }
+
+    /**
      * 读取后端存档：主档 → 备份档 → 默认值，并记录完整性状态。
      * @returns {string} "ok" / "backup" / "corrupt" / "fresh"
      */
@@ -1478,6 +1492,7 @@
         var state = "fresh";
         var decoded = null;
         var reason = "";
+        var versionRejected = false;
 
         if (primary) {
             var a = openEnvelope(primary);
@@ -1486,6 +1501,7 @@
                 state = "ok";
             } else {
                 reason = a.reason || "主档校验失败";
+                if (isVersionRejected(a)) versionRejected = true;
                 quarantine(primary, reason);
             }
         }
@@ -1494,8 +1510,9 @@
             if (b.ok) {
                 decoded = b;
                 state = "backup";
-            } else if (!reason) {
-                reason = b.reason || "备份档校验失败";
+            } else {
+                if (isVersionRejected(b)) versionRejected = true;
+                if (!reason) reason = b.reason || "备份档校验失败";
             }
         }
         if (!decoded && (primary || backup)) {
@@ -1514,6 +1531,9 @@
 
         Store.tampered = state === "backup" || state === "corrupt";
         Store.integrity = state;
+        // 只有"旧结构存档导致进度完全无法继承"时才标记，供启动层提示一次；
+        // 若备份档成功接管则仍走 integrity = "backup" 的异常提示
+        Store.legacyRejected = !decoded && versionRejected;
         if (reason) {
             if (RM && RM.warn) RM.warn("storage:load", reason);
         }
@@ -1620,6 +1640,8 @@
         tampered: false,
         integrity: "fresh",
         migrated: false,
+        /* 旧数据结构存档被拒绝的标记：由 load 置位，供启动层提示一次 */
+        legacyRejected: false,
         lastError: null,
         schema: SCHEMA,
         format: FORMAT,
@@ -1721,6 +1743,42 @@
         exportFile: function() {
             var savedAt = Math.floor(Date.now() / 1000);
             var payload = encodeRawMap(rawMap, savedAt);
+            var sealed = sealPayload(payload, savedAt);
+            return {
+                app: RM.APP_NAME || "ReverseMinesweeper",
+                schema: SCHEMA,
+                format: FORMAT,
+                exportedAt: new Date().toISOString(),
+                encodedAt: new Date(savedAt * 1000).toISOString(),
+                size: sealed.text.length,
+                bytes: sealed.bytes,
+                payloadBytes: sealed.payloadBytes,
+                compressed: sealed.compressed,
+                digest: hexOf(sha256(payload), 8),
+                save: sealed.text
+            };
+        },
+
+        /**
+         * 用一份"部分 rawMap"覆盖默认值，生成可直接导入的导出文件对象。
+         * 专供「设置 → 关于 → 测试者工具」构造测试档：只读默认值，不读写
+         * 当前存档、不改变运行期状态，返回结构与 exportFile 完全一致。
+         * @param {Object} partial 逻辑键 → 原始字符串 / 可 JSON 序列化的值
+         * @returns {Object} 导出文件对象
+         */
+        exportRawMapFile: function(partial) {
+            var map = defaultRawMap();
+            var k;
+            if (partial && typeof partial === "object") {
+                for (k in partial) {
+                    if (!hasOwn(partial, k)) continue;
+                    if (!isManagedKey(k)) continue;
+                    var v = partial[k];
+                    map[k] = typeof v === "string" ? v : stringify(v);
+                }
+            }
+            var savedAt = Math.floor(Date.now() / 1000);
+            var payload = encodeRawMap(map, savedAt);
             var sealed = sealPayload(payload, savedAt);
             return {
                 app: RM.APP_NAME || "ReverseMinesweeper",
@@ -2202,7 +2260,7 @@
         items.sort(function(a, b) {
             return (a.atMs || 0) - (b.atMs || 0);
         });
-        var total = ACH_IDS ? ACH_IDS.length : 45;
+        var total = ACH_IDS ? ACH_IDS.length : 0;
         var hidden = 0, i;
         if (ACH_IDS) {
             for (i = 0; i < items.length; i++) {
@@ -2519,6 +2577,12 @@
         out.counters = pickMax(isObj(a.counters) ? a.counters : {}, isObj(b.counters) ? b.counters : {});
         out.basicTypesUsed = pickUnion(isObj(a.basicTypesUsed) ? a.basicTypesUsed : {},
             isObj(b.basicTypesUsed) ? b.basicTypesUsed : {});
+        /* 全类型收集集合不属于专用字段，但合并导入时同样应"只增不减"：
+         * 按并集合并，避免"当前优先"丢掉另一侧已收集的雷型 */
+        if (isObj(a.allTypesUsed) || isObj(b.allTypesUsed)) {
+            out.allTypesUsed = pickUnion(isObj(a.allTypesUsed) ? a.allTypesUsed : {},
+                isObj(b.allTypesUsed) ? b.allTypesUsed : {});
+        }
 
         var numKeys = [ "totalWins", "nightWins", "sharedWins" ];
         for (var i = 0; i < numKeys.length; i++) {
@@ -2538,11 +2602,12 @@
         out.currentRunDeletes = 0;
         out.currentRunFlawless = true;
 
-        /* 未知字段：当前优先，文件补缺 */
+        /* 未知字段：当前优先，文件补缺；已在上方显式合并的字段不再覆盖 */
         var k;
         for (k in a) {
             if (!hasOwn(a, k)) continue;
             if (isKnownAchKey(k)) continue;
+            if (hasOwn(out, k)) continue;
             out[k] = a[k];
         }
         for (k in b) {

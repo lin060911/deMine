@@ -3,10 +3,10 @@
  *
  * 职责：定义全部成就，维护解锁进度与计数器，渲染成就面板，并在通关、
  *       落子、删雷、生成题库码等业务动作之后判定是否解锁新成就。
- * 依赖：对局状态 diff / SR / SC / G / ct / ts / isTutorialMode / isFreeMode
- *       （00-core 与 03-timer）、M（04-mines）、createPlaced / createRows /
- *       createCols（11-create）、Store（01-storage）、AudioFX（02-audio）、
- *       renderRecordList 与 closeSidebarsExcept（08-ui）。
+ * 依赖：对局状态 diff / SR / SC / G / ct / ts / isTutorialMode / isFreeMode /
+ *       gameHardcore（00-core 与 03-timer）、M（04-mines）、hcWins（01-storage）、
+ *       createPlaced / createRows / createCols（11-create）、Store（01-storage）、
+ *       AudioFX（02-audio）、renderRecordList 与 closeSidebarsExcept（08-ui）。
  * 对外：window.checkWinAchievements（08-ui 通关时调用）、window.Achievements
  *       （unlock / incrementCounter / renderAchievements / state，以及只读查询
  *       list / byId / unlockTime / summary）。
@@ -14,7 +14,7 @@
  *   1) 成就判定与业务逻辑分离：业务文件不知道成就系统的存在，本文件在
  *      installHooks 中包装既有全局函数，只在原有行为前后追加统计，属于
  *      可插拔的横切扩展；不加载本文件即可整体关闭成就系统。
- *   2) 数据驱动：45 个成就集中在同一张表内，添加成就只需追加数据与触发点。
+ *   2) 数据驱动：62 个成就集中在同一张表内，添加成就只需追加数据与触发点。
  *   3) 解锁时间以完整 ISO 时间戳（含 T、时分秒与 Z 后缀）保存，面板展示时再
  *      换算成本地时间；已有存档中可能出现的纯日期值 / 数字时间戳在启动时统一
  *      规范化。解锁时间、计数器与本局过程数据合并成一条 localStorage 记录，
@@ -42,7 +42,7 @@
         id: "first_win",
         cat: "新手村",
         emoji: "👷",
-        name: "初次上岗布雷工",
+        name: "初次上岗",
         desc: "通关任意一局游戏",
         tip: "First Blood",
         type: "once"
@@ -60,7 +60,7 @@
         emoji: "📖",
         name: "说明书",
         desc: "完成全部引导教学",
-        tip: "已严肃学习布雷技术",
+        tip: "已严肃学习反向扫雷技术",
         type: "once"
     }, {
         // 预设难度：按难度累计通关与首次通关
@@ -69,22 +69,30 @@
         emoji: "🥬",
         name: "小菜一碟",
         desc: "简单难度通关10次",
-        tip: "轻轻松松",
+        tip: "轻轻松松，对吧",
         type: "count",
         target: 10
     }, {
         id: "medium_10",
         cat: "预设难度",
         emoji: "🍗",
-        name: "不吃压力",
+        name: "大菜一碟",
         desc: "中等难度通关10次",
-        tip: "不吃压力，吃大鸡腿",
+        tip: "吃大鸡腿",
         type: "count",
         target: 10
     }, {
+        id: "hard_first",
+        cat: "预设难度",
+        emoji: "🥱",
+        name: "难？困。。。",
+        desc: "首次通关困难难度",
+        tip: "原来是助眠游戏啊",
+        type: "once"
+    }, {
         id: "hard_10",
         cat: "预设难度",
-        emoji: "🧠",
+        emoji: "🤕",
         name: "头有点痒",
         desc: "困难难度通关10次",
         tip: "头有点痒，不会要长脑子了吧",
@@ -110,10 +118,10 @@
     }, {
         id: "brain_first",
         cat: "预设难度",
-        emoji: "👍",
+        emoji: "🫢",
         name: "这不是外挂？？",
         desc: "首次通关脑王难度",
-        tip: "“轻轻松松”",
+        tip: "“轻轻松松”，对吧",
         type: "once"
     }, {
         id: "brain_10",
@@ -128,8 +136,8 @@
         /* ---------- 2. 成就数据表（二）：系列道具与速通 ---------- */
         id: "basic_all_used",
         cat: "系列道具",
-        emoji: "🧠",
-        name: "头脑不基础",
+        emoji: "🐣",
+        name: "鸡雏",
         desc: "基础系列全部道具至少用来通关过一次",
         tip: "使用的地雷基础，使用者就不基础",
         type: "special",
@@ -142,7 +150,7 @@
     }, {
         id: "unlock_special",
         cat: "系列道具",
-        emoji: "🔷",
+        emoji: "🌹",
         name: "奇葩",
         desc: "解锁异形系列",
         tip: "不是哥们，这形状也是地雷吗",
@@ -156,7 +164,7 @@
         emoji: "🗿",
         name: "科研人员",
         desc: "解锁物理律系列",
-        tip: "致敬英特尔首席工程师-i18芯片缔造者-FlameZ-火博士-科研精神🗿",
+        tip: "致敬英特尔首席研发工程师-i18芯片缔造者-FlameZ-火博士-科研精神🗿",
         type: "special",
         check: function() {
             return seriesUnlocked && seriesUnlocked.physics;
@@ -197,7 +205,7 @@
         id: "speed_medium",
         cat: "速通系列",
         emoji: "⚡",
-        name: "借过一下!",
+        name: "借过!",
         desc: "中等难度通关＜25秒",
         tip: "我赶时间",
         type: "time",
@@ -250,7 +258,7 @@
         /* ---------- 3. 成就数据表（三）：创造模式与累计通关 ---------- */
         id: "create_first",
         cat: "创造模式",
-        emoji: "🛠️",
+        emoji: "🔨",
         name: "包工头",
         desc: "创造模式生成第一张关卡",
         tip: "来打灰",
@@ -258,10 +266,10 @@
     }, {
         id: "create_mixed",
         cat: "创造模式",
-        emoji: "🏫",
-        name: "出卷人",
+        emoji: "🔧",
+        name: "打灰达人",
         desc: "创造模式自制关卡同时包含物理律/对称/战术三类道具",
-        tip: "出卷人？打灰高手！",
+        tip: "土木工程专家罢了",
         type: "special",
         check: function() {
             // 最近一次生成的题目同时包含物理律、对称与战术三类道具
@@ -270,8 +278,8 @@
     }, {
         id: "create_10",
         cat: "创造模式",
-        emoji: "📋",
-        name: "印试卷",
+        emoji: "🧑‍🏭",
+        name: "工人三雷",
         desc: "创造模式累计生成10张关卡",
         tip: "我们不生产图，我们只是大地雷的搬运工",
         type: "count",
@@ -280,9 +288,9 @@
         id: "play_shared_5",
         cat: "创造模式",
         emoji: "🏞️",
-        name: "观光客",
+        name: "雷区观光客",
         desc: "通关5张玩家自制关卡",
-        tip: "有点意思",
+        tip: "奇迹行者还在刷野💢",
         type: "count",
         target: 5
     }, {
@@ -300,28 +308,28 @@
         // 累计通关：总胜场与特定时段的累计成就
         id: "total_20",
         cat: "累计通关",
-        emoji: "☕",
+        emoji: "🐟",
         name: "摸鱼高手",
         desc: "累计通关20局",
-        tip: "初出茅庐",
+        tip: "带薪如厕中",
         type: "count",
         target: 20
     }, {
         id: "total_50",
         cat: "累计通关",
-        emoji: "🍉",
+        emoji: "🦈",
         name: "摸鱼高高手",
         desc: "累计通关50局",
-        tip: "摸鱼必备",
+        tip: "这。。。也能摸吗？",
         type: "count",
         target: 50
     }, {
         id: "total_150",
         cat: "累计通关",
-        emoji: "🍺",
+        emoji: "🐋",
         name: "摸鱼高高高手",
         desc: "累计通关150局",
-        tip: "那么工作没干完该怎么办",
+        tip: "DeepSeek-Pro蓝色大肥鱼！",
         type: "count",
         target: 150
     }, {
@@ -330,7 +338,7 @@
         emoji: "🧊",
         name: "卧槽？冰！！",
         desc: "累计通关500局",
-        tip: "我已经停不下来了",
+        tip: "我依然是世一扫雷大师",
         type: "count",
         target: 500
     }, {
@@ -339,7 +347,7 @@
         emoji: "🌙",
         name: "夜猫子",
         desc: "22:00-4:00时间段通关10次",
-        tip: "大家都早点休息吧。。。",
+        tip: "大家都早点休息吧--6657",
         type: "count",
         target: 10
     }, {
@@ -390,7 +398,7 @@
         emoji: "📐",
         name: "！！？大大？！！",
         desc: "自由模式20×20超大棋盘通关",
-        tip: "好像还是不过瘾",
+        tip: "加量不加价，良心游戏😭",
         type: "special",
         hidden: true,
         check: function() {
@@ -403,7 +411,7 @@
         emoji: "🐷",
         name: "脑力亡",
         desc: "通关脑王难度，但用时超过10分钟",
-        tip: "太有脑了，对了，头发还好吗",
+        tip: "我们是智将类型",
         type: "once",
         hidden: true
     }, {
@@ -490,6 +498,181 @@
         desc: "15:00-16:00时间段通关一次游戏",
         tip: "三點幾嘞，飲茶先啦",
         type: "once",
+        hidden: true
+    }, {
+        /* ---------- 4.1 成就数据表（五）：硬核、全类型与存档管理 ---------- */
+        // 扑克牌系列与困难首次通关：追加在历史成就之后，位序与 ACH_IDS 一致
+        id: "unlock_poker",
+        cat: "系列道具",
+        emoji: "🤡",
+        name: "Twisted Fate",
+        desc: "解锁扑克牌系列",
+        tip: "幸运女神在微笑",
+        type: "special",
+        check: function() {
+            return !!(seriesUnlocked && seriesUnlocked.poker);
+        }
+    }, {
+        // 硬核系列：只有预设难度与自由模式会继承硬核偏好
+        id: "hc_first",
+        cat: "🪚 硬核",
+        emoji: "🍖",
+        name: "硬菜一碟",
+        desc: "首次通关任意预设难度硬核",
+        tip: "事情开始变得有趣起来了",
+        type: "special",
+        check: function() {
+            // 硬核快照为真且存在真实难度键，自由模式不计入预设难度
+            return !!(gameHardcore && diff && !isFreeMode);
+        }
+    }, {
+        id: "hc_10",
+        cat: "🪚 硬核",
+        emoji: "🔩",
+        name: "∑MALE",
+        desc: "累计通关10次硬核预设难度",
+        tip: "你知道吗，其实《美国精神病人》里的贝特曼并不是西格玛男人",
+        type: "count",
+        target: 10
+    }, {
+        id: "hc_easy",
+        cat: "🪚 硬核",
+        emoji: "🪛",
+        name: "螺丝钉子",
+        desc: "首次通关简单硬核",
+        tip: "螺丝钉子拿在手上！",
+        type: "once"
+    }, {
+        id: "hc_medium",
+        cat: "🪚 硬核",
+        emoji: "🛻",
+        name: "破车皮卡",
+        desc: "首次通关中等硬核",
+        tip: "破车皮卡我来改装！",
+        type: "once"
+    }, {
+        id: "hc_hard",
+        cat: "🪚 硬核",
+        emoji: "🚁",
+        name: "难人！",
+        desc: "首次通关困难硬核",
+        tip: "男人，什么可以我说，曼巴出去了",
+        type: "once"
+    }, {
+        id: "hc_hell",
+        cat: "🪚 硬核",
+        emoji: "🐽",
+        name: "猪灵蛮兵",
+        desc: "首次通关地狱硬核",
+        tip: "随堡垒遗迹生成，不会自然刷新",
+        type: "once"
+    }, {
+        id: "hc_brain",
+        cat: "🪚 硬核",
+        emoji: "🐸",
+        name: "呱！",
+        desc: "首次通关脑王硬核",
+        tip: "这就是外呱!!!",
+        type: "once"
+    }, {
+        id: "hidden_hc_free_20",
+        cat: "隐藏",
+        emoji: "⛏️",
+        name: "加大！加硬！",
+        desc: "硬核模式下通关20×20自由棋盘",
+        tip: "增强方案",
+        type: "special",
+        hidden: true,
+        check: function() {
+            return !!(gameHardcore && isFreeMode && SR === 20 && SC === 20);
+        }
+    }, {
+        id: "all_types_used",
+        cat: "系列道具",
+        emoji: "🎓",
+        name: "毕业生",
+        desc: "26种雷型全部参与过通关",
+        tip: "看来已经没什么可以教你了",
+        type: "special",
+        check: function() {
+            // 跨局累计集合由通关结算逐局并入，26 种齐全即达成
+            let used = _achState.allTypesUsed;
+            if (!used || typeof used !== "object") return false;
+            let keys = Object.keys(M);
+            return keys.length > 0 && keys.every(k => used[k]);
+        }
+    }, {
+        id: "create_all_types",
+        cat: "创造模式",
+        emoji: "🐊",
+        name: "Chaos will follow",
+        desc: "创造模式集齐26种雷型生成题库码",
+        tip: "混乱将随后而至🐊 --雷克顿",
+        type: "special"
+    }, {
+        id: "hidden_free_26",
+        cat: "隐藏",
+        emoji: "🥗",
+        name: "火药沙拉",
+        desc: "自由模式通关参与地雷种类数超过20的题目",
+        tip: "刺鼻的化学味、硝烟味、溶剂味混在一起，颜色杂乱，质地干湿不均，看起来不能吃",
+        type: "special",
+        hidden: true,
+        check: function() {
+            // 只统计本局真正出现的雷型：牌池数量为 0 的雷型不算参与；
+            // G.placed 的键是 "行,列" 坐标，雷型取它对应的值；
+            // 参与种类数包含普通雷，超过 20 种即达成
+            if (!isFreeMode) return false;
+            let types = {};
+            let k;
+            for (k in G.pool) if (G.pool[k] > 0) types[k] = true;
+            for (k in G.placed) {
+                let t = G.placed[k];
+                if (t) types[t] = true;
+            }
+            let total = 0;
+            for (k in types) if (types[k]) total++;
+            return total > 20;
+        }
+    }, {
+        id: "hidden_fullscreen",
+        cat: "隐藏",
+        emoji: "🫶",
+        name: "占满屏幕",
+        desc: "首次进入全屏",
+        tip: "F11",
+        type: "once",
+        hidden: true
+    }, {
+        id: "hidden_savemanage",
+        cat: "隐藏",
+        emoji: "📦",
+        name: "包裹快递！",
+        desc: "首次使用存档管理",
+        tip: "已校验并签名",
+        type: "once",
+        hidden: true
+    }, {
+        id: "hidden_free_5x5",
+        cat: "隐藏",
+        emoji: "🤏",
+        name: "小号手办",
+        desc: "自由模式5×5棋盘通关",
+        tip: "小小的也很可爱",
+        type: "special",
+        hidden: true,
+        check: function() {
+            return !!(isFreeMode && SR === 5 && SC === 5);
+        }
+    }, {
+        id: "hidden_del_100",
+        cat: "隐藏",
+        emoji: "🗑️",
+        name: "回收站",
+        desc: "累计删除100次道具",
+        tip: "$Recycle.Bin",
+        type: "count",
+        target: 100,
         hidden: true
     } ];
 
@@ -617,6 +800,8 @@
             totalWins: 0,
             nightWins: 0,
             basicTypesUsed: {},
+            /* 跨局累计的雷型集合：通关时并入本局放置过的雷型，供全类型成就判定 */
+            allTypesUsed: {},
             lastCreateCats: null,
             currentRunCategories: null,
             currentRunDeletes: 0,
@@ -755,7 +940,10 @@
         if (diff && !isFreeMode) {
             if (diff === "easy") incrementCounter("easy_10");
             if (diff === "medium") incrementCounter("medium_10");
-            if (diff === "hard") incrementCounter("hard_10");
+            if (diff === "hard") {
+                incrementCounter("hard_10");
+                unlock("hard_first");
+            }
             if (diff === "hell") {
                 unlock("hell_first");
                 incrementCounter("hell_7");
@@ -763,6 +951,24 @@
             if (diff === "brain") {
                 unlock("brain_first");
                 incrementCounter("brain_10");
+            }
+            // 硬核预设难度：按难度记录首次硬核通关，并累计硬核总次数
+            if (gameHardcore) {
+                unlock("hc_first");
+                if (diff === "easy") unlock("hc_easy");
+                if (diff === "medium") unlock("hc_medium");
+                if (diff === "hard") unlock("hc_hard");
+                if (diff === "hell") unlock("hc_hell");
+                if (diff === "brain") unlock("hc_brain");
+                // 硬核累计次数取成绩层的五难度求和：08-ui 在本函数之前已把
+                // 本局胜场写入 hcWins，因此这里读到的是含本局的最新值
+                if (typeof hcWins !== "undefined" && hcWins) {
+                    let hcSum = 0;
+                    [ "easy", "medium", "hard", "hell", "brain" ].forEach(function(d) {
+                        hcSum += (typeof hcWins[d] === "number" ? hcWins[d] : 0);
+                    });
+                    setCounter("hc_10", hcSum);
+                }
             }
             // 限时成就只在有有效用时的前提下判定，避免异常计时污染结果
             if (ct > 0) {
@@ -777,7 +983,7 @@
                 unlock("hidden_flawless");
             }
         }
-        if (isFreeMode && SR === 20 && SC === 20) unlock("free_20x20");
+        // 自由模式的棋盘尺寸类成就由末尾通用 special 判定统一处理
         // 时段彩蛋：早餐时段与下午茶时段各对应一个隐藏成就
         if (diff && !isFreeMode) {
             let nowH = (new Date).getHours();
@@ -809,6 +1015,18 @@
             let basics = Object.keys(M).filter(k => M[k].category === "basic");
             if (basics.length > 0 && basics.every(k => _achState.basicTypesUsed[k])) unlock("basic_all_used");
         }
+        // 全类型收集：把本局放置过的雷型并入跨局累计集合（14 种之外的新字段
+        // 由存档层作为附加成员原样保存，不影响旧字段的二进制布局）
+        if (G.placed) {
+            if (!_achState.allTypesUsed || typeof _achState.allTypesUsed !== "object" ||
+                Array.isArray(_achState.allTypesUsed)) {
+                _achState.allTypesUsed = {};
+            }
+            for (let pk in G.placed) {
+                let pt = G.placed[pk];
+                if (pt && M[pt]) _achState.allTypesUsed[pt] = true;
+            }
+        }
         // 本局来自题库码时累计观光客进度，并消费掉一次性标记
         if (window._currentIsShared) {
             _achState.sharedWins = (_achState.sharedWins || 0) + 1;
@@ -816,28 +1034,15 @@
             window._currentIsShared = false;
         }
         if (_achState.currentRunCategories && _achState.currentRunCategories.size >= 6) unlock("hidden_chaos");
-        // 通用 special 判定：非隐藏且未解锁的成就逐个执行 check，
-        // 单个判定抛异常时忽略该成就，不影响其余成就结算
+        // 通用 special 判定：遍历全部 special 成就（含隐藏成就），未解锁的逐个
+        // 执行 check；单个判定抛异常时忽略该成就，不影响其余成就结算
         ACHIEVEMENTS.forEach(a => {
-            if (a.type === "special" && !a.hidden && !_achState.unlocked[a.id] && a.check) {
+            if (a.type === "special" && !_achState.unlocked[a.id] && a.check) {
                 try {
                     if (a.check()) unlock(a.id);
                 } catch (e) {}
             }
         });
-        // 两个依赖棋盘数值的隐藏成就单独判定：通用循环会跳过隐藏成就
-        var hiddenSpecialIds = [ "hidden_highvalue", "hidden_lowvalue" ];
-        for (var hi = 0; hi < hiddenSpecialIds.length; hi++) {
-            var hidx = hiddenSpecialIds[hi];
-            var ha = ACHIEVEMENTS.find(function(x) {
-                return x.id === hidx;
-            });
-            if (ha && ha.type === "special" && ha.hidden && !_achState.unlocked[hidx] && ha.check) {
-                try {
-                    if (ha.check()) unlock(hidx);
-                } catch (e) {}
-            }
-        }
         saveState();
         renderAchievements();
         renderRecordList();
@@ -888,7 +1093,7 @@
             groups[a.cat].push(a);
         });
         // 分组显示顺序固定：与成就表里的 cat 取值一一对应
-        let catOrder = [ "新手村", "预设难度", "系列道具", "速通系列", "创造模式", "累计通关", "隐藏" ];
+        let catOrder = [ "新手村", "预设难度", "🪚 硬核", "系列道具", "速通系列", "创造模式", "累计通关", "隐藏" ];
         let html = "";
         catOrder.forEach(cat => {
             if (!groups[cat]) return;
@@ -930,7 +1135,7 @@
      *      的存在，成就逻辑全部收敛在本文件，便于单独阅读与维护。
      *   2) 可插拔：每个钩子都先保存原实现再调用，业务行为保持不变，只追加
      *      副作用；不调用 installHooks 即可关闭整套统计而不影响游戏。
-     *   3) 集中埋点：45 个成就的触发点在同一段代码内可见，不必在多个业务
+     *   3) 集中埋点：62 个成就的触发点在同一段代码内可见，不必在多个业务
      *      文件之间搜索分散的统计语句。
      * 安装顺序：必须在首次 newGame 前完成，这样开局就处于统计范围内；
      * 并用 _achHooksInstalled 防止重复安装，否则包装层会叠加导致重复计数。
@@ -950,6 +1155,7 @@
             if (catKey === "physics") unlock("unlock_physics");
             if (catKey === "symmetry") unlock("unlock_symmetry");
             if (catKey === "tactical") unlock("unlock_tactical");
+            if (catKey === "poker") unlock("unlock_poker");
             renderAchievements();
         };
         let _oTW = typeof window.onTutorialWin === "function" ? window.onTutorialWin : NS.onTutorialWin;
@@ -965,7 +1171,9 @@
                 _achState.currentRunDeletes++;
                 _achState.currentRunFlawless = false;
                 if (_achState.currentRunDeletes >= 20) unlock("hidden_slide");
-                saveState();
+                // 跨局累计删除单独计数，与单局 20 次的 hidden_slide 互不影响；
+                // incrementCounter 内部会把本局过程字段一起落盘
+                incrementCounter("hidden_del_100");
             }
             if (_oDel) return _oDel(r, c);
         };
@@ -1042,6 +1250,16 @@
                 if (Object.keys(createPlaced).length >= maxMines && maxMines > 0) {
                     _achState.lastCreateMaxMines = true;
                     unlock("create_max_mines");
+                }
+                // 全类型创造：统计创造棋盘上用到过的去重雷型，集齐全类型即解锁
+                let usedTypes = {};
+                for (let pk in createPlaced) {
+                    let pt = createPlaced[pk];
+                    if (pt && M[pt]) usedTypes[pt] = true;
+                }
+                let allTypeKeys = Object.keys(M);
+                if (allTypeKeys.length > 0 && allTypeKeys.every(t => usedTypes[t])) {
+                    unlock("create_all_types");
                 }
                 saveState();
             }
@@ -1135,6 +1353,19 @@
                 }
             });
         }
+        /* ---- 成就「首次进入全屏」：监听各浏览器前缀的全屏状态变化 ----
+           三个事件名覆盖标准与旧版内核，任一事件报告存在全屏元素即视为进入全屏；
+           解锁本身是幂等的，重复事件不会产生额外解锁。 */
+        try {
+            let onFullscreenChange = function() {
+                let fsEl = document.fullscreenElement || document.webkitFullscreenElement ||
+                    document.msFullscreenElement;
+                if (fsEl) unlock("hidden_fullscreen");
+            };
+            [ "fullscreenchange", "webkitfullscreenchange", "MSFullscreenChange" ].forEach(function(ev) {
+                document.addEventListener(ev, onFullscreenChange);
+            });
+        } catch (e) {}
         /* ---- 成就「退！退！退！」：统计「新游戏」按钮的点击次数 ----
            只接管 #reset 这一个入口：程序内部调用 newGame()（如首屏启动、
            退出创造模式）不算玩家点击，必须真的按下按钮三次才解锁。
@@ -1199,7 +1430,7 @@
     /**
      * 返回成就数据表。只返回引用、不做深拷贝，调用方必须按只读使用：
      * 修改数组或其中元素会影响成就判定，以及存档位图的编码顺序。
-     * @returns {Array<Object>} 45 条成就定义
+     * @returns {Array<Object>} 62 条成就定义
      */
     function list() {
         return ACHIEVEMENTS;

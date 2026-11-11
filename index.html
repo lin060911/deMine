@@ -158,12 +158,24 @@
              08-ui.js saveRec / renderRecordList） -->
         <div class="sidebar-section" id="HardcoreSection">
             <div class="sidebar-title hardcore-title">🎲 玩法</div>
-            <div class="switch-row">
+            <div class="switch-row" id="hardcoreRow"
+                 data-tip="开启后隐藏 🟩🟨🟥 三态地块颜色提示&#10;仅预设难度 / 自由模式生效，硬核局中地块提示锁定">
                 <div class="switch-label">🪚 硬核模式</div>
                 <div class="switch-toggle" id="hardcoreToggle" role="switch" aria-checked="false"
                      onclick="toggleHardcoreMode()"></div>
             </div>
-            <div class="switch-hint" id="hardcoreHint">开启后隐藏 🟩🟨🟥 三态地块颜色提示<br>仅预设难度 / 自由模式生效，硬核局中地块提示将锁定</div>
+            <div class="switch-hint mode-tip-src" id="hardcoreHint" aria-hidden="true">开启后隐藏 🟩🟨🟥 三态地块颜色提示<br>仅预设难度 / 自由模式生效，硬核局中地块提示将锁定</div>
+            <!-- 俄罗斯方块模式：与硬核模式互斥的跨局偏好（下一局生效）；
+                 开关骨架与硬核一致，开启后地雷槽换成 7 种四格骨牌，
+                 状态与互斥同步由 06-render.js / 08-ui.js 负责；
+                 说明文案改为悬浮气泡（data-tip），不再常驻占位 -->
+            <div class="switch-row" id="tetrisRow"
+                 data-tip="开启后地雷槽换成 7 种四格骨牌（预设难度骨牌数约 2/3）&#10;仅预设难度 / 自由模式生效，双击已放骨牌可旋转&#10;骨牌局「🔺实时影响」固定开启">
+                <div class="switch-label">🧱 俄罗斯方块模式</div>
+                <div class="switch-toggle" id="tetrisToggle" role="switch" aria-checked="false"
+                     onclick="toggleTetrisMode()"></div>
+            </div>
+            <div class="switch-hint mode-tip-src" id="tetrisHint" aria-hidden="true">开启后地雷槽换成 7 种四格骨牌（预设难度骨牌数约 2/3）<br>仅预设难度 / 自由模式生效，双击已放骨牌可旋转</div>
         </div>
 
         <!-- 成绩入口说明：仅「📝记录」三个字是跳转入口，点击后
@@ -475,6 +487,7 @@
          预设难度在题目揭晓前显示，点击「开始」后才展开棋盘并启动计时；
          由 08-ui.js 显示，10-game.js 的 beginPresetGame() 接手开局 -->
     <div class="preset-start-card" id="presetStartCard" style="display:none;">
+        <div class="preset-start-mode mode-classic" id="presetStartMode">🎯 经典模式</div>
         <div class="preset-start-icon" id="presetStartIcon">😎</div>
         <div class="preset-start-title" id="presetStartTitle">准备好了吗？</div>
         <div class="preset-start-desc" id="presetStartDesc">点击开始后题目将展现并启动计时(≧▽≦)</div>
@@ -539,12 +552,19 @@
 
                 <h3>🪚 硬核模式</h3>
                 <ul>
-                    <li>在「🕹️难度 → 游戏选择」里开启：隐藏 🟩🟨🟥 三态配色，<br>数字格变成灰白色、数值为 0 的空地变成蓝色，颜色不再随局面变化</li>
-                    <li>仅在<strong>预设难度</strong>与<strong>自由模式</strong>生效：挑战 / 练习 / 题库码 / 教学 / 创造使用各自的配色，不受硬核影响</li>
-                    <li>游戏中途切换开关只改变偏好并保存，本局仍按开局时的状态结算，下一局才生效</li>
+                    <li>在「🕹️难度 → 游戏选择 → 🎲 玩法」里开启</li>
+                    <li>隐藏 🟩🟨🟥 三态配色，<br>数字格变成灰白色、数值为 0 的空地变成蓝色，颜色不再随局面变化</li>
                     <li>开启期间「🔺实时影响」与「👀效果预览」被锁定</li>
-                    <li>状态行显示「💣 已放置雷数：n/m」；硬核局还显示「🧩 地块准确数：x/x」
-                    （x 为数字格中当前影响值等于题面数字的个数），宽屏与已放置雷数同一行、窄屏分两行</li>
+                    <li>状态行显示「💣 已放置雷数：n/m」；硬核局还显示「🧩 地块准确数：x/x」</li>
+                </ul>
+
+                <h3>🧱 俄罗斯方块模式</h3>
+                <ul>
+                    <li>在「🕹️难度 → 游戏选择 → 🎲 玩法」里开启</li>
+                    <li>地雷槽换成 I/O/J/L/S/Z/T 七种四格骨牌，槽内可旋转；</li>
+                    <li>每块骨牌覆盖的 4 格各 +1；自身格不可叠放，影响值可叠加</li>
+                    <li>双击棋盘上已放置的骨牌可绕锚点顺时针旋转；右键 / 长按删除整块</li>
+                    <li>仅预设难度 / 自由模式生效，成绩单独记在「📝记录 → 成绩 → 俄罗斯方块」标签</li>
                 </ul>
                 </div>
             </div>
@@ -589,6 +609,14 @@
                 <span class="record-acc-arrow" aria-hidden="true">▸</span>
             </button>
             <div class="record-acc-body">
+                <!-- 成绩筛选：全部 / 经典 / 硬核 / 俄罗斯方块四个标签，位于列表上方；
+                     选中态与列表过滤由 08-ui.js 的 setRecordFilter(mode) 控制 -->
+                <div class="record-filter-tabs" role="tablist" aria-label="成绩筛选">
+                    <button class="record-filter-tab active" type="button" role="tab" data-mode="all" onclick="setRecordFilter('all')">全部</button>
+                    <button class="record-filter-tab" type="button" role="tab" data-mode="classic" onclick="setRecordFilter('classic')">经典</button>
+                    <button class="record-filter-tab" type="button" role="tab" data-mode="hardcore" onclick="setRecordFilter('hardcore')">硬核</button>
+                    <button class="record-filter-tab" type="button" role="tab" data-mode="tetris" onclick="setRecordFilter('tetris')">俄罗斯方块</button>
+                </div>
                 <div id="achRecordList"></div>
             </div>
         </div>
@@ -742,12 +770,13 @@
              更新公告为静态摘要，避免多处版本号不一致 -->
         <div class="sidebar-section" id="AboutSection">
             <div class="sidebar-title about-title">ℹ️ 关于</div>
-            <div class="about-version">🔧 版本号 <strong id="aboutVersion">v1.4.1</strong></div>
+            <div class="about-version">🔧 版本号 <strong id="aboutVersion">v1.5.1</strong></div>
             <div class="about-announce">
                 <div class="about-announce-title">📣 更新公告</div>
                 <ul class="about-announce-list">
+                    <li><b>V1.5.1</b>：修复骨牌图形全部画在首格的问题；预设难度骨牌数降为约 2/3（自由模式不变）；双击已放置骨牌可绕锚点旋转（触屏长按仍删除）。</li>
+                    <li><b>V1.5.0</b>：成绩栏新增「全部 / 经典 / 硬核 / 俄罗斯方块」四档筛选；新增🧱俄罗斯方块玩法（地雷槽换成七种四格骨牌，可旋转、影响值叠加）；修复基础挑战入口问题。</li>
                     <li><b>V1.4.1</b>：关于板块新增「🔬 测试者工具」，可一键下载全系列解锁、所有预设难度可玩的测试存档；隐藏成就「火药沙拉」的判定改为自由模式参与地雷种类数超过 20；17 个新成就补全正式名称与彩蛋文案。</li>
-                    <li><b>V1.4.0</b>：成就扩充到 62 个并新增「🪚 硬核」分组；自由模式支持矩形棋盘（可展开单独设置行 / 列）与地雷种类数，「特殊雷总数」参数移除；旧存档不再兼容。</li>
                 </ul>
             </div>
             <!-- 测试者工具：只构造并下载测试存档，不读写当前存档；具体数据由
@@ -769,7 +798,7 @@
 
     <!-- 区块：页脚
          署名与联系方式，纯静态文本，脚本不依赖 -->
-    <footer class="sidebar-version">ReverseMinesweeper v1.4.1<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
+    <footer class="sidebar-version">ReverseMinesweeper v1.5.1<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
 
     <!-- 区块：脚本加载区（顺序即依赖）
          17 个外部脚本按 00 → 16 的书写顺序同步执行，共享同一个全局作用域：

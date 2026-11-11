@@ -22,7 +22,7 @@ var RM = window.RM || {};
 window.RM = RM;
 
 /* 程序标识串：仅随日志输出，用于问题定位，不参与任何游戏逻辑 */
-RM.VERSION = "1.4.1";
+RM.VERSION = "1.5.1";
 
 /* 程序英文名：页脚署名、存档导出与导入校验统一使用这一写法 */
 RM.APP_NAME = "ReverseMinesweeper";
@@ -359,6 +359,20 @@ let isHardcoreMode = false;
  * 只有预设难度与自由模式会继承偏好；教学 / 挑战 / 练习 / 创造 / 题库码恒为 false。 */
 let gameHardcore = false;
 
+/* 是否开启「俄罗斯方块模式」：跨局偏好，存在存档 mineTetrisMode。
+ * 开启后地雷槽换成 7 种四格骨牌，棋盘按骨牌影响结算；仅预设难度与
+ * 自由模式生效，且与硬核模式互斥（开启一个时另一个自动关闭）。 */
+let isTetrisMode = false;
+
+/* 本局的俄罗斯方块快照：开局时由 applyGameTetris() 按模式计算，整局保持不变。
+ * 只有预设难度与自由模式会继承偏好；教学 / 挑战 / 练习 / 创造 / 题库码恒为 false。
+ * 为 true 时 gameHardcore 必为 false（两种玩法互斥）。 */
+let gameTetris = false;
+
+/* 骨牌旋转态：本局地雷槽里每种骨牌当前朝向（0~3，顺时针），由槽位旋转按钮
+ * 递增；放置时写入 G.rot 供影响结算使用。每局由 genTetrisGame 重置为空对象。 */
+let tetroRot = {};
+
 /* 本局是否已完成通关结算：checkWin 只允许结算一次，防止胜利后
  * 窗口缩放等重绘路径重复写入成绩 / 通关次数。由 fullReset 重置。 */
 let winSettled = false;
@@ -374,7 +388,9 @@ let selectedMineType = null;
 
 /* 对局棋盘的核心数据：tar 目标值矩阵、p 由已放置地雷算出的影响值矩阵、
  * placed 格子到地雷类型的映射、pool 各类型剩余数量、max 目标雷数、
- * drag 拖拽起点格子、lastDragType 最近一次拖拽的类型 */
+ * drag 拖拽起点格子、lastDragType 最近一次拖拽的类型。
+ * rot 仅在俄罗斯方块模式下使用：键为骨牌锚点 "行,列"，值为朝向 0~3；
+ * 经典模式保持为空对象，不影响任何既有结算。 */
 let G = {
     tar: [],
     p: [],
@@ -382,7 +398,8 @@ let G = {
     pool: {},
     max: 0,
     drag: null,
-    lastDragType: null
+    lastDragType: null,
+    rot: {}
 };
 
 /* 当前教学分类 key；null 表示基础教学 */

@@ -9281,3 +9281,629 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     width: 100%;
 }
 
+/* ==========================================================================
+   70. V1.5.0 · 俄罗斯方块玩法 / 成绩筛选
+   --------------------------------------------------------------------------
+   位置：V1.5.0 新增样式，接在 69 段之后；只新增选择器，不改动前面任何规则。
+   覆盖四块内容：
+     70.1 难度弹窗「🎲 玩法」的俄罗斯方块开关（与硬核开关同骨架，紫色系）
+     70.2 记录栏成绩筛选标签（全部 / 经典 / 硬核 / 俄罗斯方块）
+     70.3 成绩卡内的俄罗斯方块子行（仿 66.5 的 .record-hc，青绿配色）
+     70.4 俄罗斯方块地雷槽卡片与旋转按钮
+     70.5 棋盘骨牌覆盖层（拖拽 / 预览）
+   约束：.tetro-* 全部挂在 .mine-item.tetro-item 或 .tetro-overlay 下，不影响
+   经典 .mine-item 的既有尺寸；显隐状态一律交给 JS 的 style / 类控制，本段
+   不写 display 状态规则，避免与既有规则互相覆盖。
+   ========================================================================== */
+
+/* ---- 70.1 玩法区块的俄罗斯方块开关 ----
+   两个开关同处 #HardcoreSection：第一行是硬核（钢蓝），第二行是俄罗斯方块
+   （紫色）。第 66 段用 #HardcoreSection .switch-toggle.on 统一了开启态颜色，
+   这里用「双 ID」提高特异性覆盖掉它，二者才区分得开。 */
+#HardcoreSection .switch-hint + .switch-row {
+    margin-top: 2px;
+}
+
+#HardcoreSection #tetrisToggle:not(.on) {
+    background: #e9e5f7;
+    box-shadow: inset 0 1px 3px rgba(88, 64, 160, .10);
+}
+
+#HardcoreSection #tetrisToggle.on {
+    background: linear-gradient(180deg, #9c87ff, #7c5cff);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, .06), 0 2px 6px rgba(124, 92, 255, .30);
+}
+
+/* 提示文字默认沿用 .switch-hint 的灰字；开启后由 JS 加 .tetris-on 转紫 */
+#HardcoreSection #tetrisHint.tetris-on {
+    color: #6a4bd0;
+}
+
+/* ---- 70.2 成绩筛选标签 ----
+   位于 #achRecordList 上方、.record-acc-body 之内；四个等分药丸按钮，
+   水平内边距为 0，与下方成绩卡的左右边界对齐（卡片内部还有自己的 12px 缩进）。 */
+.record-filter-tabs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 9px;
+}
+
+.record-filter-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 6px 4px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: #eef2f7;
+    color: var(--rm-ink-3);
+    font-family: inherit;
+    font-size: 11.5px;
+    font-weight: 700;
+    line-height: 1.4;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+        background-color .2s ease,
+        color .2s ease,
+        box-shadow .2s ease,
+        transform .2s var(--rm-spring);
+}
+
+.record-filter-tab:hover {
+    background: #e3eaf3;
+    color: var(--rm-ink);
+}
+
+.record-filter-tab:active {
+    transform: scale(.97);
+}
+
+.record-filter-tab:focus-visible {
+    outline: 2px solid rgba(47, 127, 235, .5);
+    outline-offset: 1px;
+}
+
+/* 选中态：默认深墨底白字；三个模式标签各用一档语义色（经典蓝 / 硬核钢蓝 /
+   俄罗斯方块紫），与成绩卡的难度配色同一色相 */
+.record-filter-tab.active {
+    border-color: transparent;
+    background: var(--rm-ink-2);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(18, 38, 58, .16);
+}
+
+.record-filter-tab.active[data-mode="classic"] {
+    background: linear-gradient(180deg, #4a90f0, #2f7feb);
+    box-shadow: 0 2px 8px rgba(47, 127, 235, .26);
+}
+
+.record-filter-tab.active[data-mode="hardcore"] {
+    background: linear-gradient(180deg, #7fb2e5, #4a86c8);
+    box-shadow: 0 2px 8px rgba(74, 134, 200, .26);
+}
+
+.record-filter-tab.active[data-mode="tetris"] {
+    background: linear-gradient(180deg, #9c87ff, #7c5cff);
+    box-shadow: 0 2px 8px rgba(124, 92, 255, .26);
+}
+
+/* ---- 70.3 成绩卡内的俄罗斯方块子行 ----
+   结构仿 66.5 的 .record-hc：难度卡内、普通成绩下方用虚线分隔一条
+   「🧱 俄罗斯方块」子行（.record-row + 徽标 + .record-meta 最快 / 本次）；
+   配色改青绿，与硬核的钢蓝区分。难度底色仍由 61.2 的 .diff-* 负责，不重写。 */
+#achRecordList > .record-item .record-tet {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(31, 138, 122, .38);
+}
+
+#achRecordList > .record-item .record-tet .record-label {
+    color: #1f8a7a;
+}
+
+#achRecordList > .record-item .record-tet .record-badge {
+    background: rgba(31, 138, 122, .14);
+    color: #1f8a7a;
+}
+
+/* 筛选后的成绩卡：只补「俄罗斯方块成绩卡」一圈青绿内环作为最小强调；
+   难度配色 / 圆角 / 内边距全部沿用既有规则，本段不写显隐。
+   :has(.record-tet) 覆盖「带子行的难度卡」，data-mode / 容器类覆盖 JS 若采用
+   的筛选标记，两种写法都不会误伤普通成绩卡。 */
+#achRecordList > .record-item:has(.record-tet),
+#achRecordList > .record-item[data-mode="tetris"],
+#recSection.filter-tetris #achRecordList > .record-item {
+    box-shadow: inset 0 0 0 1px rgba(31, 138, 122, .18);
+}
+
+#achRecordList > .record-item:has(.record-tet):hover,
+#achRecordList > .record-item[data-mode="tetris"]:hover,
+#recSection.filter-tetris #achRecordList > .record-item:hover {
+    box-shadow: inset 0 0 0 1px rgba(31, 138, 122, .18), 0 4px 14px rgba(18, 38, 58, .06);
+}
+
+/* ---- 70.4 俄罗斯方块地雷槽卡片 ----
+   JS 给槽位卡片加 .tetro-item，卡内依次渲染 .tetro-shape（骨牌预览）/
+   .tetro-name / .tetro-count，右上角是 .tetro-rotate 旋转按钮。
+   .mine-item.tetro-item 用「双类」提高特异性，覆盖第 46 段 .mine-item 的
+   80×85 尺寸；选中 / 禁用 / 悬停的视觉语言完全沿用经典卡，不重复实现。 */
+.mine-item.tetro-item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    width: 96px;
+    height: 104px;
+    padding: 8px 6px 7px;
+}
+
+/* 骨牌预览：4 列 × 若干行的 CSS grid，单元格尺寸由 --tetro-cell 控制
+   （默认 9px），--tetro-cols 允许 JS 按形状宽度收窄列数 */
+.mine-item.tetro-item .tetro-shape {
+    display: grid;
+    grid-auto-flow: row;
+    grid-template-columns: repeat(var(--tetro-cols, 4), var(--tetro-cell, 9px));
+    grid-auto-rows: var(--tetro-cell, 9px);
+    place-content: center;
+    margin: 2px auto 1px;
+    overflow: visible;
+    pointer-events: none;
+}
+
+/* 占位格：透明、无边框，只负责撑出网格 */
+.tetro-shape .ts-cell {
+    width: var(--tetro-cell, 9px);
+    height: var(--tetro-cell, 9px);
+    border: 0;
+    border-radius: 2px;
+    background: transparent;
+}
+
+/* 覆盖格：骨牌颜色由 JS 写在 --tc 上；半透明填充 + 同色描边 */
+.tetro-shape .ts-cell.on {
+    background: var(--tc, #7c5cff);
+    border: 2px solid var(--tc, #7c5cff);
+    border-radius: 2px;
+    opacity: .45;
+}
+
+/* 自身格（锚点）：更深一档，并加内侧白色高光，和影响格区分 */
+.tetro-shape .ts-cell.on.anchor {
+    opacity: .85;
+    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .55);
+}
+
+/* 名称与数量：双类 + 类名压过 .mine-item > div:nth-child(n) 的字号 / 颜色 */
+.mine-item.tetro-item .tetro-name {
+    max-width: 100%;
+    overflow: hidden;
+    color: var(--rm-ink);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.3;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.mine-item.tetro-item .tetro-count {
+    color: var(--rm-ink-4);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.3;
+    font-variant-numeric: tabular-nums;
+}
+
+/* 旋转按钮：右上角小圆钮，默认隐藏；hover / 选中 / 长按提示时常显，
+   触屏（hover: none）下选中态常显，窄屏触屏再放宽到所有卡片常显。
+   下方 margin / overflow / white-space 是防御性重置：即使按钮被渲染成
+   卡内第 2 个子 div，也不会被 .mine-item > div:nth-child(2) 的省略号规则截断。 */
+.mine-item.tetro-item .tetro-rotate {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    margin: 0;
+    padding: 0;
+    border: 2px solid var(--tc, rgba(124, 92, 255, .55));
+    border-radius: 50%;
+    overflow: visible;
+    background: #ffffff;
+    color: var(--rm-ink-2);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    text-overflow: clip;
+    text-align: center;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition:
+        opacity .2s ease,
+        transform .2s var(--rm-spring),
+        background-color .2s ease;
+}
+
+.mine-item.tetro-item:hover .tetro-rotate,
+.mine-item.tetro-item.selected .tetro-rotate,
+.mine-item.tetro-item.tip-show .tetro-rotate {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* 已用完（.disabled）的卡片不显示旋转按钮：避免悬停时出现一个点了没反应的按钮 */
+.mine-item.tetro-item.disabled .tetro-rotate {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.mine-item.tetro-item .tetro-rotate:hover {
+    background: #f4f0ff;
+    transform: scale(1.08);
+}
+
+.mine-item.tetro-item .tetro-rotate:active {
+    transform: scale(.94);
+}
+
+.mine-item.tetro-item .tetro-rotate:focus-visible {
+    outline: 2px solid rgba(124, 92, 255, .5);
+    outline-offset: 2px;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* ---- 70.5 棋盘骨牌覆盖层 ----
+   JS 创建 .tetro-overlay（fixed 的 0×0 容器）并在内部按格写 .tetro-cell，
+   每格的 left / top / 尺寸由 JS 内联；层级 5 在棋盘（z-index 1）之上、
+   弹窗（12000+）之下，且不拦截任何指针事件。 */
+.tetro-overlay {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 5;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.tetro-overlay .tetro-cell {
+    position: fixed;
+    box-sizing: border-box;
+    border: 2px solid var(--tc, #7c5cff);
+    background: var(--tc, #7c5cff);
+    opacity: .45;
+    border-radius: 3px;
+    pointer-events: none;
+}
+
+.tetro-overlay .tetro-cell.is-anchor {
+    opacity: .85;
+    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .6);
+}
+
+/* ---- 70.6 窄屏适配 ----
+   ≤700px：记录栏是全宽底部抽屉，四个标签仍能一行放下，只收字号与内边距；
+   ≤380px：四等分放不下「俄罗斯方块」五个字，改为 2×2 换行，避免溢出。
+   骨牌卡同步缩到 74×84；触屏下旋转按钮常显，保证手指点得到。 */
+@media (max-width: 700px) {
+    .record-filter-tabs {
+        gap: 5px;
+        margin-bottom: 8px;
+    }
+
+    .record-filter-tab {
+        padding: 5px 2px;
+        font-size: 10.5px;
+    }
+
+    .mine-item.tetro-item {
+        width: 74px;
+        height: 84px;
+        padding: 6px 4px 5px;
+        gap: 3px;
+    }
+
+    .mine-item.tetro-item .tetro-name {
+        font-size: 11px;
+    }
+
+    .mine-item.tetro-item .tetro-count {
+        font-size: 10.5px;
+    }
+
+    .mine-item.tetro-item .tetro-rotate {
+        top: 3px;
+        right: 3px;
+        width: 22px;
+        height: 22px;
+        font-size: 13px;
+    }
+}
+
+/* 超窄屏：筛选标签换行成两行两列，按钮等分，不再压缩文字 */
+@media (max-width: 380px) {
+    .record-filter-tabs {
+        flex-wrap: wrap;
+    }
+
+    .record-filter-tab {
+        flex: 1 1 calc(50% - 3px);
+    }
+}
+
+/* 触屏：没有 hover，选中态的旋转按钮常显；窄屏触屏进一步放宽到所有卡片 */
+@media (hover: none) {
+    .mine-item.tetro-item.selected .tetro-rotate {
+        opacity: 1;
+        pointer-events: auto;
+    }
+}
+
+@media (hover: none) and (max-width: 700px) {
+    .mine-item.tetro-item .tetro-rotate {
+        opacity: 1;
+        pointer-events: auto;
+    }
+}
+
+/* ---- 70.7 动效偏好 ----
+   37 段的全局 reduce 规则已把动画/过渡压到 0，这里只对本段新增的
+   旋转按钮与筛选标签做一次显式声明，避免以后局部规则覆盖全局设置。 */
+@media (prefers-reduced-motion: reduce) {
+    .record-filter-tab,
+    .mine-item.tetro-item .tetro-rotate {
+        transition: none;
+    }
+}
+
+/* ==========================================================================
+   70.8 ~ 70.11 · V1.5.1 补充改动（不升版本号）
+   --------------------------------------------------------------------------
+   70.8 玩法开关说明改为悬浮气泡（隐藏常驻 .switch-hint）
+   70.9 「游戏选择」弹窗各分区还原为设置栏同款独立白底卡片
+   70.10 「准备好了吗？」待开始卡片重做：模式胶囊 + 参数摘要 + 现代按钮
+   70.11 窄屏适配
+   本段只新增选择器与对末段组件的覆盖，不改动前面已发布版本的规则。
+   ========================================================================== */
+
+/* ---- 70.8 玩法开关说明气泡 ----
+   硬核 / 俄罗斯方块开关下方的说明文字改为悬浮气泡：常驻节点只作为文案来源
+   （JS 同时把纯文本写进 .switch-row 的 data-tip），这里把节点彻底隐藏；
+   气泡本身复用 07-board.js 的统一浮层 #mineTipFixed，无需新样式。 */
+.switch-hint.mode-tip-src {
+    display: none !important;
+}
+
+#HardcoreSection .switch-row[data-tip] {
+    cursor: help;
+}
+
+#HardcoreSection .switch-row[data-tip] .switch-label {
+    border-bottom: 1px dashed rgba(70, 96, 128, .28);
+}
+
+/* ---- 70.9 「游戏选择」弹窗：分区独立卡片 ----
+   第 29 段把弹窗内的 .sidebar-section 抹平成了无卡片的分组；V1.5.1 起还原为
+   与设置栏一致的白底圆角卡片，让「难度挑战 / 系列开关 / 玩法 / 成绩入口」各自
+   成为显眼的独立板块。 */
+.game-modal-body {
+    padding: 16px;
+    /* 淡蓝底让内部的白色分区卡片浮起来（卡片本体仍是白底，与设置栏一致） */
+    background: linear-gradient(180deg, #f3f8fd 0%, #eef4fb 100%);
+}
+
+.game-modal-body .sidebar-section {
+    margin-bottom: 14px;
+    padding: 16px;
+    border: 1px solid rgba(22, 33, 43, .05);
+    border-radius: 22px;
+    background: linear-gradient(180deg, #ffffff, #fbfdff);
+    box-shadow:
+        0 1px 2px rgba(18, 38, 58, .03),
+        0 10px 26px rgba(18, 38, 58, .06);
+}
+
+.game-modal-body .sidebar-section:last-child {
+    margin-bottom: 0;
+}
+
+.game-modal-body .sidebar-title {
+    margin-bottom: 12px;
+    font-size: 15px;
+}
+
+/* 玩法区块在卡片内加一层淡淡的紫/蓝底，和普通分区再区分一层 */
+.game-modal-body #HardcoreSection {
+    background: linear-gradient(180deg, #ffffff, #f7f5ff);
+    border-color: rgba(124, 92, 255, .16);
+}
+
+.game-modal-body #HardcoreSection .hardcore-title {
+    color: #4a3fa8;
+}
+
+/* ---- 70.10 「准备好了吗？」待开始卡片 ----
+   与当前的玻璃卡片体系对齐：白底渐变卡面 + 顶部模式色条 + 模式胶囊 + 参数胶囊，
+   经典（蓝）/ 硬核（钢蓝）/ 骨牌（紫）三套配色由 .mode-* 类切换。 */
+.preset-start-card {
+    width: min(100%, 520px);
+    min-height: 0;
+    margin: 14px auto 22px;
+    padding: 30px 30px 24px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, .82);
+    border-radius: 26px;
+    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 62%, #f1f8ff 100%);
+    box-shadow:
+        0 18px 44px rgba(24, 52, 84, .14),
+        inset 0 1px 0 rgba(255, 255, 255, .9);
+}
+
+/* 顶部模式色条：随玩法切换颜色 */
+.preset-start-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto;
+    height: 6px;
+    background: linear-gradient(90deg, #7fd3ff, #6aa9ff, #8f7bff);
+}
+
+.preset-start-card.mode-hardcore::before {
+    background: linear-gradient(90deg, #9cc6ee, #4a86c8);
+}
+
+.preset-start-card.mode-tetris::before {
+    background: linear-gradient(90deg, #9c87ff, #7c5cff, #5c86f5);
+}
+
+.preset-start-mode {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 14px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: rgba(47, 122, 89, .13);
+    box-shadow: inset 0 0 0 1px rgba(47, 122, 89, .2);
+    color: #1f5c3a;
+    font-size: 12.5px;
+    font-weight: 800;
+    letter-spacing: .02em;
+}
+
+.preset-start-mode.mode-hardcore {
+    background: rgba(74, 134, 200, .14);
+    box-shadow: inset 0 0 0 1px rgba(74, 134, 200, .26);
+    color: #2c5282;
+}
+
+.preset-start-mode.mode-tetris {
+    background: rgba(124, 92, 255, .14);
+    box-shadow: inset 0 0 0 1px rgba(124, 92, 255, .28);
+    color: #5b3ec9;
+}
+
+.preset-start-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 76px;
+    height: 76px;
+    margin: 0 auto 14px;
+    border-radius: 24px;
+    background: radial-gradient(circle at 30% 25%, #ffffff, #eef5ff 70%);
+    box-shadow:
+        0 10px 24px rgba(66, 153, 225, .18),
+        inset 0 0 0 1px rgba(148, 190, 232, .35);
+    font-size: 42px;
+    line-height: 1;
+    filter: none;
+}
+
+.preset-start-title {
+    margin-bottom: 8px;
+    color: #1f2d3d;
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: .01em;
+}
+
+.preset-start-desc {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 20px;
+    color: #5c6b7f;
+    font-size: 13.5px;
+    line-height: 1.65;
+}
+
+.preset-start-params {
+    display: inline-block;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: rgba(18, 38, 58, .06);
+    color: #33465c;
+    font-size: 12.5px;
+    font-weight: 700;
+}
+
+.preset-start-sub {
+    color: #718096;
+    font-size: 12.5px;
+}
+
+.preset-start-btn {
+    width: 100%;
+    max-width: 260px;
+    height: auto;
+    padding: 13px 0;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #6aa9ff, #4a86c8) !important;
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    box-shadow:
+        0 10px 24px rgba(66, 153, 225, .32),
+        inset 0 1px 0 rgba(255, 255, 255, .28);
+}
+
+.preset-start-btn:hover {
+    background: linear-gradient(135deg, #7db8ff, #5a96d8) !important;
+    transform: translateY(-1px) scale(1.02);
+}
+
+.preset-start-tag {
+    margin-top: 18px;
+    padding: 6px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    box-shadow: 0 6px 16px rgba(24, 52, 84, .14);
+}
+
+/* ---- 70.11 窄屏适配 ---- */
+@media (max-width: 700px) {
+    .game-modal-body {
+        padding: 12px;
+    }
+
+    .game-modal-body .sidebar-section {
+        padding: 14px;
+        border-radius: 20px;
+    }
+
+    .preset-start-card {
+        margin: 10px auto 16px;
+        padding: 26px 18px 20px;
+        border-radius: 22px;
+    }
+
+    .preset-start-icon {
+        width: 66px;
+        height: 66px;
+        border-radius: 20px;
+        font-size: 36px;
+    }
+
+    .preset-start-title {
+        font-size: 22px;
+    }
+
+    .preset-start-btn {
+        max-width: none;
+    }
+}
+
+

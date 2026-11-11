@@ -4,12 +4,12 @@
  * 职责：度量棋盘格子尺寸，并实现「拖拽 / 点选」两种布雷模式下的放置、
  *       移动与删除，以及模式切换和棋盘尺寸的自适应重排。
  * 依赖：00-core 提供的全局棋盘状态 G 与尺寸 SR / SC；01-storage 的 Store；
- *       02-audio 的 AudioFX；04-mines 的雷型表 M；06-render 的 render 与
- *       create / teach 两套渲染函数；以及 createModeActive、teachActive
- *       等模式标志位。
+ *       02-audio 的 AudioFX；04-mines 的雷型表 M 与骨牌表 TETRO / tetroCells；
+ *       06-render 的 render 与 create / teach 两套渲染函数；以及
+ *       createModeActive、teachActive、gameTetris、tetroRot 等模式标志位。
  * 对外：全局 window._placeMode、window.setPlaceMode、
  *       window.togglePlaceMode、window.openSettingSidebar，以及 drop、
- *       del、bindCellDrag 等交互服务函数。
+ *       del、placeTetroAt 等交互服务函数。
  * 设计要点：
  *   1) 交互层只决定「在哪个格子放什么」，状态变更委托给 create / teach /
  *      主棋盘三个后端，避免三套棋盘的落子逻辑各自分叉。
@@ -317,6 +317,11 @@ function bindCellDrag(cell, kind) {
             // 必须阻止默认行为，浏览器才会把该元素视为可放置区域
             e.preventDefault();
             cell.classList.add("drag-over");
+            // 骨牌局不做落点预演：清掉可能残留的经典预览高亮后直接返回
+            if (gameTetris) {
+                clearPlacementPreview();
+                return;
+            }
             previewPlacementEffect(kind, cell);
         };
         cell.ondragleave = function(e) {
@@ -349,12 +354,15 @@ function bindCellDrag(cell, kind) {
  * 取得（必要时创建）常驻的拖拽预览节点，并把内容换成指定地雷的 emoji。
  * 节点固定在视口外：原生拖放只截取「已渲染」元素的外观，display:none 会被
  * 当成空图像，所以这里保留布局与渲染、只把位置挪出屏幕。
- * @param {string} type 地雷类型键
+ * 俄罗斯方块模式下 M 里没有骨牌，改用该骨牌代表色的单色方块作拖影。
+ * @param {string} type 地雷类型键或骨牌 key
  * @returns {HTMLElement} 位于 body 下、视口外的预览节点
  * @sideeffect 首次调用时向 body 追加 #mineDragImage，之后只替换其内容
  */
 function mineDragImageNode(type) {
     const m = M[type] || null;
+    // 骨牌不在 M 中：按 TETRO 的代表色生成拖影，避免显示成普通雷的 emoji
+    const tetro = (!m && typeof TETRO !== "undefined" && TETRO[type]) ? TETRO[type] : null;
     let el = document.getElementById("mineDragImage");
     if (!el) {
         el = document.createElement("div");
@@ -365,7 +373,9 @@ function mineDragImageNode(type) {
         document.body.appendChild(el);
     }
     // emoji 与图形类名复用槽位卡片的写法，保证颜色 / 旋转等视觉一致
-    el.innerHTML = '<span class="' + (m ? m.cls : "normal-bomb") + '">' + (m ? m.e : "💣") + "</span>";
+    if (m) el.innerHTML = '<span class="' + m.cls + '">' + m.e + "</span>";
+    else if (tetro) el.innerHTML = '<span style="display:block;width:26px;height:26px;border-radius:6px;background:' + (tetro.color || "#8ab4f8") + ';"></span>';
+    else el.innerHTML = '<span class="normal-bomb">💣</span>';
     return el;
 }
 
@@ -794,8 +804,8 @@ window.addEventListener("resize", function() {
         return "translate3d(" + (x - 23) + "px," + (y - 23 - (isTouch ? 30 : 12)) + "px,0)";
     }
     /**
-     * 创建跟随指针的拖影元素，外观取自地雷类型表。
-     * @param {string} type 地雷类型键
+     * 创建跟随指针的拖影元素，外观取自地雷类型表；骨牌局用代表色方块代替。
+     * @param {string} type 地雷类型键或骨牌 key
      * @param {number} x 初始横坐标
      * @param {number} y 初始纵坐标
      * @param {boolean} isTouch 是否触屏操作
@@ -803,9 +813,12 @@ window.addEventListener("resize", function() {
      */
     function makeGhost(type, x, y, isTouch) {
         const m = M[type] || null;
+        const tetro = (!m && typeof TETRO !== "undefined" && TETRO[type]) ? TETRO[type] : null;
         const g = document.createElement("div");
         g.className = "drag-ghost";
-        g.innerHTML = '<span class="' + (m ? m.cls : "normal-bomb") + '">' + (m ? m.e : "💣") + "</span>";
+        if (m) g.innerHTML = '<span class="' + m.cls + '">' + m.e + "</span>";
+        else if (tetro) g.innerHTML = '<span style="display:block;width:30px;height:30px;border-radius:8px;background:' + (tetro.color || "#8ab4f8") + ';"></span>';
+        else g.innerHTML = '<span class="normal-bomb">💣</span>';
         g.style.transform = ghostPos(x, y, isTouch);
         document.body.appendChild(g);
         return g;
@@ -839,6 +852,11 @@ window.addEventListener("resize", function() {
      * @param {HTMLElement|null} cell 当前指针下的格子
      */
     function updateDragPreview(s, cell) {
+        // 骨牌局不做落点预演：清掉经典预览高亮后直接返回
+        if (gameTetris) {
+            clearPlacementPreview();
+            return;
+        }
         // 源格自身不作为落点预览，与落点高亮的处理保持一致
         const target = cell && cell !== s.src ? cell : null;
         if (target === s.pvCell) return;
@@ -1050,11 +1068,17 @@ window.addEventListener("resize", function() {
                 const now = Date.now();
                 if (lastTap && lastTap.kind === s.kind && lastTap.key === s.fromKey &&
                     now - lastTap.time <= DOUBLE_TAP_MS) {
-                    // 删除后清空记录重新计数，避免第三下继续触发删除
+                    // 清空记录重新计数，避免第三下继续触发
                     lastTap = null;
-                    removeAtCell(s.kind, s.r, s.c);
+                    // 俄罗斯方块局：双击改为绕锚点旋转已放置骨牌（删除仍用长按 / 右键）；
+                    // 经典局保持双击删除
+                    if (gameTetris && s.kind === "main" && typeof rotateTetroOnDouble === "function") {
+                        rotateTetroOnDouble(s.r, s.c);
+                    } else {
+                        removeAtCell(s.kind, s.r, s.c);
+                    }
                     buzz(18);
-                    // 删除后浏览器仍会补发 click，吞掉它以免点选模式下又立刻放回一颗雷
+                    // 处理完浏览器仍会补发 click，吞掉它以免点选模式下又立刻操作一次
                     swallowNextClick();
                     return;
                 }
@@ -1109,12 +1133,84 @@ window.addEventListener("resize", function() {
 /* ---------- 10. 主棋盘的放置与删除 ---------- */
 
 /**
+ * 在指定锚点格放置一块骨牌（俄罗斯方块模式）。
+ * 锚点不可与其它骨牌重叠，并受该骨牌剩余配额与总块数上限约束；
+ * 骨牌覆盖范围允许超出棋盘，越界部分只是不参与影响值结算，因此这里不做边界校验。
+ * @param {string} kind 棋盘标识，仅 "main" 生效
+ * @param {HTMLElement} cell 目标锚点格
+ * @param {string} type 骨牌 key（I/O/J/L/S/Z/T）
+ * @param {number} [rot] 朝向 0~3；省略时取该骨牌在槽位里的当前朝向
+ * @returns {boolean} 放置成功返回 true
+ * @sideeffect 写入 G.placed / G.rot / G.lastDragType，播放音效并重绘棋盘
+ */
+function placeTetroAt(kind, cell, type, rot) {
+    if (kind !== "main" || !gameTetris) return false;
+    if (typeof TETRO === "undefined" || !TETRO[type]) return false;
+    if (!cell || !cell.dataset) return false;
+    const r = +cell.dataset.r, c = +cell.dataset.c;
+    if (!isFinite(r) || !isFinite(c)) return false;
+    const key = r + "," + c;
+    // 自身格不可叠放：锚点已被占用时直接放弃
+    if (G.placed[key]) return false;
+    // 配额校验放在交互层：任何入口都不能放入超过配额的骨牌
+    const used = Object.values(G.placed).filter(function(x) {
+        return x === type;
+    }).length;
+    if (used >= (G.pool[type] || 0)) return false;
+    // 总块数上限：达到 G.max 后不再允许放置
+    if (Object.keys(G.placed).length >= G.max) return false;
+    G.placed[key] = type;
+    G.rot[key] = rot == null ? ((tetroRot && tetroRot[type]) || 0) : ((rot % 4) + 4) % 4;
+    G.lastDragType = type;
+    try {
+        AudioFX.place();
+    } catch (e) {}
+    // 点选放置与拖拽一致：首次操作时开始计时
+    if (typeof startTiOnFirst === "function") startTiOnFirst();
+    resetP();
+    render();
+    return true;
+}
+window.placeTetroAt = placeTetroAt;
+
+/**
  * 主棋盘落子入口：既处理"从槽位拖入新雷"，也处理"把已有的雷挪到新位置"。
  * 绑定为格子自身的 drop 处理器，故用 this 指向目标格。
+ * 俄罗斯方块模式下改走骨牌分支：拖动已放骨牌即整块搬移，否则按锚点新放一块。
  * @param {Event} e 拖放事件；地雷类型可从 dataTransfer 中取得
- * @sideeffect 写入 G.placed、G.drag、G.lastDragType 并触发重绘
+ * @sideeffect 写入 G.placed、G.drag、G.rot、G.lastDragType 并触发重绘
  */
 function drop(e) {
+    // 骨牌局：整块骨牌的放置与移动，经典路径保持原样
+    if (gameTetris && currentBoardKind() === "main") {
+        // 拖动已放置的骨牌：目标锚点空闲则整块搬过去，朝向沿用原值
+        if (G.drag) {
+            const from = G.drag;
+            G.drag = null;
+            const r = +this.dataset.r, c = +this.dataset.c, to = r + "," + c;
+            if (from !== to && G.placed[from] && !G.placed[to]) {
+                const t = G.placed[from];
+                G.rot[to] = G.rot[from] || 0;
+                delete G.placed[from];
+                delete G.rot[from];
+                G.placed[to] = t;
+                try {
+                    AudioFX.place();
+                } catch (e1) {}
+                resetP();
+                render();
+            }
+            return;
+        }
+        // 从槽位拖入新骨牌：类型来源优先级与经典一致
+        let type = null;
+        try {
+            if (e && e.dataTransfer) type = e.dataTransfer.getData("text/plain") || null;
+        } catch (e2) {}
+        if (!type) type = G.lastDragType || getSelectedType("main");
+        placeTetroAt("main", this, type);
+        return;
+    }
     // 首次操作才开始计时，保证题目展示期间不计时
     startTiOnFirst();
     let r = +this.dataset.r, c = +this.dataset.c, k = r + "," + c;
@@ -1148,12 +1244,120 @@ function drop(e) {
 }
 
 /**
- * 主棋盘删除入口：按坐标移除地雷并重绘。
+ * 反查覆盖指定格子的骨牌锚点：先按锚点键匹配，未命中再遍历所有骨牌的影响范围。
+ * 删除、旋转与双击判定共用这一份查找逻辑，避免三处各写一遍覆盖判断。
  * @param {number} r 行号
  * @param {number} c 列号
- * @sideeffect 删除 G.placed 中的键并触发重绘
+ * @returns {?string} 覆盖该格的骨牌锚点键（"行,列"）；没有骨牌覆盖时返回 null
+ */
+function findTetroAnchorAt(r, c) {
+    const key = r + "," + c;
+    if (G.placed[key]) return key;
+    if (typeof tetroCells !== "function") return null;
+    for (let k in G.placed) {
+        const type = G.placed[k];
+        if (typeof TETRO === "undefined" || !TETRO[type]) continue;
+        const parts = k.split(",");
+        const rot = (G.rot && G.rot[k]) || 0;
+        const offs = tetroCells(type, rot) || [];
+        for (let i = 0; i < offs.length; i++) {
+            if (+parts[0] + offs[i][0] === r && +parts[1] + offs[i][1] === c) return k;
+        }
+    }
+    return null;
+}
+
+/**
+ * 删除覆盖指定格子的整块骨牌：先按锚点匹配，未命中再按覆盖范围反查锚点。
+ * 删除整块而不是单格，保证"影响值按块结算"与棋盘状态始终一致。
+ * @param {number} r 行号
+ * @param {number} c 列号
+ * @sideeffect 无命中时不做任何事；命中则删除 G.placed / G.rot 中的锚点并重绘
+ */
+function removeTetroAt(r, c) {
+    const target = findTetroAnchorAt(r, c);
+    // 该格没有任何骨牌覆盖：右键 / 长按删除视为空操作
+    if (!target) return;
+    startTiOnFirst();
+    AudioFX.remove();
+    delete G.placed[target];
+    delete G.rot[target];
+    // 已放计数与清空条由 render -> renderSlot 的现有路径刷新
+    resetP();
+    render();
+}
+
+/* ---------- 俄罗斯方块：已放置骨牌的旋转与"双击"防误触 ---------- */
+/* 双击（桌面 dblclick / 触屏双击）已放置的骨牌时绕其锚点顺时针旋转。
+ * 桌面单击会立即放置一块新骨牌，因此双击的第一下可能正好在骨牌身上落了一块：
+ * 这里记录最近一次"单击放置"，双击时若命中同一锚点就先撤销那块误放的骨牌，
+ * 再旋转该格原本覆盖的骨牌，保证"双击 = 旋转"的语义稳定。 */
+let _tetroClickPlace = null;
+
+/**
+ * 记录一次单击放置（由 06-render 的 click 委托在放置成功后调用）。
+ * @param {number} r 锚点行
+ * @param {number} c 锚点列
+ * @param {string} type 骨牌类型
+ * @sideeffect 覆盖 _tetroClickPlace
+ */
+function noteTetroClickPlace(r, c, type) {
+    _tetroClickPlace = {
+        key: r + "," + c,
+        type: type,
+        t: Date.now()
+    };
+}
+window.noteTetroClickPlace = noteTetroClickPlace;
+
+/**
+ * 双击（桌面 / 触屏）触发：撤销双击第一下可能造成的误放，再绕锚点顺时针旋转
+ * 覆盖该格的骨牌。旋转保持锚点不动，因此不会与其它锚点叠放；越界部分照常裁剪。
+ * @param {number} r 行号
+ * @param {number} c 列号
+ * @returns {boolean} 发生了旋转返回 true
+ * @sideeffect 可能撤销一次刚放置的骨牌，并改写 G.rot / G.p /
+ *             触发重绘
+ */
+function rotateTetroOnDouble(r, c) {
+    if (!gameTetris) return false;
+    if (currentBoardKind() !== "main") return false;
+    const key = r + "," + c;
+    // 撤销"双击第一下"刚放下的骨牌：仅在 600ms 内、同一锚点且类型一致时才认
+    const last = _tetroClickPlace;
+    if (last && last.key === key && Date.now() - last.t <= 600 && G.placed[key] === last.type) {
+        delete G.placed[key];
+        delete G.rot[key];
+        _tetroClickPlace = null;
+        resetP();
+    }
+    const target = findTetroAnchorAt(r, c);
+    if (!target) {
+        render();
+        return false;
+    }
+    // 绕锚点顺时针 90°：锚点坐标不变，只换朝向
+    G.rot[target] = (((G.rot[target] || 0) + 1) % 4);
+    try {
+        AudioFX.confirm();
+    } catch (e) {}
+    resetP();
+    render();
+    return true;
+}
+window.rotateTetroOnDouble = rotateTetroOnDouble;
+
+/**
+ * 主棋盘删除入口：按坐标移除地雷并重绘；俄罗斯方块模式下删除整块骨牌。
+ * @param {number} r 行号
+ * @param {number} c 列号
+ * @sideeffect 删除 G.placed 中的键（及对应 G.rot）并触发重绘
  */
 function del(r, c) {
+    if (gameTetris) {
+        removeTetroAt(r, c);
+        return;
+    }
     startTiOnFirst();
     let k = r + "," + c;
     if (!G.placed[k]) return;

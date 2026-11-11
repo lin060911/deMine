@@ -758,6 +758,18 @@
         m.mineHardcoreLastTimes = stringify({
             easy: null, medium: null, hard: null, hell: null, brain: null
         });
+        /* 俄罗斯方块玩法的跨局偏好与独立成绩：结构与硬核一致，
+         * 只在预设难度的骨牌局记账，与普通 / 硬核成绩互不覆盖 */
+        m.mineTetrisMode = "false";
+        m.mineTetrisWins = stringify({
+            easy: 0, medium: 0, hard: 0, hell: 0, brain: 0
+        });
+        m.mineTetrisRecords = stringify({
+            easy: null, medium: null, hard: null, hell: null, brain: null
+        });
+        m.mineTetrisLastTimes = stringify({
+            easy: null, medium: null, hard: null, hell: null, brain: null
+        });
         return m;
     }
 
@@ -2042,6 +2054,7 @@
                 },
                 records: records.list,
                 hardcore: { total: records.hcTotal, records: records.hcList },
+                tetris: { total: records.tetTotal, records: records.tetList },
                 achievements: ach,
                 challenges: ch.list,
                 teaching: { done: ch.teachingDone, total: 12 },
@@ -2232,9 +2245,23 @@
             hcTotal += w;
             hcList.push({ key: d, wins: w, best: r, last: l });
         }
+        /* 俄罗斯方块成绩与普通 / 硬核同构，单独汇总供成绩筛选、导入对比与详情展示 */
+        var tetWins = parseJSON(map.mineTetrisWins, {});
+        var tetRec = parseJSON(map.mineTetrisRecords, {});
+        var tetLast = parseJSON(map.mineTetrisLastTimes, {});
+        var tetList = [], tetTotal = 0;
+        for (i = 0; i < DIFFS.length; i++) {
+            d = DIFFS[i];
+            w = readNumOr0(tetWins[d]);
+            r = (tetRec[d] === null || tetRec[d] === undefined) ? null : readNumOr0(tetRec[d]);
+            l = (tetLast[d] === null || tetLast[d] === undefined) ? null : readNumOr0(tetLast[d]);
+            tetTotal += w;
+            tetList.push({ key: d, wins: w, best: r, last: l });
+        }
         return {
             list: list, wins: wins, rec: rec, last: last, total: total,
-            hcList: hcList, hcWins: hcWins, hcRec: hcRec, hcLast: hcLast, hcTotal: hcTotal
+            hcList: hcList, hcWins: hcWins, hcRec: hcRec, hcLast: hcLast, hcTotal: hcTotal,
+            tetList: tetList, tetWins: tetWins, tetRec: tetRec, tetLast: tetLast, tetTotal: tetTotal
         };
     }
 
@@ -2370,6 +2397,11 @@
             hcRec: rec.hcRec,
             hcLast: rec.hcLast,
             hcRecords: rec.hcList,
+            tetTotal: rec.tetTotal,
+            tetWins: rec.tetWins,
+            tetRec: rec.tetRec,
+            tetLast: rec.tetLast,
+            tetRecords: rec.tetList,
             achCount: ach.unlocked,
             achTotal: ach.total,
             achFirstAt: ach.firstAt,
@@ -2438,6 +2470,25 @@
         out.mineHardcoreWins = stringify(hcWins);
         out.mineHardcoreRecords = stringify(hcRec);
         out.mineHardcoreLastTimes = stringify(hcLast);
+
+        /* 俄罗斯方块成绩：同样"只增不减"，避免合并导入丢失骨牌成绩 */
+        var curTetWins = parseJSON(cur.mineTetrisWins, {});
+        var fileTetWins = parseJSON(file.mineTetrisWins, {});
+        var curTetRec = parseJSON(cur.mineTetrisRecords, {});
+        var fileTetRec = parseJSON(file.mineTetrisRecords, {});
+        var curTetLast = parseJSON(cur.mineTetrisLastTimes, {});
+        var fileTetLast = parseJSON(file.mineTetrisLastTimes, {});
+        var tetWins = {}, tetRec = {}, tetLast = {};
+        for (i = 0; i < DIFFS.length; i++) {
+            d = DIFFS[i];
+            tetWins[d] = Math.max(readNumOr0(curTetWins[d]), readNumOr0(fileTetWins[d]));
+            tetRec[d] = minTime(curTetRec[d], fileTetRec[d]);
+            tetLast[d] = (curTetLast[d] === null || curTetLast[d] === undefined) ? fileTetLast[d] : curTetLast[d];
+            if (tetLast[d] === undefined) tetLast[d] = null;
+        }
+        out.mineTetrisWins = stringify(tetWins);
+        out.mineTetrisRecords = stringify(tetRec);
+        out.mineTetrisLastTimes = stringify(tetLast);
 
         /* 成就：返回完整状态对象，避免丢失计数器与标记 */
         var mergedAch = mergeAchievementState(
@@ -2710,6 +2761,32 @@ let hcRec = Store.guard("mineHardcoreRecords", {
 
 /* 硬核模式各难度的累计通关次数；为 0 的难度不在成绩栏显示硬核条目 */
 let hcWins = Store.guard("mineHardcoreWins", {
+    easy: 0,
+    medium: 0,
+    hard: 0,
+    hell: 0,
+    brain: 0
+});
+
+/* 俄罗斯方块模式的最近一次用时 / 最快纪录 / 通关次数：与普通、硬核三组成绩同构，
+ * 由 08-ui 的 saveRec 在 gameTetris 局写入，成绩栏按玩法标签筛选展示 */
+let tetLt = Store.guard("mineTetrisLastTimes", {
+    easy: null,
+    medium: null,
+    hard: null,
+    hell: null,
+    brain: null
+});
+
+let tetRec = Store.guard("mineTetrisRecords", {
+    easy: null,
+    medium: null,
+    hard: null,
+    hell: null,
+    brain: null
+});
+
+let tetWins = Store.guard("mineTetrisWins", {
     easy: 0,
     medium: 0,
     hard: 0,

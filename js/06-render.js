@@ -3,15 +3,18 @@
  *
  * 职责：把 G.tar / G.p / G.placed 三份状态映射到棋盘 DOM，并维护地雷槽、
  *       影响值提示开关与拖拽落点效果预览；是"状态 -> 界面"的主要出口。
- * 依赖：G、SR/SC、selectedMineType（00-core）；M（04）；computeInfluenceMap
- *       （05-generator）；calcCellSize、applyBoardMetrics、sizeCellsIn、
- *       bindCellsIn、bindCellDrag、bindSlotItemDrag（07-board）；AudioFX；
+ * 依赖：G、SR/SC、selectedMineType（00-core）；M、TETRO、TETRO_ORDER、
+ *       tetroCells（04）；computeInfluenceMap（05-generator）；calcCellSize、
+ *       applyBoardMetrics、sizeCellsIn、bindCellsIn、bindCellDrag、
+ *       bindSlotItemDrag、bindSlotItemTip、placeTetroAt（07-board）；AudioFX；
  *       Store（01-storage）；checkWin（08-ui）；教学渲染分支（09-tutorial）。
  * 对外：render、renderSlot、setInfluenceHint、toggleInfluenceHint、
  *       setEffectPreview、toggleEffectPreview、previewPlacementEffect、
  *       clearPlacementPreview、appendInfluenceBadge、RM.renderEngine、
  *       setHardcoreMode、toggleHardcoreMode、applyGameHardcore、
  *       exitHardcoreForCurrentGame、syncHardcoreUI、refreshHardcoreStat、
+ *       applyGameTetris、setTetrisMode、toggleTetrisMode、syncTetrisUI、
+ *       rotateTetrisType、renderTetroOverlay、hideTetroOverlay、
  *       showBoardLoading、hideBoardLoading、syncBoardVisibility。
  * 设计要点：
  *   1) 采用差量渲染：棋盘网格只在尺寸变化或结构校验失败时重建，之后每次
@@ -36,6 +39,8 @@ function setInfluenceHint(on, silent) {
     // 硬核局与地块提示互斥：非静默请求在开关入口已给出退出提示，
     // 这里兜底一次，避免其它调用方绕过锁定把提示重新打开
     if (gameHardcore && on) on = false;
+    // 俄罗斯方块局固定开启实时影响：任何来源的关闭请求一律忽略
+    if (gameTetris && !on) return;
     influenceHintOn = !!on;
     // 存储写入失败不影响当前会话内的开关状态
     try {
@@ -60,12 +65,62 @@ function setInfluenceHint(on, silent) {
  * 硬核模式下锁定该功能，改为询问是否退出硬核模式。
  */
 function toggleInfluenceHint() {
+    // 骨牌局：实时影响被本局永久开启，点开关只给一句解释
+    if (gameTetris) {
+        if (window.RM && RM.toast) RM.toast("俄罗斯方块模式下「🔺 实时影响」固定开启");
+        return;
+    }
     if (gameHardcore) {
         askExitHardcore("influence");
         return;
     }
     setInfluenceHint(!influenceHintOn);
 }
+
+/* 俄罗斯方块局固定开启「🔺 实时影响」：进入骨牌局时强制打开开关并加锁定外观，
+ * 离开骨牌局时恢复玩家原本的偏好状态。强制期间只改运行期状态、不写存档，
+ * 避免把"本局临时开启"变成玩家的长期设置。 */
+let _tetrisSavedInfluenceHint = null;
+
+/**
+ * 同步「实时影响」开关的锁定外观：骨牌局中强制显示为开启并置灰（硬核局同样锁定），
+ * 其它局面恢复玩家偏好对应的外观。
+ * @sideeffect 切换 #influenceHintToggle 的 on / locked 类与 title
+ */
+function syncInfluenceHintLockUI() {
+    let tg = document.getElementById("influenceHintToggle");
+    if (!tg) return;
+    tg.classList.toggle("on", !!influenceHintOn);
+    tg.classList.toggle("locked", !!gameTetris || !!gameHardcore);
+    if (gameTetris) tg.title = "俄罗斯方块模式下「🔺 实时影响」固定开启";
+    else if (gameHardcore) tg.title = "本局为硬核模式，点击可退出硬核";
+    else tg.title = "";
+}
+
+/**
+ * 进入骨牌局时强制开启实时影响：记住玩家原偏好后把运行期状态置为开启。
+ * @sideeffect 改写 influenceHintOn 与开关锁定外观（不写存档、不重绘棋盘）
+ */
+function lockInfluenceHintForTetris() {
+    if (_tetrisSavedInfluenceHint === null) _tetrisSavedInfluenceHint = influenceHintOn;
+    influenceHintOn = true;
+    syncInfluenceHintLockUI();
+}
+
+/**
+ * 离开骨牌局时恢复玩家的实时影响偏好（只恢复运行期状态，不改存档）。
+ * 由 10-game.js#fullReset() 与"切到非骨牌局"的 applyGameTetris() 调用。
+ * @sideeffect 还原 influenceHintOn 与开关外观
+ */
+function releaseTetrisInfluenceLock() {
+    if (_tetrisSavedInfluenceHint !== null) {
+        influenceHintOn = _tetrisSavedInfluenceHint;
+        _tetrisSavedInfluenceHint = null;
+    }
+    syncInfluenceHintLockUI();
+}
+window.syncInfluenceHintLockUI = syncInfluenceHintLockUI;
+window.releaseTetrisInfluenceLock = releaseTetrisInfluenceLock;
 
 /* ---------- 1.1 效果预览：拖拽落点预演 ---------- */
 // 初始化时读取存档中的开关状态：新存档默认开启，历史存档由下方一次性迁移补齐
@@ -142,16 +197,21 @@ function syncHardcoreUI() {
         tg.setAttribute("aria-checked", isHardcoreMode ? "true" : "false");
     }
     let hint = document.getElementById("hardcoreHint");
-    if (hint) {
-        hint.className = (isHardcoreMode || gameHardcore) ? "switch-hint hardcore-on" : "switch-hint";
-        if (!isHardcoreMode) {
-            hint.innerHTML = "开启后隐藏 🟩🟨🟥 三态地块颜色提示<br>仅预设难度 / 自由模式生效，硬核局中地块提示锁定";
-        } else if (gameHardcore) {
-            hint.innerHTML = "本局为 🪚 硬核模式：数字格灰白、空地蓝色<br>「🔺实时影响」「👀效果预览」已锁定";
-        } else {
-            hint.innerHTML = "已开启：下一局生效（仅预设难度 / 自由模式）<br>硬核局中地块提示将被锁定";
-        }
+    let hcTip = "";
+    if (!isHardcoreMode) {
+        hint && (hint.innerHTML = "开启后隐藏 🟩🟨🟥 三态地块颜色提示<br>仅预设难度 / 自由模式生效，硬核局中地块提示锁定");
+        hcTip = "开启后隐藏 🟩🟨🟥 三态地块颜色提示\n仅预设难度 / 自由模式生效，硬核局中地块提示锁定";
+    } else if (gameHardcore) {
+        hint && (hint.innerHTML = "本局为 🪚 硬核模式：数字格灰白、空地蓝色<br>「🔺实时影响」「👀效果预览」已锁定");
+        hcTip = "本局为 🪚 硬核模式：数字格灰白、空地蓝色\n「🔺实时影响」「👀效果预览」已锁定";
+    } else {
+        hint && (hint.innerHTML = "已开启：下一局生效（仅预设难度 / 自由模式）<br>硬核局中地块提示将被锁定");
+        hcTip = "已开启：下一局生效（仅预设难度 / 自由模式）\n硬核局中地块提示将被锁定";
     }
+    if (hint) hint.className = "switch-hint mode-tip-src";
+    // 说明文案改为悬浮气泡：内容同步到玩法行 data-tip，行内不再常驻占位
+    let hcRow = document.getElementById("hardcoreRow");
+    if (hcRow) hcRow.dataset.tip = hcTip;
     // 两项地块提示在本局为硬核时不可开启：只加锁定外观，点击仍给出退出提示
     [ "influenceHintToggle", "effectPreviewToggle" ].forEach(function(id) {
         let el = document.getElementById(id);
@@ -164,6 +224,8 @@ function syncHardcoreUI() {
     if (lockNote) lockNote.style.display = gameHardcore ? "" : "none";
     // 棋盘配色由 CSS 中以 body.hc-mode 限定的选择器接管：按本局快照生效
     if (document.body) document.body.classList.toggle("hc-mode", gameHardcore);
+    // 骨牌局固定开启实时影响：上面的循环可能把锁定外观覆盖掉，这里重新同步一次
+    if (typeof syncInfluenceHintLockUI === "function") syncInfluenceHintLockUI();
 }
 
 /**
@@ -254,6 +316,8 @@ function setHardcoreMode(on, silent) {
     try {
         Store.set("mineHardcoreMode", isHardcoreMode ? "true" : "false");
     } catch (e) {}
+    // 两种玩法互斥：开启硬核时静默关闭俄罗斯方块偏好（下一局生效）
+    if (isHardcoreMode && isTetrisMode) setTetrisMode(false, true);
     // 偏好变化只影响下一局：这里不重绘棋盘、不动本局快照
     syncHardcoreUI();
     refreshHardcoreStat();
@@ -304,6 +368,111 @@ function refreshHardcoreStat() {
     }
     if (_hcAccNumEl && _hcAccNumEl.textContent !== String(ok)) _hcAccNumEl.textContent = String(ok);
     if (_hcAccTotalEl && _hcAccTotalEl.textContent !== String(total)) _hcAccTotalEl.textContent = String(total);
+}
+
+/* ---------- 1.3 俄罗斯方块模式：骨牌玩法快照与开关 ---------- */
+/* 俄罗斯方块模式与硬核模式同属「跨局偏好」：存档键 mineTetrisMode 读入
+ * 00-core 的 isTetrisMode，但一局是否真的按骨牌玩由开局快照 gameTetris 决定，
+ * 只有「预设难度」与「自由模式」继承偏好；教学 / 挑战 / 练习 / 创造 / 题库码
+ * 一律为经典局。两种玩法互斥：开启一个时静默关闭另一个偏好。
+ * 本段负责持久化偏好、开局快照、开关外观，并把 body.tetris-mode 交给样式表。 */
+
+/**
+ * 同步俄罗斯方块模式的界面：开关反映"偏好"（isTetrisMode），
+ * body.tetris-mode 反映"本局快照"（gameTetris）。
+ * @sideeffect 切换 #tetrisToggle 的 class / aria-checked、#tetrisHint 文案与
+ *             body.tetris-mode；节点缺失时静默跳过
+ */
+function syncTetrisUI() {
+    let tg = document.getElementById("tetrisToggle");
+    if (tg) {
+        tg.classList.toggle("on", isTetrisMode);
+        tg.setAttribute("aria-checked", isTetrisMode ? "true" : "false");
+    }
+    let hint = document.getElementById("tetrisHint");
+    let tetrisTip = "";
+    if (!isTetrisMode) {
+        hint && (hint.innerHTML = "开启后地雷槽换成 7 种四格骨牌<br>仅预设难度 / 自由模式生效，双击已放骨牌可旋转");
+        tetrisTip = "开启后地雷槽换成 7 种四格骨牌（预设难度骨牌数约 2/3）\n仅预设难度 / 自由模式生效，双击已放骨牌可旋转\n骨牌局「🔺实时影响」固定开启";
+    } else {
+        hint && (hint.innerHTML = "已开启：下一局生效（仅预设难度 / 自由模式）<br>双击已放骨牌可旋转");
+        tetrisTip = "已开启：下一局生效（仅预设难度 / 自由模式）\n双击已放骨牌可旋转\n骨牌局「🔺实时影响」固定开启";
+    }
+    if (hint) hint.className = "switch-hint mode-tip-src";
+    // 说明文案改为悬浮气泡：内容同步到玩法行 data-tip，行内不再常驻占位
+    let tetrisRow = document.getElementById("tetrisRow");
+    if (tetrisRow) tetrisRow.dataset.tip = tetrisTip;
+    // 棋盘配色与骨牌覆盖层由 CSS 中以 body.tetris-mode 限定的选择器接管
+    if (document.body) document.body.classList.toggle("tetris-mode", !!gameTetris);
+    // 骨牌局强制开启实时影响，开关锁定外观随本局快照同步
+    if (typeof syncInfluenceHintLockUI === "function") syncInfluenceHintLockUI();
+}
+
+/**
+ * 按当前模式计算本局骨牌快照：只有预设难度与自由模式继承全局偏好；
+ * 教学 / 挑战 / 练习 / 创造 / 题库码不启用骨牌玩法。
+ * 在教学 / 创造棋盘生成后调用也安全（快照恒为 false）。
+ * @sideeffect 改写 gameTetris（为真时同时清掉 gameHardcore），同步开关外观与覆盖层
+ */
+function applyGameTetris() {
+    let preset = (typeof isPresetDifficulty === "function") && isPresetDifficulty(diff);
+    let eligible = !isTutorialMode && !teachActive && !createModeActive && (isFreeMode || preset);
+    gameTetris = !!(isTetrisMode && eligible);
+    // 两种玩法互斥：同一局不可能既是骨牌局又是硬核局，硬核提示同步收起
+    if (gameTetris) {
+        gameHardcore = false;
+        refreshHardcoreStat();
+        // 骨牌局固定开启实时影响：只改运行期状态，不写存档
+        lockInfluenceHintForTetris();
+    } else {
+        // 非骨牌局：把上一局临时强制开启的实时影响恢复为玩家偏好
+        releaseTetrisInfluenceLock();
+    }
+    syncTetrisUI();
+    // 本局快照变化后重画覆盖层（非骨牌局内部直接收起容器）
+    renderTetroOverlay();
+    // 棋盘入场动画会短暂改变格子的视口坐标，动画结束后再对位一次；
+    // 只在快照仍为骨牌局时执行，避免给已结束的那局补画
+    if (gameTetris) {
+        setTimeout(function() {
+            if (gameTetris) renderTetroOverlay();
+        }, 950);
+    }
+}
+
+/**
+ * 设置俄罗斯方块模式：只修改跨局偏好并持久化。当前对局是否按骨牌玩由开局
+ * 快照 gameTetris 决定，因此对局中途切换不影响本局，只影响下一局。
+ * 开启时若硬核偏好为真则静默关闭（两者互斥），反之由 setHardcoreMode 处理。
+ * @param {boolean} on 是否开启
+ * @param {boolean} [silent] 静默模式：不发声、不弹 toast（初始化 / 内部切换用）
+ * @sideeffect 写 Store、改 isTetrisMode，可能静默关闭硬核模式并同步开关外观
+ */
+function setTetrisMode(on, silent) {
+    let changed = isTetrisMode !== !!on;
+    isTetrisMode = !!on;
+    try {
+        Store.set("mineTetrisMode", isTetrisMode ? "true" : "false");
+    } catch (e) {}
+    // 两种玩法互斥：开启骨牌玩法时静默关闭硬核偏好（下一局生效）
+    if (isTetrisMode && isHardcoreMode) setHardcoreMode(false, true);
+    syncTetrisUI();
+    if (silent) return;
+    try {
+        if (AudioFX.toggle) AudioFX.toggle(isTetrisMode);
+    } catch (e2) {}
+    // 本局已有棋盘且与设置不一致：明确告诉玩家改动在下一局生效
+    let inGame = (typeof G !== "undefined" && G.max > 0);
+    if (changed && inGame && gameTetris !== isTetrisMode) {
+        if (window.RM && RM.toast) RM.toast("俄罗斯方块模式设置已保存，将在下一局生效");
+    } else if (window.RM && RM.toast) {
+        RM.toast(isTetrisMode ? "🧱 俄罗斯方块模式已开启，将在下一局生效" : "已关闭俄罗斯方块模式");
+    }
+}
+
+/** 切换俄罗斯方块模式（玩法开关的 onclick 入口）。 */
+function toggleTetrisMode() {
+    setTetrisMode(!isTetrisMode);
 }
 
 /**
@@ -364,6 +533,8 @@ function isPreviewDropLegal(kind, key, type, moving) {
  * @sideeffect 给受影响格加 rm-preview-* 类与 data-preview-val，并清除上一处预览
  */
 function previewPlacementEffect(kind, cell, moveFrom) {
+    // 骨牌局不做落点预演：影响范围由棋盘覆盖层表达，逐格预演会与其相互干扰
+    if (gameTetris) return;
     if (!effectPreviewOn || !cell || !cell.dataset || window._placeMode !== "drag") return;
     if (kind !== "main" && kind !== "teach") return;
     // 棋子尚未生成或尺寸不匹配时不预演，避免读到空矩阵
@@ -629,6 +800,16 @@ function appendInfluenceBadge(cell, cur, tar) {
             // 只处理仍挂在当前容器下的格子
             if (!el || el.parentNode !== host) return;
             var r = +el.dataset.r, c = +el.dataset.c, k = r + "," + c;
+            // 骨牌局：落子统一交给 placeTetroAt，锚点占用与配额在那里校验；
+            // 放置成功后记下锚点，供双击旋转时撤销"第一下误放"的骨牌
+            if (gameTetris) {
+                var tetroType = getSelectedType("main") || G.lastDragType;
+                if (placeTetroAt("main", el, tetroType) &&
+                    typeof noteTetroClickPlace === "function") {
+                    noteTetroClickPlace(r, c, tetroType);
+                }
+                return;
+            }
             // 已放置的格子不允许重复放置
             if (G.placed[k]) return;
             // 槽位未选中雷型时点击无效果
@@ -656,6 +837,17 @@ function appendInfluenceBadge(cell, cur, tar) {
             // 抑制浏览器右键菜单
             e.preventDefault();
             del(+el.dataset.r, +el.dataset.c);
+        });
+
+        // 双击骨牌：绕锚点顺时针旋转（经典局不响应；触屏双击在 07 的指针层处理）
+        host.addEventListener("dblclick", function(e) {
+            if (!gameTetris) return;
+            var el = cellFromEvent(e);
+            if (!el || el.parentNode !== host) return;
+            e.preventDefault();
+            if (typeof rotateTetroOnDouble === "function") {
+                rotateTetroOnDouble(+el.dataset.r, +el.dataset.c);
+            }
         });
     }
 
@@ -778,21 +970,36 @@ function appendInfluenceBadge(cell, cur, tar) {
             el._numCls = wantN;
         }
 
-        // ③ 地雷：类型异常时按无雷处理，绝不显示错误的雷型
+        // ③ 地雷：类型异常时按无雷处理，绝不显示错误的雷型。
+        // 骨牌局里 G.placed 的值是骨牌 key（不在 M 中），图形由棋盘覆盖层绘制，
+        // 格内只保留 .mine-here 标记，用来维持"锚点数 == 状态键数"的不变量。
         var mineEl = el.childNodes[1];
         var prev = el._mineType || null;
+        var isTetro = false;
         if (type && !M[type]) {
-            // 数据异常：记录一次，本格按"无雷"处理，绝不让它显示成错的雷
-            unknownTypes++;
-            log("render:updateCell", "未知地雷类型: " + type);
-            type = null;
+            if (typeof TETRO !== "undefined" && TETRO[type]) {
+                isTetro = true;
+            } else {
+                // 数据异常：记录一次，本格按"无雷"处理，绝不让它显示成错的雷
+                unknownTypes++;
+                log("render:updateCell", "未知地雷类型: " + type);
+                type = null;
+            }
         }
 
-        // 有雷时题目数字隐藏：地雷 emoji 独占格子，影响值角标另行叠加
+        // 有雷时题目数字隐藏：地雷 emoji / 骨牌锚点独占格子，影响值角标另行叠加
         var numShown = type ? "none" : "";
         if (numEl.style.display !== numShown) numEl.style.display = numShown;
 
-        if (type) {
+        if (type && isTetro) {
+            // 骨牌锚点格：不画 emoji，只保留定位标记。
+            // 不播落子动画：落子动画会缩放整个格子，而骨牌图形按格子视口坐标
+            // 独立绘制在覆盖层上，两者同时变化会让首帧对位偏移。
+            if (mineEl.style.display !== "none") mineEl.style.display = "none";
+            if (mineEl.textContent !== "") mineEl.textContent = "";
+            if (mineEl.className !== "cell-mine") mineEl.className = "cell-mine";
+            if (!el.classList.contains("mine-here")) el.classList.add("mine-here");
+        } else if (type) {
             var m = M[type];
             if (prev !== type) {
                 mineEl.className = m.cls + " cell-mine";
@@ -869,6 +1076,14 @@ function appendInfluenceBadge(cell, cur, tar) {
                     mineSpan.textContent = M[mtype].e;
                     d.appendChild(mineSpan);
                     // 有雷时隐藏题目数字，但影响值角标照常显示
+                    if (numSpan) numSpan.style.display = "none";
+                } else if (mtype && typeof TETRO !== "undefined" && TETRO[mtype]) {
+                    // 骨牌锚点：保留 .mine-here 供不变量校验，图形交给棋盘覆盖层
+                    d.classList.add("mine-here");
+                    mineSpan = document.createElement("span");
+                    mineSpan.className = "cell-mine";
+                    mineSpan.style.display = "none";
+                    d.appendChild(mineSpan);
                     if (numSpan) numSpan.style.display = "none";
                 }
                 // 复用全量绘制路径的角标逻辑
@@ -1005,6 +1220,12 @@ function render() {
             if (me.textContent !== mText) me.textContent = mText;
         }
         renderSlot();
+        // 骨牌覆盖层跟随本局状态重画（非骨牌局内部直接收起容器）
+        try {
+            renderTetroOverlay();
+        } catch (e3) {
+            RM.onError("render:tetroOverlay", e3);
+        }
         checkWin();
     } catch (e2) {
         RM.onError("render:tail", e2);
@@ -1034,6 +1255,11 @@ function renderSlot() {
     // 教学模式的槽位由 09-tutorial 单独渲染
     if (teachActive) {
         renderTeachSlot();
+        return;
+    }
+    // 骨牌局改用独立槽位渲染：最多 7 张卡片，每次整槽重建以保证旋转预览同步
+    if (gameTetris) {
+        renderTetrisSlot();
         return;
     }
     let s = document.getElementById("slot");
@@ -1101,6 +1327,15 @@ function renderSlot() {
     }
     /* 同步槽位外侧清空按钮：0 颗时置灰禁用，有雷时可一键清空。
        按钮不在地雷槽内部，槽位高度与它的显隐 / 数量无关。 */
+    syncSlotClearBar();
+}
+
+/**
+ * 同步槽位外侧「清空放置」按钮的禁用态与已放计数。
+ * 经典槽与骨牌槽的渲染都在末尾调用，保证两种槽位共用同一刷新路径。
+ * @sideeffect 修改 #slotClearBtn.disabled 与 #slotClearCount 的文本
+ */
+function syncSlotClearBar() {
     let placedTotal = Object.keys(G.placed).length;
     let clearBtn = document.getElementById("slotClearBtn");
     if (clearBtn) {
@@ -1110,6 +1345,261 @@ function renderSlot() {
     let clearCount = document.getElementById("slotClearCount");
     if (clearCount && clearCount.textContent !== String(placedTotal)) clearCount.textContent = String(placedTotal);
 }
+
+/* ---------- 12.3 骨牌槽（俄罗斯方块模式） ---------- */
+/* 与经典槽的分工：经典槽按 M 生成雷卡并做增量更新；骨牌槽最多 7 张卡片，
+ * 每张都要随旋转状态重画形状预览，因此采用"每次整槽重建"的可靠策略。
+ * 卡片节点顺序固定为 [0] 形状预览、[1] 名称、[2] 计数、[3] 旋转按钮，
+ * 计数同步与经典槽一致（已用 / 配额）。 */
+
+/**
+ * 重建骨牌槽：按 TETRO_ORDER 顺序为仍有配额的骨牌生成卡片。
+ * @sideeffect 清掉 #slot 内的旧 .mine-item 后重建，保留教学气泡与清空条节点
+ */
+function renderTetrisSlot() {
+    let s = document.getElementById("slot");
+    if (!s) return;
+    let order = (typeof TETRO_ORDER !== "undefined" && TETRO_ORDER) ? TETRO_ORDER : [];
+    // 每次重建：只移除雷卡，保留教学气泡与槽内底部的清空条
+    Array.prototype.slice.call(s.querySelectorAll(".mine-item")).forEach(function(el) {
+        if (el.parentNode) el.parentNode.removeChild(el);
+    });
+    // 已用数量一次遍历统计，避免每张卡片各扫一遍 G.placed
+    let used = {};
+    for (let k in G.placed) {
+        let t = G.placed[k];
+        used[t] = (used[t] || 0) + 1;
+    }
+    for (let i = 0; i < order.length; i++) {
+        let t = order[i];
+        let quota = G.pool[t] || 0;
+        // 只渲染仍有配额的骨牌
+        if (quota <= 0) continue;
+        let shape = buildTetroShape(t);
+        if (!shape) continue;
+        let use = used[t] || 0;
+        let div = document.createElement("div");
+        div.className = "mine-item tetro-item";
+        div.dataset.mineType = t;
+        // 代表色挂在卡片上：形状预览与旋转按钮的描边都读同一个 --tc
+        div.style.setProperty("--tc", TETRO[t].color || "");
+        // 悬浮提示沿用一句话说明：骨牌覆盖的 4 格各 +1
+        div.dataset.tip = "骨牌 " + t + "：覆盖的 4 格各 +1（锚点格也可放）";
+        // 子节点顺序固定：[0] 形状预览 [1] 名称 [2] 计数 [3] 旋转按钮
+        let name = document.createElement("div");
+        name.className = "tetro-name";
+        name.textContent = t;
+        let count = document.createElement("div");
+        count.className = "tetro-count";
+        count.textContent = use + "/" + quota;
+        let rotBtn = document.createElement("button");
+        rotBtn.className = "tetro-rotate";
+        rotBtn.type = "button";
+        rotBtn.setAttribute("aria-label", "顺时针旋转");
+        rotBtn.title = "顺时针旋转";
+        rotBtn.textContent = "↻";
+        // 旋转按钮的两种指针事件都要阻止冒泡：否则会触发选中切换或槽位拖拽会话
+        rotBtn.addEventListener("click", function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            rotateTetrisType(t);
+        });
+        rotBtn.addEventListener("pointerdown", function(e) {
+            e.stopPropagation();
+        });
+        div.appendChild(shape);
+        div.appendChild(name);
+        div.appendChild(count);
+        div.appendChild(rotBtn);
+        // 配额用尽置灰；选中态用于提示当前放置的骨牌
+        if (use >= quota) div.classList.add("disabled");
+        if (selectedMineType === t) div.classList.add("selected");
+        bindSlotItemDrag(div, t, "main");
+        bindSlotItemTip(div);
+        s.appendChild(div);
+    }
+    syncSlotClearBar();
+}
+
+/**
+ * 生成骨牌形状预览：把四格偏移归一化到包围盒，用 CSS grid 摆放。
+ * 锚点格（偏移 [0,0]）额外加 anchor 类，颜色通过内联 --tc 下发给格子。
+ * @param {string} type 骨牌 key（I/O/J/L/S/Z/T）
+ * @returns {HTMLElement|null} .tetro-shape 节点；类型未知时返回 null
+ */
+function buildTetroShape(type) {
+    if (typeof TETRO === "undefined" || !TETRO[type] || typeof tetroCells !== "function") return null;
+    let offs = tetroCells(type, (tetroRot && tetroRot[type]) || 0) || [];
+    if (!offs.length) return null;
+    let minR = Infinity, maxR = -Infinity, minC = Infinity, maxC = -Infinity;
+    for (let i = 0; i < offs.length; i++) {
+        minR = Math.min(minR, offs[i][0]);
+        maxR = Math.max(maxR, offs[i][0]);
+        minC = Math.min(minC, offs[i][1]);
+        maxC = Math.max(maxC, offs[i][1]);
+    }
+    let rows = maxR - minR + 1, cols = maxC - minC + 1;
+    let shape = document.createElement("div");
+    shape.className = "tetro-shape";
+    // 颜色由内联 --tc 传给格内的 .ts-cell，锚点格的加深交给样式表
+    shape.style.setProperty("--tc", TETRO[type].color || "");
+    shape.dataset.color = TETRO[type].color || "";
+    shape.style.display = "grid";
+    shape.style.gridTemplateColumns = "repeat(" + cols + ", var(--tetro-cell, 9px))";
+    shape.style.gridTemplateRows = "repeat(" + rows + ", var(--tetro-cell, 9px))";
+    for (let i = 0; i < offs.length; i++) {
+        let dr = offs[i][0], dc = offs[i][1];
+        let cell = document.createElement("i");
+        cell.className = "ts-cell on" + (dr === 0 && dc === 0 ? " anchor" : "");
+        cell.style.gridArea = (dr - minR + 1) + "/" + (dc - minC + 1);
+        shape.appendChild(cell);
+    }
+    return shape;
+}
+
+/**
+ * 顺时针旋转某种骨牌在槽位里的当前朝向：只改预览，已放置的骨牌不受影响。
+ * @param {string} type 骨牌 key
+ * @sideeffect 改写 tetroRot[type]、播放音效，并使槽位缓存失效后重绘槽位
+ */
+function rotateTetrisType(type) {
+    if (typeof TETRO === "undefined" || !TETRO[type]) return;
+    tetroRot = tetroRot || {};
+    tetroRot[type] = ((tetroRot[type] || 0) + 1) % 4;
+    try {
+        if (typeof AudioFX !== "undefined" && AudioFX.toggle) AudioFX.toggle(true);
+    } catch (e) {}
+    // 槽位每帧整槽重建，这里清掉经典槽缓存，保证模式切回经典时不会复用旧节点
+    _slotCache.types = [];
+    _slotCache.nodes = [];
+    renderSlot();
+}
+window.rotateTetrisType = rotateTetrisType;
+
+/* ---------- 12.4 棋盘骨牌覆盖层 ----------
+ * 骨牌图形不能画进 #board：差量引擎会用 innerHTML 清空容器并做
+ * childElementCount 校验，多出的节点会被判成网格损坏并反复全量重建。
+ * 因此用 body 级 fixed 容器 + 每格 fixed 定位的 i.tetro-cell 叠加在棋盘上方：
+ * 超出棋盘的格子照常显示，也不挤占棋盘栅格与文档布局。 */
+
+// 覆盖层容器缓存；懒创建，页面无棋盘时不产生空节点
+let _tetroOverlayEl = null;
+
+/**
+ * 取得（必要时创建）棋盘骨牌覆盖层容器。
+ * @returns {HTMLElement} #tetroOverlay 节点
+ * @sideeffect 首次调用时向 body 追加纯装饰容器（不拦截指针、不参与布局）
+ */
+function ensureTetroOverlay() {
+    if (_tetroOverlayEl && _tetroOverlayEl.parentNode) return _tetroOverlayEl;
+    let el = document.getElementById("tetroOverlay");
+    if (!el) {
+        el = document.createElement("div");
+        el.id = "tetroOverlay";
+        el.className = "tetro-overlay";
+        el.setAttribute("aria-hidden", "true");
+        el.style.position = "fixed";
+        el.style.left = "0";
+        el.style.top = "0";
+        el.style.width = "0";
+        el.style.height = "0";
+        el.style.pointerEvents = "none";
+        el.style.zIndex = "5";
+        document.body.appendChild(el);
+    }
+    _tetroOverlayEl = el;
+    return el;
+}
+
+/**
+ * 收起棋盘骨牌覆盖层：非骨牌局、棋盘隐藏或整局重置时调用。
+ * @sideeffect 把容器置为 display:none 并清空上一局的格子
+ */
+function hideTetroOverlay() {
+    let el = _tetroOverlayEl || document.getElementById("tetroOverlay");
+    if (!el) return;
+    el.style.display = "none";
+    // 清掉旧图形：下次显示时不会先闪出上一局的骨牌
+    if (el.firstChild) el.innerHTML = "";
+}
+window.hideTetroOverlay = hideTetroOverlay;
+
+/**
+ * 重画棋盘骨牌覆盖层：按 G.placed 的每个锚点与 G.rot 朝向展开 4 格，
+ * 以第一格左上角为原点按视口坐标摆放，超出棋盘的格子同样绘制。
+ * 每格颜色通过内联 --tc 下发，锚点格加 .is-anchor 由样式表加深。
+ * @sideeffect 可能创建 #tetroOverlay，覆盖其 display 与 innerHTML；
+ *             非骨牌局 / 棋盘隐藏 / 无格子时改为收起
+ */
+function renderTetroOverlay() {
+    // 非骨牌局：覆盖层不参与显示
+    if (!gameTetris) {
+        hideTetroOverlay();
+        return;
+    }
+    let host = document.getElementById("board");
+    // 棋盘尚未生成 / 被加载占位或其它面板隐藏时不绘制
+    if (!host || host.style.display === "none" || !host.clientWidth) {
+        hideTetroOverlay();
+        return;
+    }
+    let first = host.children[0];
+    if (!first || !first.classList || !first.classList.contains("cell")) {
+        hideTetroOverlay();
+        return;
+    }
+    let base = first.getBoundingClientRect();
+    if (!base.width || !base.height) {
+        hideTetroOverlay();
+        return;
+    }
+    // 首行第二格用来量格子间距；首行只有一格时按 0 间距处理
+    let gap = 0;
+    let second = host.children[1];
+    if (second && second.classList && second.classList.contains("cell")) {
+        let b2 = second.getBoundingClientRect();
+        gap = Math.max(0, b2.left - base.left - base.width);
+    }
+    // 坐标保留两位小数，避免长浮点串影响可读性，也保证相邻格不错位
+    const px = function(v) {
+        return Math.round(v * 100) / 100;
+    };
+    let html = "";
+    for (let k in G.placed) {
+        let type = G.placed[k];
+        // 骨牌局里 placed 的值一定是骨牌 key；异常值跳过，不画错图形
+        if (typeof TETRO === "undefined" || !TETRO[type] || typeof tetroCells !== "function") continue;
+        let parts = String(k).split(",");
+        let r = +parts[0], c = +parts[1];
+        if (!isFinite(r) || !isFinite(c)) continue;
+        let color = TETRO[type].color || "";
+        let rot = (G.rot && G.rot[k]) || 0;
+        let offs = tetroCells(type, rot) || [];
+        for (let i = 0; i < offs.length; i++) {
+            let dr = +offs[i][0], dc = +offs[i][1];
+            // 坐标 = 锚点所在格 + 相对偏移；漏掉锚点行列会让所有骨牌都画在首格
+            let left = px(base.left + (c + dc) * (base.width + gap));
+            let top = px(base.top + (r + dr) * (base.height + gap));
+            html += '<i class="tetro-cell' + (dr === 0 && dc === 0 ? " is-anchor" : "") +
+                '" data-color="' + color + '" style="position:fixed;left:' + left +
+                "px;top:" + top + "px;width:" + px(base.width) + "px;height:" + px(base.height) +
+                "px;z-index:1;--tc:" + color + '"></i>';
+        }
+    }
+    let ov = ensureTetroOverlay();
+    ov.style.display = "block";
+    ov.innerHTML = html;
+}
+window.renderTetroOverlay = renderTetroOverlay;
+
+// 视口滚动 / 缩放后棋盘的视口坐标会变：覆盖层按视口坐标摆放，必须重新对位。
+// 滚动事件不冒泡，用捕获阶段才能收到槽位等内部容器的滚动。
+window.addEventListener("scroll", function() {
+    if (gameTetris) renderTetroOverlay();
+}, true);
+window.addEventListener("resize", function() {
+    if (gameTetris) renderTetroOverlay();
+});
 
 /* ---------- 13. 加载中占位 ----------
  * 棋盘尚未生成 / 正在生成时，先隐藏 #board 与 #slot 并显示 #boardLoading
@@ -1137,6 +1627,8 @@ function syncBoardVisibility() {
     if (!hasPuzzle && !hasMines) {
         b.style.display = "none";
         s.style.display = "none";
+        // 棋盘被隐藏时同步收起骨牌覆盖层，避免跨局残留
+        if (typeof hideTetroOverlay === "function") hideTetroOverlay();
         return;
     }
     if (b.style.display === "none") b.style.display = "";
@@ -1155,6 +1647,9 @@ function showBoardLoading() {
     if (b) b.style.display = "none";
     let s = document.getElementById("slot");
     if (s) s.style.display = "none";
+    // 棋盘被占位层遮住时，骨牌覆盖层（body 级 fixed）必须同步收起，
+    // 否则上一局的骨牌色块会悬浮在占位层之上
+    if (typeof hideTetroOverlay === "function") hideTetroOverlay();
 }
 
 /**
@@ -1187,3 +1682,41 @@ isHardcoreMode = Store.get("mineHardcoreMode") === "true";
 gameHardcore = false;
 syncHardcoreUI();
 refreshHardcoreStat();
+
+/* ---------- 15. 俄罗斯方块模式初始化 ----------
+ * 与硬核一致：启动时只读取跨局偏好并同步开关外观；本局是否按骨牌玩要等开局时
+ * 由 10-game 调用 applyGameTetris() 按模式计算快照。放在文件末尾，
+ * 保证同步函数引用的节点查询与函数声明都已就绪。 */
+isTetrisMode = Store.get("mineTetrisMode") === "true";
+syncTetrisUI();
+// 启动时同步一次实时影响开关的锁定外观（此时 gameTetris 恒为 false）
+syncInfluenceHintLockUI();
+
+/* ---------- 16. 玩法开关的说明气泡 ----------
+ * 硬核 / 俄罗斯方块两个开关的说明文案改为悬浮（触屏点按）气泡：
+ * 文案由 syncHardcoreUI() / syncTetrisUI() 写入对应行的 data-tip，
+ * 这里只负责在行上绑定显示 / 收起，复用 07-board 的统一气泡 #mineTipFixed。
+ * 绑定发生在脚本加载时（脚本位于 body 末尾、DOM 已解析），气泡函数在运行时
+ * 才被调用，因此 07-board 的加载顺序不影响这里。 */
+(function bindModeSwitchTips() {
+    let rows = document.querySelectorAll("#HardcoreSection .switch-row");
+    if (!rows || !rows.length) return;
+    Array.prototype.forEach.call(rows, function(row) {
+        row.addEventListener("mouseenter", function() {
+            if (typeof showMineTip === "function") showMineTip(row);
+        });
+        row.addEventListener("mouseleave", function() {
+            if (typeof hideMineTip === "function") hideMineTip();
+        });
+        // 触屏没有 hover：点按行的标签 / 空白处时显示气泡（点开关本体走切换）
+        row.addEventListener("click", function(e) {
+            if (e.target && e.target.closest && e.target.closest(".switch-toggle")) return;
+            if (typeof showMineTip === "function") showMineTip(row);
+        });
+    });
+    // 点击玩法区块以外的区域时收起气泡
+    document.addEventListener("click", function(e) {
+        if (e.target && e.target.closest && e.target.closest("#HardcoreSection .switch-row")) return;
+        if (typeof hideMineTip === "function") hideMineTip();
+    });
+})();

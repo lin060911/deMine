@@ -3,16 +3,16 @@
  *
  * 职责：管理侧边栏与信息栏折叠、难度弹窗与系列开关、成绩记录渲染、
  *       胜利判定与通关庆祝，以及所有弹窗的打开 / 关闭策略；
- *       硬核模式的通关成绩在这里单独记账（与普通成绩互不覆盖）。
- * 依赖：00-core 的全局状态与工具（RM、G、diff、isHardcoreMode、S / SR / SC、
- *       T / K、freeRectExpanded、LIMIT、PRE、applyBoardParams、
- *       syncBoardParamDisplays）；
+ *       硬核与俄罗斯方块模式的通关成绩在这里分别单独记账（与普通成绩互不覆盖）。
+ * 依赖：00-core 的全局状态与工具（RM、G、diff、isHardcoreMode、isTetrisMode、
+ *       gameHardcore、gameTetris、S / SR / SC、T / K、freeRectExpanded、LIMIT、
+ *       PRE、applyBoardParams、syncBoardParamDisplays）；
  *       01-storage 的 Store 与成绩 / 系列状态（wins、rec、lt、hcWins、hcRec、
- *       hcLt、seriesState）；02-audio 的 AudioFX；04-mines 的 M / CATEGORY；
- *       06-render、07-board 提供的渲染与交互。
+ *       hcLt、tetWins、tetRec、tetLt、seriesState）；02-audio 的 AudioFX；
+ *       04-mines 的 M / CATEGORY；06-render、07-board 提供的渲染与交互。
  * 对外：window.closeAllModals、window.syncMainPanel、window.gotoSeriesChallenge、
- *       window.onLockedSeriesClick、window.openDifficultyModal、window.renderChallengeList
- *       等界面入口。
+ *       window.onLockedSeriesClick、window.openDifficultyModal、window.renderChallengeList、
+ *       window.setRecordFilter 等界面入口。
  * 设计要点：
  *   1) 弹窗统一"运行时构建 + 集中关闭"：closeAllModals 一次收掉遮罩与全部
  *      弹层，避免跳转后仍被没关掉的弹窗盖住。
@@ -361,6 +361,8 @@ function openDifficultyModal() {
     updatePresetButtons();
     // 硬核开关是跨局偏好：每次打开都按当前状态刷新外观与锁定提示
     if (typeof syncHardcoreUI === "function") syncHardcoreUI();
+    // 俄罗斯方块开关与硬核开关互斥，同样按当前偏好刷新外观
+    if (typeof syncTetrisUI === "function") syncTetrisUI();
     const m = document.getElementById("difficultyModal");
     if (m) m.style.display = "block";
     if (typeof guideRefresh === "function") guideRefresh();
@@ -904,6 +906,9 @@ function setPre(d) {
     renderSeriesSwitches();
     AudioFX.confirm();
     if (isPresetDifficulty(d)) {
+        // 先确定本局玩法快照，待开始卡片才能显示经典 / 硬核 / 俄罗斯方块模式
+        applyGameHardcore();
+        if (typeof applyGameTetris === "function") applyGameTetris();
         enterPresetPending(d);
     }
 }
@@ -925,6 +930,8 @@ function enterPresetPending(d) {
     var board = document.getElementById("board");
     board.innerHTML = "";
     board.style.display = "none";
+    // 棋盘隐藏时同步收起骨牌覆盖层（body 级 fixed，不会随棋盘一起隐藏）
+    if (typeof hideTetroOverlay === "function") hideTetroOverlay();
     var slot = document.getElementById("slot");
     // 只清掉已生成的雷卡，保留教学气泡与槽内底部的清空条
     Array.prototype.slice.call(slot.querySelectorAll(".mine-item")).forEach(function(el) {
@@ -943,13 +950,39 @@ function enterPresetPending(d) {
         hell: "👿地狱",
         brain: "🤯脑王"
     };
-    document.getElementById("presetStartIcon").textContent = "👌";
-    document.getElementById("presetStartTitle").textContent = "准备好了吗?";
-    document.getElementById("presetStartDesc").textContent = "点击开始后题目将展现并启动计时(≧▽≦)";
+    // 玩法模式：待开始卡片要说明本局是经典 / 硬核 / 俄罗斯方块（快照已在 newGame 中算好）
+    var mode = gameTetris
+        ? { icon: "🧱", name: "俄罗斯方块模式", cls: "mode-tetris" }
+        : (gameHardcore
+            ? { icon: "🪚", name: "硬核模式", cls: "mode-hardcore" }
+            : { icon: "🎯", name: "经典模式", cls: "mode-classic" });
+    // 参数摘要：骨牌局的块数按生成规则（预设难度约 2/3、至少 3 块）预估
+    var params = "棋盘 " + SR + "×" + SC + " · ";
+    if (gameTetris) {
+        params += "骨牌 " + Math.max(3, Math.ceil(T * 2 / 3)) + " 块";
+    } else {
+        params += "总雷数 " + T;
+        if (gameHardcore) params += " · 硬核配色";
+    }
+    var card = document.getElementById("presetStartCard");
+    // 卡片配色随模式切换：经典（蓝）/ 硬核（钢蓝）/ 骨牌（紫）
+    card.className = "preset-start-card " + mode.cls;
+    var modeEl = document.getElementById("presetStartMode");
+    if (modeEl) {
+        modeEl.className = "preset-start-mode " + mode.cls;
+        modeEl.textContent = mode.icon + " " + mode.name;
+    }
+    document.getElementById("presetStartIcon").textContent = mode.icon;
+    document.getElementById("presetStartTitle").textContent = "准备好了吗？";
+    var desc = document.getElementById("presetStartDesc");
+    desc.innerHTML = '<b class="preset-start-params">' + params + "</b>" +
+        '<span class="preset-start-sub">点击开始后题目将展现并启动计时' +
+        (gameTetris ? "，双击已放骨牌可旋转" : (gameHardcore ? "，本局不显示三态配色" : "")) +
+        "</span>";
     var tag = document.getElementById("presetStartTag");
     tag.className = "preset-start-tag tag-" + d;
     document.getElementById("presetStartTagText").textContent = labelMap[d] || d;
-    document.getElementById("presetStartCard").style.display = "flex";
+    card.style.display = "flex";
     AudioFX.modalOpen();
     // 预设待开局时棋盘尚未生成：同步隐藏「地块准确数」提示，避免残留上一局数字
     if (typeof refreshHardcoreStat === "function") refreshHardcoreStat();
@@ -1085,9 +1118,9 @@ function applySet() {
 
 /**
  * 通关结算：记录本局用时、最快纪录与通关次数，并检查脑王解锁条件。
- * 硬核模式的成绩写入独立的 mineHardcoreWins / Records / LastTimes，
- * 与普通成绩互不覆盖；地狱通关次数在脑王门槛判定时合并计算。
- * @sideeffect 写入 lt / rec / wins（或硬核三组）并持久化，刷新成绩列表
+ * 硬核与俄罗斯方块模式的成绩分别写入独立的持久化键组，与普通成绩互不覆盖；
+ * 地狱通关次数在脑王门槛判定时合并计算。
+ * @sideeffect 写入 lt / rec / wins（或硬核 / 俄罗斯方块三组）并持久化，刷新成绩列表
  */
 function saveRec() {
     if (!diff) return;
@@ -1097,6 +1130,24 @@ function saveRec() {
         return;
     }
     const _ms = RM.timer.ms();
+    // 俄罗斯方块局单独记账：普通与硬核成绩保持不变，也不触发脑王解锁提示
+    if (gameTetris) {
+        try {
+            tetLt[diff] = _ms;
+            Store.set("mineTetrisLastTimes", JSON.stringify(tetLt));
+            // 只有比历史最快更短才刷新纪录
+            if (tetRec[diff] === null || _ms < tetRec[diff]) {
+                tetRec[diff] = _ms;
+                Store.set("mineTetrisRecords", JSON.stringify(tetRec));
+            }
+            tetWins[diff] = (tetWins[diff] || 0) + 1;
+            Store.set("mineTetrisWins", JSON.stringify(tetWins));
+        } catch (e) {
+            if (window.RM) RM.warn("saveRec", e);
+        }
+        renderRecordList();
+        return;
+    }
     // 用开局快照判定：本局硬核才写硬核成绩，中途切换偏好不改变本局记账口径
     if (gameHardcore) {
         // 硬核局单独记账：普通难度的通关次数与最快纪录保持不变
@@ -1148,6 +1199,13 @@ function fmtTime(ms) {
 // 成绩列表的展示顺序：由易到难
 const RECORD_DIFFS = [ "easy", "medium", "hard", "hell", "brain" ];
 
+// 成绩筛选模式：all = 全部（普通 + 硬核 + 俄罗斯方块），其余只显示单一玩法。
+// 仅本次会话有效，不写存档，刷新页面后回到「全部」。
+let recordFilter = "all";
+
+// 允许的成绩筛选模式，与 index.html 里 .record-filter-tab 的 data-mode 一一对应
+const RECORD_FILTER_MODES = [ "all", "classic", "hardcore", "tetris" ];
+
 // 各难度的图标与主题色：图标用于标签，颜色用于条目左侧的色条
 const RECORD_META = {
     easy: {
@@ -1173,15 +1231,97 @@ const RECORD_META = {
 };
 
 /**
- * 渲染「📝记录」栏的成绩列表：逐难度显示最快用时、通关次数与最近一次用时。
+ * 把成绩筛选标签的 active 状态同步为 recordFilter。
+ *
+ * 标签由 index.html 的 #recSection 提供：按钮带 record-filter-tab 类与
+ * data-mode（all / classic / hardcore / tetris）。节点缺失时静默跳过，
+ * 保证成绩列表的渲染不依赖标签是否已经接入页面。
+ * @sideeffect 切换 .record-filter-tab 的 active 类并同步 aria-selected
+ */
+function syncRecordFilterTabs() {
+    document.querySelectorAll(".record-filter-tab").forEach(btn => {
+        const on = btn.getAttribute("data-mode") === recordFilter;
+        btn.classList.toggle("active", on);
+        btn.setAttribute("aria-selected", on ? "true" : "false");
+    });
+}
+
+/**
+ * 切换成绩筛选模式并立即重绘成绩列表。
+ * @param {string} mode 筛选模式：all / classic / hardcore / tetris，非法值忽略
+ * @sideeffect 改写 recordFilter、同步标签状态并重绘成绩列表
+ */
+function setRecordFilter(mode) {
+    if (RECORD_FILTER_MODES.indexOf(mode) < 0) return;
+    recordFilter = mode;
+    syncRecordFilterTabs();
+    renderRecordList();
+}
+window.setRecordFilter = setRecordFilter;
+
+/**
+ * 读取某难度的通关次数，数据层缺失时按 0 处理。
+ * @param {Object|null} data 次数对象（wins / hcWins / tetWins）
+ * @param {string} diffKey 难度键
+ * @returns {number} 非负整数
+ */
+function recordWinCount(data, diffKey) {
+    if (!data) return 0;
+    const n = Number(data[diffKey]);
+    return isFinite(n) && n > 0 ? n : 0;
+}
+
+/**
+ * 读取某难度的用时记录，数据层缺失时返回 null。
+ * @param {Object|null} data 用时对象（rec / lt 及其硬核、俄罗斯方块变体）
+ * @param {string} diffKey 难度键
+ * @returns {number|null} 毫秒数；无记录返回 null
+ */
+function recordTimeValue(data, diffKey) {
+    if (!data) return null;
+    const v = data[diffKey];
+    if (v === null || v === undefined) return null;
+    const n = Number(v);
+    return isFinite(n) ? n : null;
+}
+
+/**
+ * 生成成绩卡内的玩法子行：硬核与俄罗斯方块共用同一套结构与样式。
+ * @param {string} cls 子行修饰类：record-hc / record-tet
+ * @param {string} label 子行标签
+ * @param {number} count 通关次数
+ * @param {number|null} best 最快用时
+ * @param {number|null} last 最近一次用时
+ * @returns {string} 子行 HTML
+ */
+function recordSubRowHtml(cls, label, count, best, last) {
+    let html = `<div class="${cls}">`;
+    html += `<div class="record-row">`;
+    html += `<span class="record-label">${label}</span>`;
+    html += `<span class="record-badge">${count} 次</span>`;
+    html += `</div>`;
+    html += `<div class="record-meta">`;
+    html += `<span>最快 <b class="record-best">${fmtTime(best)}</b></span>`;
+    html += `<span>本次 <b class="record-current">${fmtTime(last)}</b></span>`;
+    html += `</div>`;
+    html += `</div>`;
+    return html;
+}
+
+/**
+ * 渲染「📝记录」栏的成绩列表：按当前筛选标签逐难度显示成绩。
  *
  * 条目结构与「挑战」面板统一：每行一张浅灰圆角卡，顶部一行是
  * 难度名 + 通关次数徽标，下面一行是「最快」与最近一次用时两项数据。
- * 完成过硬核通关的难度，会在同一张卡内、普通成绩下方追加一条
- * 用虚线分隔的「🪚 硬核」子行（未完成过硬核通关则不显示），
- * 使硬核记录与所属难度始终放在同一个面板里。
+ * 筛选模式（recordFilter）决定卡片展示哪套数据：
+ *   all      普通成绩为主行，有硬核 / 俄罗斯方块成绩时在同一张卡内追加
+ *            虚线分隔的「🪚 硬核」/「🧱 俄罗斯方块」子行，没有则不显示；
+ *   classic  只显示普通成绩；
+ *   hardcore 用硬核成绩渲染，标签带 🪚；
+ *   tetris   用俄罗斯方块成绩渲染，标签带 🧱。
+ * 后三种模式始终列出全部难度，没有成绩的难度以占位文案展示。
  * 列宽与字号与挑战条目一致。
- * @sideeffect 重写 #achRecordList 的 innerHTML，并更新折叠标题右侧摘要
+ * @sideeffect 重写 #achRecordList 的 innerHTML，同步标签状态并更新折叠摘要
  */
 function renderRecordList() {
     const list = document.getElementById("achRecordList");
@@ -1190,6 +1330,15 @@ function renderRecordList() {
         renderChallengeList();
         return;
     }
+    // 成绩数据由 01-storage 派生，降级时可能缺失：统一做一次安全引用
+    const hcWinsData = typeof hcWins !== "undefined" ? hcWins : null;
+    const hcRecData = typeof hcRec !== "undefined" ? hcRec : null;
+    const hcLtData = typeof hcLt !== "undefined" ? hcLt : null;
+    const tetWinsData = typeof tetWins !== "undefined" ? tetWins : null;
+    const tetRecData = typeof tetRec !== "undefined" ? tetRec : null;
+    const tetLtData = typeof tetLt !== "undefined" ? tetLt : null;
+    // 折叠期间标签状态可能变化，渲染时顺带把 active 类对齐
+    syncRecordFilterTabs();
     let html = "";
     let totalWins = 0;
     RECORD_DIFFS.forEach(d => {
@@ -1199,38 +1348,53 @@ function renderRecordList() {
             color: "#cbd5e0"
         };
         const label = DIFF_LABEL[d] || d;
-        const winCount = wins[d] || 0;
-        totalWins += winCount;
+        // 主行默认展示普通成绩；硬核 / 俄罗斯方块模式整体替换为对应玩法数据
+        let rowWins = wins[d] || 0;
+        let rowRec = rec[d];
+        let rowLt = lt[d];
+        let rowLabel = `${meta.icon}${label}`;
+        if (recordFilter === "hardcore") {
+            rowWins = recordWinCount(hcWinsData, d);
+            rowRec = recordTimeValue(hcRecData, d);
+            rowLt = recordTimeValue(hcLtData, d);
+            rowLabel = "🪚 " + label;
+        } else if (recordFilter === "tetris") {
+            rowWins = recordWinCount(tetWinsData, d);
+            rowRec = recordTimeValue(tetRecData, d);
+            rowLt = recordTimeValue(tetLtData, d);
+            rowLabel = "🧱 " + label;
+        }
+        totalWins += rowWins;
         // 追加 diff-<难度> 供成绩栏难度配色使用；brain 同时保留
         // is-brain，兼容既有样式 / 选择器引用
         html += `<div class="record-item diff-${d}${d === "brain" ? " is-brain" : ""}">`;
         html += `<div class="record-row">`;
-        html += `<span class="record-label">${meta.icon}${label}</span>`;
-        html += `<span class="record-badge">${winCount} 次</span>`;
+        html += `<span class="record-label">${rowLabel}</span>`;
+        html += `<span class="record-badge">${rowWins} 次</span>`;
         html += `</div>`;
         html += `<div class="record-meta">`;
-        html += `<span>最快 <b class="record-best">${fmtTime(rec[d])}</b></span>`;
-        html += `<span>本次 <b class="record-current">${fmtTime(lt[d])}</b></span>`;
+        html += `<span>最快 <b class="record-best">${fmtTime(rowRec)}</b></span>`;
+        html += `<span>本次 <b class="record-current">${fmtTime(rowLt)}</b></span>`;
         html += `</div>`;
-        // 硬核成绩：不单独成卡，只在该难度完成过硬核通关时追加一条子行
-        const hcWin = (typeof hcWins !== "undefined" && hcWins[d]) ? hcWins[d] : 0;
-        if (hcWin > 0) {
-            totalWins += hcWin;
-            html += `<div class="record-hc">`;
-            html += `<div class="record-row">`;
-            html += `<span class="record-label">🪚 硬核</span>`;
-            html += `<span class="record-badge">${hcWin} 次</span>`;
-            html += `</div>`;
-            html += `<div class="record-meta">`;
-            html += `<span>最快 <b class="record-best">${fmtTime(typeof hcRec !== "undefined" ? hcRec[d] : null)}</b></span>`;
-            html += `<span>本次 <b class="record-current">${fmtTime(typeof hcLt !== "undefined" ? hcLt[d] : null)}</b></span>`;
-            html += `</div>`;
-            html += `</div>`;
+        // 「全部」模式：玩法成绩不单独成卡，只在该难度通关过时追加子行
+        if (recordFilter === "all") {
+            const hcWin = recordWinCount(hcWinsData, d);
+            if (hcWin > 0) {
+                totalWins += hcWin;
+                html += recordSubRowHtml("record-hc", "🪚 硬核", hcWin,
+                    recordTimeValue(hcRecData, d), recordTimeValue(hcLtData, d));
+            }
+            const tetWin = recordWinCount(tetWinsData, d);
+            if (tetWin > 0) {
+                totalWins += tetWin;
+                html += recordSubRowHtml("record-tet", "🧱 俄罗斯方块", tetWin,
+                    recordTimeValue(tetRecData, d), recordTimeValue(tetLtData, d));
+            }
         }
         html += `</div>`;
     });
     list.innerHTML = html;
-    // 折叠标题摘要：收起时也能看到累计通关次数
+    // 折叠标题摘要：收起时也能看到当前筛选下的累计通关次数
     const hint = document.getElementById("recSectionHint");
     if (hint) hint.textContent = totalWins > 0 ? "累计 " + totalWins + " 次" : "暂无记录";
     // 挑战完成情况与成绩同属「📝记录」栏，随成绩一起刷新
@@ -1305,8 +1469,8 @@ function escapeChallengeHtml(v) {
  *   🔒 未解锁  基础挑战未完成时五个系列统一锁定；教学未完成显示「未完成」；
  *              门禁已开放但 step=0 的项显示「未开始 0/5」
  *
- * 右侧按钮的行为：基础挑战行 未完成显示
- * 「基础挑战」/ 完成显示「练习」；系列行 未解锁显示「挑战」/ 解锁后显示
+ * 右侧按钮的行为：基础挑战行 未完成显示「基础挑战」并进入基础挑战（写进度），
+ * 完成显示「练习」并进入练习；系列行 未解锁显示「挑战」/ 解锁后显示
  * 「练习」。教学行没有对应入口，只展示进度。
  *
  * 进度条宽度用内联百分比，布局类名由 style.css 统一定义
@@ -1416,10 +1580,16 @@ function renderChallengeList() {
         }
 
         // 每行右侧的练习 / 挑战入口（教学行没有对应入口，不放按钮）
-        // 练习走独立的练习入口：顶部改为「XX练习」+ 退出按钮，不写挑战进度
+        // 基础挑战未完成时进入挑战，完成后才进入练习；练习走独立的练习入口：
+        // 顶部改为「XX练习」+ 退出按钮，不写挑战进度
         let action = "";
         if (row.key === "basic") {
-            action = `<button class="challenge-entry-btn ${basicCompleted ? "is-practice" : "is-challenge"}" onclick="openPracticeMode()">${basicCompleted ? "练习" : "基础挑战"}</button>`;
+            // 未完成基础挑战时入口回到挑战（startTutorial），避免误入
+            // 「基础练习」后挑战进度一直停在 0。startTutorial 不会收起挑战
+            // 弹窗，这里与系列入口保持一致，补一次入口面板收起；
+            // 完成判定与徽标 / 文案共用 basicCompleted，两者保持一致。
+            const basicEntry = basicCompleted ? "openPracticeMode()" : "startTutorial();closeChallengeEntryPanels()";
+            action = `<button class="challenge-entry-btn ${basicCompleted ? "is-practice" : "is-challenge"}" onclick="${basicEntry}">${basicCompleted ? "练习" : "基础挑战"}</button>`;
         } else if (row.key !== "teach") {
             const sInfo = seriesInfo[row.key] || { step: 0, unlocked: false };
             const sUnlocked = sInfo.unlocked || sInfo.step >= 5;

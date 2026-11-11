@@ -7,14 +7,14 @@
 
 | 项目 | 值 |
 | --- | --- |
-| 当前版本 | **v1.4.1** |
+| 当前版本 | **v1.5.1** |
 | 运行形态 | 纯静态网页（浏览器直接打开即可，不需要安装或构建） |
 | 存档 schema | **schema 2 / dataVersion 2**（单键紧凑签名容器，见 [docs/SAVE-FORMAT.md](docs/SAVE-FORMAT.md)）；v1.4.0 起 **dataVersion=1 的旧存档与旧导出文件不再兼容**（回退默认值并提示一次） |
 | 硬核模式 / 成绩 | 跨局偏好与三组成绩以受管附加 JSON 键（`mineHardcoreMode` / `mineHardcoreWins` / `mineHardcoreRecords` / `mineHardcoreLastTimes`）保存，**不改变容器格式与二进制位段**；v1.3.10 起只有预设难度与自由模式会进入硬核局，本局是否硬核由开局快照 `gameHardcore` 决定 |
-| 存档体积 | 完整进度约 **1.1 KB / 1128 字符**（v1.4.0 实测：62 成就全解锁 + 五难度普通 / 硬核成绩 + 设置 + 引导已读；旧版多键 JSON 通常 2–4 KB） |
+| 俄罗斯方块玩法 / 成绩 | v1.5.0 新增的跨局偏好与独立成绩（`mineTetrisMode` / `mineTetrisWins` / `mineTetrisRecords` / `mineTetrisLastTimes`，同样走受管附加 JSON）；只有预设难度与自由模式会进入骨牌局，本局是否骨牌由开局快照 `gameTetris` 决定，与硬核偏好互斥（开启一个自动关闭另一个） |
+| 存档体积 | 默认新档约 **0.4 KB**（Base64URL 418 字符 / 二进制容器 313 字节）；满进度约 **1.3 KB / 1302 字符**（v1.5.0 实测：62 成就全解锁 + 各成就计数与 26 雷型收集 + 五难度普通 / 硬核 / 俄罗斯方块成绩 + 设置 + 引导已读，容器 976 字节、LZSS 解压前 payload 1494 字节；旧版多键 JSON 通常 2–4 KB） |
 | 地雷图鉴 | **26 种**，分 **6 个系列** |
 | 成就 | **62 个**（8 大类，其中 20 个隐藏成就） |
-| 主线任务 | **9 环 + 6 支线**（地雷仙人引路；成就/任务给火药积分，可换外观；对应模块当前不在工作区，页面无主线入口） |
 | 作者 | L1Nzy · lin060911@qq.com · © 2026 |
 
 ## 目录
@@ -65,20 +65,20 @@
 
 | 入口 | 位置 | 说明 |
 | --- | --- | --- |
-| 新游戏 | 主按钮条 | 重开一局（预设难度会先进入"准备好了吗"确认卡片） |
+| 新游戏 | 主按钮条 | 重开一局（预设难度会先进入「准备好了吗？」确认卡片；卡片会标明本局玩法模式与参数，见 1.4） |
 | 🎯挑战 | 主按钮条 | 打开挑战弹窗：教学 / 基础挑战 / 五个系列挑战的进度与「练习 / 挑战」入口（v1.3.3；练习入口见 1.2「挑战与练习」） |
 | 🧹 清空放置 | 地雷槽底部 | 清掉本局已放置的所有地雷；显示已放数量，0 颗时置灰（v1.3.3 从主按钮条移入；教学模式下由「退出教学」按钮取代） |
 | 教学🧐 | 主按钮条 | 新手引导与基础挑战；教学气泡之外（地雷槽正下方）常驻红色「🔙 退出教学」按钮（v1.3.8） |
-| 难度🕹️ | 主按钮条 | 简单/中等/困难/地狱/脑王/自由 + 系列开关；系列开关之后为「🎲 玩法」区块（内含「🪚 硬核模式」开关，v1.3.9 新增；v1.3.10 起只对预设难度与自由模式生效，见 1.4「硬核模式」） |
+| 难度🕹️ | 主按钮条 | 简单/中等/困难/地狱/脑王/自由 + 系列开关；系列开关之后为「🎲 玩法」区块（「🪚 硬核模式」与 v1.5.0 新增的「🧱 俄罗斯方块模式」两个开关，互斥，只对预设难度与自由模式生效，见 1.4） |
 | 🧭信息 | 左侧栏 | 规则信息、炸弹信息（各系列地雷图鉴与解锁状态；挑战入口在 🎯挑战） |
-| 📝记录 | 左侧栏 | 成就解锁进度 + 成绩（两个可折叠子区，默认折叠成绩）；挑战进度已移到 🎯挑战 弹窗 |
+| 📝记录 | 左侧栏 | 成就解锁进度 + 成绩（两个可折叠子区，默认折叠成绩）；挑战进度已移到 🎯挑战 弹窗；v1.5.0 成绩区新增「全部 / 经典 / 硬核 / 俄罗斯方块」四档筛选（见 1.7） |
 | ✍️创造 | 右侧栏 | 自己出题 + 题库码分享/导入 |
 | ⚙️设置 | 右侧栏 | 音量、地块提示、放置模式、存档管理（详情 / 导入导出）、关于（v1.4.1 起含「🔬 测试者工具」下载测试存档） |
 | ⛶ 全屏 | 页面右上角固定 | 切换浏览器全屏 / 退出全屏（v1.3.2；不支持的浏览器会 toast 提示） |
 
 放置方式支持两种（可在设置里切换，存于存档字段 `placeMode_v1`）：**拖拽**（把地雷拖到棋盘松手）与**点选**（先点地雷选中，再点棋盘放置）。
 
-**删除已放地雷**：桌面端**右键**；手机端**长按**或**双击**（v1.3.4 新增，两种方式并存；主棋盘、教学棋盘、创造棋盘都支持，仅触屏生效，桌面鼠标不会触发双击删除）。
+**删除已放地雷**：桌面端**右键**；手机端**长按**或**双击**（v1.3.4 新增，两种方式并存；主棋盘、教学棋盘、创造棋盘都支持，仅触屏生效，桌面鼠标不会触发双击删除）。**俄罗斯方块模式下双击改为旋转已放置骨牌**（见 1.4），删除改由右键 / 长按完成。
 
 **加载中占位**（v1.3.4）：棋盘 / 地雷槽尚未生成或正在生成时，主区先显示居中的「💣 加载中…」卡片并暂时隐藏棋盘与地雷槽，生成完成后**立即**换成棋盘，避免首屏或重开一局时出现空棋盘闪烁；首屏 HTML 里占位默认可见，由 `06-render.js#showBoardLoading()` / `hideBoardLoading()` 控制（创造模式与预设待开局的显隐逻辑不受影响）。
 
@@ -104,11 +104,13 @@
 | 🟨 偏低 | 当前影响值 **小于** 显示数字（还需在周围加雷） |
 | 🟥 偏高 | 当前影响值 **大于** 显示数字（需要减少影响） |
 
-设置里可开启「🔺 实时影响值」：影响值不为 0 且不等于题目数字的地块，会在右下角显示它当前的实时影响值。
+设置里可开启「🔺 实时影响值」：影响值不为 0 且不等于题目数字的地块，会在右下角显示它当前的实时影响值。**俄罗斯方块模式会固定开启该功能**（开关显示为开启并锁定，仅本局生效，不写入玩家的长期偏好，见 1.4）。
 
 设置里还可开启「👁️ 效果预览」（**默认开启**，设置里可关闭）：**拖拽放置**时（鼠标拖动或触屏拖动），指针悬浮到棋盘格上会预演这一步的净效果——受影响的地块直接显示「放置后」的三态颜色（虚线描边表示这是预演），左下角标出放置后的影响值（拖动棋盘上已有的雷换位时同样会预演「移走旧雷 + 放下新雷」的合并结果；仅主棋盘与教学棋盘）。
 
 **硬核模式（v1.3.9 引入；v1.3.10 起仅预设难度与自由模式生效）下不再显示上述三态配色**：主棋盘只按题面数字上色——数字格灰白、数字为 0 的格子蓝色（传统扫雷色系），颜色不随局面变化；详见 1.4「硬核模式」。挑战 / 练习 / 题库码 / 教学 / 创造不受硬核影响，仍按三态配色显示。
+
+**俄罗斯方块模式（v1.5.0）仍使用上述三态配色**：数字与「当前影响值 vs 题面」的比较规则不变，只是「地雷」换成了四格骨牌；每块骨牌覆盖的 4 格各 +1，棋盘格子的数字与三态含义完全沿用经典规则（详见 1.4「俄罗斯方块模式」）。
 
 ### 1.4 难度、参数与解锁链
 
@@ -136,7 +138,7 @@
 
 **解锁链**：
 
-1. 先完成 **新手教学**（12 关）；教学完成后解锁 **基础挑战**（5 关，8×8 / 4 雷的入门盘）。这是主线 N1 门禁，仙人会提前把它写进任务卡的「可解锁」。
+1. 先完成 **新手教学**（12 关）；教学完成后解锁 **基础挑战**（5 关，8×8 / 4 雷的入门盘）。
 2. 通关基础挑战 5 关后解锁：各系列挑战入口（🎯挑战弹窗）+ **中等难度**；**简单难度始终开放**（N2 门禁）。挑战弹窗里对应行右侧的按钮：未通关的系列是红色「挑战」，通关后变成绿色「练习」。
 3. 每个 **系列挑战**（5 关）通关后，解锁该系列地雷，并可在「难度🕹️」里打开对应的系列开关（解锁后可**随时**调整，无需切换模式；未解锁的系列行显示为灰色）。
 4. **困难**：需开启 **≥3 个**系列开关。
@@ -156,6 +158,21 @@
 - **地块提示锁定**：硬核局中自动关闭「🔺 实时影响」与「👁️ 效果预览」，设置栏两个开关置灰并显示锁定说明；此时点它们会弹出「本局为硬核模式」确认框——选「退出硬核模式」会同时清掉偏好与本局快照、本局**立即恢复三态配色并按普通模式结算**，然后才开启该提示（因此硬核局中无法靠提示刷硬核成绩）；选「取消」则整局不变。
 - **地块准确数**：状态行显示独立的「🧩 地块准确数：x/x」，x 为**有数字的格子**中当前影响值等于题面数字的个数（`G.p[r][c] === G.tar[r][c]`，与三态配色、已放数量无关），分母为**有数字格子的总数**（0 值蓝色空地不计入）；它与「💣 已放置雷数：n/m」在宽屏同一行（窄屏分两行）；仅本局快照为硬核且主棋盘就绪时显示，教学 / 创造棋盘、预设待开局与棋盘未生成时不显示（相关入口在渲染末尾调用 `refreshHardcoreStat()` 同步显隐）。
 - **成绩与门槛**：通关条件不变；**预设难度**的硬核通关写入独立的硬核成绩（见 1.7），普通成绩不受影响；**自由模式**本就不记成绩，硬核局同样不写；挑战 / 练习 / 题库码 / 教学 / 创造不进入硬核快照，既不写硬核成绩也不显示准确数。脑王门槛的「地狱通关 ≥10 次」按普通 + 硬核合并计数（`getHellWinCount()`）。硬核通关仍计入成就（各难度通关次数、总胜场等），只是不写入普通成绩栏。
+
+**俄罗斯方块模式（v1.5.0 新增）**：同样在「🕹️难度 → 游戏选择」的「🎲 玩法」区块里，位于硬核开关下方；它是**跨局偏好**（持久化键 `mineTetrisMode`），与硬核模式**互斥**——开启一个会自动关闭另一个，两者都只在**下一局**生效（对局中途切换只保存偏好并 toast 提示）。适用范围与硬核一致：只有**预设难度**与**自由模式**会进入骨牌局，挑战 / 练习 / 题库码 / 教学 / 创造始终是经典局。一局是否按骨牌玩由开局快照 `gameTetris` 决定（`applyGameTetris()` 计算）。开启后：
+
+- **地雷槽换成 7 种四格骨牌**：I / O / J / L / S / Z / T，不再显示经典雷种；每张卡片是一块骨牌的「实际影响范围图形」——半透明有色玻璃色块 + 2px 同色描边，**自身格（锚点）颜色更深**并带内侧高光；卡上标出字母名与「已用 / 配额」。
+- **旋转**：宽屏鼠标悬浮卡片（或触屏选中卡片）时右上角出现「↻」旋转按钮，点击顺时针旋转该骨牌在槽位里的朝向；已放置的骨牌保持原朝向不变。卡片配额用尽后置灰且不再显示旋转按钮。
+- **已放置骨牌的旋转（v1.5.1）**：**双击**棋盘上已放置的骨牌（点到锚点或它覆盖的任意格）即可**绕锚点顺时针旋转 90°**，影响值实时重算；桌面双击、触屏双击均可，触屏**长按 / 右键**仍是删除整块。单击放置是即时生效的，因此双击的第一下如果正好在骨牌身上放了一块新骨牌，会在双击判定时被自动撤销，保证「双击 = 旋转」不被误放打断。
+- **难度口径（v1.5.1）**：预设难度下骨牌块数降为**约 2/3**（`max(3, ceil(T×2/3))`：简单 3 / 中等 6 / 困难 8 / 地狱 10 / 脑王 11 块），棋盘尺寸不变，`G.max` 与槽位配额随之收敛；**自由模式仍按玩家设定的总雷数**出牌，不做缩放。
+- **实时影响固定开启（v1.5.1 补充）**：骨牌局会把「🔺 实时影响」强制打开并在设置栏锁定（显示为开启 + 置灰），帮助玩家核对骨牌覆盖范围；该强制只作用于本局、不写存档，离开骨牌局后恢复玩家原本的偏好状态，点击锁定开关只会 toast 提示「固定开启」。
+- **玩法开关说明改为气泡（v1.5.1 补充）**：「🪚 硬核模式 / 🧱 俄罗斯方块模式」两个开关下方的常驻说明文字已移除，改为**鼠标悬浮玩法行（触屏点按标签）时弹出气泡**说明（复用统一气泡层，多行排版）；气泡文案随开关状态（未开启 / 已开启 / 本局硬核）实时更新。同时「游戏选择」弹窗内的「难度挑战 / 系列开关 / 玩法 / 成绩入口」各自为独立白底卡片，与设置栏分组卡一致。
+- **影响与放置**：每块骨牌覆盖的 **4 格各 +1（含自身格）**；**自身格不可与其它骨牌的自身格叠放**，但影响值可以叠加；拖拽 / 点选放置与经典一致（把卡片拖到棋盘松手，或选中卡片后点棋盘格子）。
+- **贴边显示**：骨牌靠近棋盘边缘时，**越出棋盘的部分不影响棋盘，但图形仍然显示**（绘制在棋盘之外的半透明覆盖层上，不挤占棋盘栅格、不改变页面布局，因此不会出现棋盘位置抽搐）。
+- **删除**：右键（手机端长按 / 双击）任意被该骨牌覆盖的格子都会**删除整块骨牌**；拖动已放置的骨牌可整块搬移（目标锚点为空时）。
+- **出题与通关**：总块数取当前难度参数 `T`（预设难度的总雷数；自由模式为「总地雷数」），7 种骨牌按随机配额分配（总块数 ≥ 7 时每种至少 1 块，不足 7 块时随机取其中几种各 1 块）；每块随机朝向与锚点，反算题面。通关条件不变：放满全部骨牌且每格影响值与题面一致。
+- **成绩**：预设难度的骨牌局写入**独立的俄罗斯方块成绩**（见 1.7 的「🧱 俄罗斯方块」筛选），不写普通 / 硬核成绩；自由模式不记成绩。骨牌局不会把骨牌当成经典雷种计入图鉴、题库码或成就的「雷种」统计。
+- **界面细节**：开局生成 / 重排后覆盖层按棋盘格子的真实视口坐标对位，页面滚动或缩放时自动重新对位；棋盘格子里只保留「自身格」的定位标记、不画 emoji，数字与三态配色照常显示。
 
 ### 1.5 地雷图鉴（6 系列 / 26 种）
 
@@ -214,12 +231,13 @@
 - 已解锁成就显示**本地解锁时间** `🗓️ YYYY-MM-DD HH:mm`：存档按完整 ISO 时间戳保存（精确到秒），面板展示时再换算成本地时区；「📄 存档详情」里还能看到首次 / 最近解锁时间。
 - 左侧「📝记录」栏（成就侧栏）展示成绩与成就两类内容：
   - 🥇 **成绩**：各难度的最快用时、最近一次用时与累计通关次数；v1.3.4 起每条成绩卡的底色跟随对应难度按钮色系但更淡（简单淡绿 / 中等淡黄 / 困难淡红 / 地狱淡紫 / 脑王淡彩虹），一眼就能和难度按钮对上；
+  - 🗂️ **成绩次级筛选（v1.5.0）**：成绩区顶部新增「**全部 / 经典 / 硬核 / 俄罗斯方块**」四档筛选标签（`.record-filter-tabs`，`08-ui.js#setRecordFilter()`）。**全部**（默认）= 现在的效果：同一预设难度各类玩法放在一起——普通成绩为主行，有硬核成绩时追加「🪚 硬核」子行、有俄罗斯方块成绩时追加「🧱 俄罗斯方块」子行，**没有成绩的子行不展示**；**经典 / 硬核 / 俄罗斯方块**：只展示该玩法数据，五个预设难度**全部列出**，该难度没有成绩时显示「暂无记录」占位；折叠标题右侧摘要按当前筛选统计（「累计 N 次」/「暂无记录」）。筛选只影响渲染、不改存档，切回「全部」即恢复合并视图；
   - 🪚 **硬核成绩（v1.3.9 引入，v1.3.10 明确来源）**：某难度完成过硬核通关后，会在**该难度自己的成绩卡内**、普通成绩下方用虚线分隔出「🪚 硬核」子行（`.record-hc`），同样显示通关次数 / 最快 / 本次，不额外新增独立卡片；**没完成过硬核通关的难度不显示该子行**；「成绩」折叠标题的「累计 N 次」会计入硬核通关。硬核成绩只可能来自**预设难度**的硬核局（自由模式不记成绩，挑战 / 练习 / 题库码 / 教学 / 创造不进入硬核快照）。脑王门槛的「地狱通关次数」按普通 + 硬核合并（`getHellWinCount()`），成绩卡内两段分别展示；
-  - 🎯 **挑战**（v1.3.0 新增，v1.3.3 迁移）：教学 / 基础挑战 / 异形 / 物理律 / 扑克牌 / 对称 / 战术七行，每行用 `✅ 已完成` / `🕹️ 进行中 n/5` / `🔒 未解锁` 三态 + 进度条展示；v1.3.3 起整块移到主按钮「🎯挑战」打开的弹窗，每行右侧新增对应的「练习 / 挑战」入口（`08-ui.js#renderChallengeList()`）。
+  - 🎯 **挑战**（v1.3.0 新增，v1.3.3 迁移）：教学 / 基础挑战 / 异形 / 物理律 / 扑克牌 / 对称 / 战术七行，每行用 `✅ 已完成` / `🕹️ 进行中 n/5` / `🔒 未解锁` 三态 + 进度条展示；v1.3.3 起整块移到主按钮「🎯挑战」打开的弹窗，每行右侧新增对应的「练习 / 挑战」入口（`08-ui.js#renderChallengeList()`）；v1.5.0 修复「基础挑战未完成时点该行按钮会进入基础练习、导致进度死锁」的 BUG——未完成时入口进入**挑战**，完成后才进入**练习**；
   - 🧩 **统一与折叠**（v1.3.1）：每个子区是一张白底分组卡（与信息栏分组卡一致），展开时折叠标题与内容一起被包在卡片内，不再分离；成绩条目统一为「挑战」同款浅灰圆角卡，**成就区保留并加深原有暖金配色与更活泼的 emoji / 徽标动效、条目间距加大；隐藏成就使用更深、更醒目的特殊红色标识**；默认折叠成绩、成就默认展开，标题右侧显示摘要（累计通关 / 成就解锁数）。
   - 🥇 **成绩入口**（v1.3.2）：难度弹窗最下方的「各难度成绩请到 📝记录 栏查看」保持旧文案，**只有「📝记录」三个字**是可点的跳转入口；点击后自动打开记录侧栏、展开成绩区，并用统一的高光框 + 👆 小手指向**成绩栏**（点「知道啦 ✅」结束）。
 - 成绩、62 个成就的解锁时间、教学与全部挑战进度三类数据都写进**同一份签名存档**（见 3.6）；`window.Achievements` 提供只读 `list / byId / unlockTime / summary`，存档详情弹窗直接复用这套数据。
-- **主线与积分**：地雷仙人 9 环主线 + 6 条支线、任务卡、火药积分商店与外观衣柜对应的模块已不在当前工作区（页面没有主线入口）；其 `rmMainQuest_v1` / `rmLooks_v1` 状态键仍由存档容器托管。
+
 
 > 具体成就清单与达成条件请直接在游戏内「📝记录」栏查看，本文不列出，避免剧透。
 
@@ -228,10 +246,10 @@
 **设置（✍️/⚙️ 右侧栏）**
 
 - 🎵 背景音乐音量、💥 游戏音效音量：记录在存档字段 `mineSoundSettings`。
-- 🔺 实时影响值开关：记录在存档字段 `mineInfluenceHint`；硬核模式下被锁定（见 1.4「硬核模式」）。
+- 🔺 实时影响值开关：记录在存档字段 `mineInfluenceHint`；硬核模式下被锁定（见 1.4「硬核模式」），俄罗斯方块局则被**固定开启并锁定**（见 1.4「俄罗斯方块模式」）。
 - 👁️ 效果预览开关：记录在存档字段 `mineEffectPreview`，**默认开启**（v1.3.11；旧存档里由历史默认值留下的关闭状态会通过一次性标记 `mineEffectPreviewDefaultOn_v1` 迁移为开启，之后玩家的手动关闭以存档值为准）；硬核模式下被锁定（见 1.4「硬核模式」）。
 - 放置模式（拖拽 / 点选）：记录在存档字段 `placeMode_v1`。
-- ℹ️ **关于**（v1.3.3）：展示 🔧 版本号（从 `RM.VERSION` 读取）、📣 更新公告（**V1.4.1 + V1.4.0** 摘要；v1.3.4 起公告会同步本版新增内容，v1.4.1 公告为「关于板块新增 🔬 测试者工具 / 火药沙拉判定改为参与地雷种类数超过 20 / 17 个新成就补全正式文案」）与 **🔬 测试者工具**（v1.4.1，见下）。
+- ℹ️ **关于**（v1.3.3）：展示 🔧 版本号（从 `RM.VERSION` 读取）、📣 更新公告（**V1.5.1 + V1.5.0 + V1.4.1** 三条摘要；v1.5.1 公告为「修复骨牌图形全部画在首格、预设难度骨牌数降为约 2/3、双击已放骨牌可绕锚点旋转」）与 **🔬 测试者工具**（v1.4.1，见下）。
 
 **存档管理**
 
@@ -265,25 +283,25 @@
 毕业设计/                       工作区根目录（文档、测试与游戏本体分开存放）
 ├─ README.md                    本文件
 ├─ 源文件/                      游戏本体：打包 / 部署时把本目录内容作为游戏根目录
-│  ├─ index.html                入口页面（DOM 结构 + 底部按序加载 17 个脚本，见 2.3；v1.3.4 新增 #boardLoading 加载中占位；v1.3.9 新增硬核开关区块与 #hcInfo / #hcLockNote；v1.3.10 硬核开关与规则信息补充适用范围、关于公告改 V1.3.10 + V1.3.9；v1.3.11 状态行改为 .hud-stats 包裹层（已放置雷数墨绿胶囊 + 🧩 准确数同排）、关于公告改 V1.3.11 + V1.3.10；v1.4.0 自由模式参数面板重构（#customPanel 内「棋盘大小 / 行数 / 列数 / 总地雷数 / 地雷种类数」+「⤢ 单独设置行列」）、关于公告改 V1.4.0 + V1.3.11、页脚 v1.4.0；v1.4.1 关于板块新增 .about-tester 测试者工具区块与 #testSaveBtn、关于公告改 V1.4.1 + V1.4.0、页脚 v1.4.1）
-│  ├─ style.css                 单一合并样式表（9283 行；末尾第 57 段为 v1.3.0 存档升级、第 58 段为 v1.3.1 记录栏统一与折叠、第 59 段为 v1.3.2 全屏按钮 / 创造布局 / 记录跳转 / 移动端背景减负、第 60 段为 v1.3.3 清空条 / 挑战弹窗 / 关于、第 61 段为 v1.3.4 地雷卡气泡 / 成绩栏难度配色 / 加载中占位、第 62 段为 v1.3.5 系列开关分组 / 锁定徽标 / 信息栏跳转、第 63 段为 v1.3.6 炸弹图例中心点 / 平分线 / 战术多图例、第 64 段为 v1.3.7 扑克牌系列图形尺寸、第 65 段为 v1.3.8 练习模式进度条 / 教学退出按钮、第 66 段为 v1.3.9 硬核模式配色 / 开关 / 锁定态 / 准确数 / 成绩条目（v1.3.10 增补 66.6 状态行隐藏规则）、第 67 段为 v1.3.11 状态行已放置雷数 / 准确数同排与窄屏堆叠、第 68 段为 v1.4.0 自由模式矩形棋盘开关与行 / 列参数行、第 69 段为 v1.4.1 关于 · 测试者工具）
+│  ├─ index.html                入口页面（DOM 结构 + 底部按序加载 17 个脚本，见 2.3；v1.3.4 新增 #boardLoading 加载中占位；v1.3.9 新增硬核开关区块与 #hcInfo / #hcLockNote；v1.3.10 硬核开关与规则信息补充适用范围、关于公告改 V1.3.10 + V1.3.9；v1.3.11 状态行改为 .hud-stats 包裹层（已放置雷数墨绿胶囊 + 🧩 准确数同排）、关于公告改 V1.3.11 + V1.3.10；v1.4.0 自由模式参数面板重构（#customPanel 内「棋盘大小 / 行数 / 列数 / 总地雷数 / 地雷种类数」+「⤢ 单独设置行列」）、关于公告改 V1.4.0 + V1.3.11、页脚 v1.4.0；v1.4.1 关于板块新增 .about-tester 测试者工具区块与 #testSaveBtn、关于公告改 V1.4.1 + V1.4.0、页脚 v1.4.1；v1.5.0 新增「🎲 玩法」里的俄罗斯方块开关区块（#tetrisToggle / #tetrisHint）与记录栏成绩筛选标签 .record-filter-tabs、规则信息补充俄罗斯方块玩法说明、关于公告改 V1.5.0 + V1.4.1 + V1.4.0、页脚 v1.5.0；v1.5.1 关于版本号 / 公告改 V1.5.1 + V1.5.0 + V1.4.1、页脚 v1.5.1、骨牌开关提示与规则信息补充降难与双击旋转说明）
+│  ├─ style.css                 单一合并样式表（9283 行；末尾第 57 段为 v1.3.0 存档升级、第 58 段为 v1.3.1 记录栏统一与折叠、第 59 段为 v1.3.2 全屏按钮 / 创造布局 / 记录跳转 / 移动端背景减负、第 60 段为 v1.3.3 清空条 / 挑战弹窗 / 关于、第 61 段为 v1.3.4 地雷卡气泡 / 成绩栏难度配色 / 加载中占位、第 62 段为 v1.3.5 系列开关分组 / 锁定徽标 / 信息栏跳转、第 63 段为 v1.3.6 炸弹图例中心点 / 平分线 / 战术多图例、第 64 段为 v1.3.7 扑克牌系列图形尺寸、第 65 段为 v1.3.8 练习模式进度条 / 教学退出按钮、第 66 段为 v1.3.9 硬核模式配色 / 开关 / 锁定态 / 准确数 / 成绩条目（v1.3.10 增补 66.6 状态行隐藏规则）、第 67 段为 v1.3.11 状态行已放置雷数 / 准确数同排与窄屏堆叠、第 68 段为 v1.4.0 自由模式矩形棋盘开关与行 / 列参数行、第 69 段为 v1.4.1 关于 · 测试者工具、第 70 段为 v1.5.0 俄罗斯方块玩法（玩法开关 / 骨牌槽卡与旋转按钮 / 棋盘骨牌覆盖层）与成绩筛选标签 / .record-tet 子行；V1.5.1 补充 70.8–70.11（玩法开关悬浮气泡、游戏选择弹窗分区卡片化、「准备好了吗？」卡片重做与窄屏适配））
 │  └─ js/
-│     ├─ 00-core.js             命名空间 / 版本常量（`VERSION="1.4.1"`、`SAVE_SCHEMA=2`、`SAVE_FORMAT=2`、`ACH_IDS` 62 个成就 id 的规范位序）/ 棋盘参数模型（`S / SR / SC / T / TY / SP / K`、`freeRectExpanded`、`LIMIT`、`PRE`、`STD_PARAM_*`、`applyBoardParams`）/ 全局状态（含硬核偏好 `isHardcoreMode`、本局快照 `gameHardcore`、结算标记 `winSettled`、刷新局归类标记 `isRefreshFreeGame`）/ 错误兜底
-│     ├─ 01-storage.js          紧凑签名存档引擎 / 系列开关 / 成绩与胜场（v1.3.10 起 `readRecords()` 同时汇总硬核三组成绩；v1.3.11 起效果预览默认值改为开启；v1.4.0 起 `DATA_VERSION=2`、成就位图 8 字节、旧结构存档由 `legacyRejected` 拒绝并提示一次；v1.4.1 新增 `Store.exportRawMapFile()` 供测试者工具构造测试档）
+│     ├─ 00-core.js             命名空间 / 版本常量（`VERSION="1.4.1"`、`SAVE_SCHEMA=2`、`SAVE_FORMAT=2`、`ACH_IDS` 62 个成就 id 的规范位序）/ 棋盘参数模型（`S / SR / SC / T / TY / SP / K`、`freeRectExpanded`、`LIMIT`、`PRE`、`STD_PARAM_*`、`applyBoardParams`）/ 全局状态（含硬核偏好 `isHardcoreMode`、本局快照 `gameHardcore`、v1.5.0 俄罗斯方块偏好 `isTetrisMode` / 本局快照 `gameTetris` / 槽位朝向 `tetroRot`、结算标记 `winSettled`、刷新局归类标记 `isRefreshFreeGame`）/ 错误兜底
+│     ├─ 01-storage.js          紧凑签名存档引擎 / 系列开关 / 成绩与胜场（v1.3.10 起 `readRecords()` 同时汇总硬核三组成绩；v1.3.11 起效果预览默认值改为开启；v1.4.0 起 `DATA_VERSION=2`、成就位图 8 字节、旧结构存档由 `legacyRejected` 拒绝并提示一次；v1.4.1 新增 `Store.exportRawMapFile()` 供测试者工具构造测试档；v1.5.0 新增 `mineTetrisMode` 与俄罗斯方块三组成绩、`readRecords()` 汇总 `tetList` / `tetTotal`、`profileOfRawMap` / `inspect` 输出 tetris 字段、`mergeRawMap` 对骨牌成绩只增不减，并派生 `tetWins` / `tetRec` / `tetLt`）
 │     ├─ 02-audio.js            音频总线（音效 + 8bit BGM）
 │     ├─ 03-timer.js            计时器（单调时钟 + 反作弊）
-│     ├─ 04-mines.js            地雷图鉴（26 种 / 6 系列）与影响函数
-│     ├─ 05-generator.js        题目生成 / 影响值重算 / 信息栏（v1.4.0 新增 `genFreeGame()`：自由模式按 `K` 种雷选型、各至少 1 颗、余量随机，`T/K` 按面积与可用雷型收敛；预设 / 教学 / 挑战仍走 `genGame()` 旧配比）
-│     ├─ 06-render.js           棋盘差量渲染 / 地雷槽 / 影响值提示与效果预览 / 硬核配色与准确数（v1.3.10 起按开局快照 `gameHardcore` 分支）
-│     ├─ 07-board.js            尺寸度量 / 拖拽与点选放置 / 增删地雷
-│     ├─ 08-ui.js               侧边栏 / 难度 / 成绩 / 挑战记录 / 特效 / 弹窗（v1.3.10 起 `checkWin()` 有幂等守卫、`saveRec()` 按本局快照记账；v1.4.0 自由模式参数面板改为 `setVal()` 的 `size / sr / sc / total / kinds` 五项、`toggleFreeRect()` 切换矩形棋盘、`syncFreeRectPanel()` 同步显隐、`applySet()` 开局前经 `applyBoardParams()` 收敛；`PRE.free` 仅作面板初值）
+│     ├─ 04-mines.js            地雷图鉴（26 种 / 6 系列）与影响函数；v1.5.0 增加俄罗斯方块骨牌表 `TETRO_ORDER` / `TETRO` 与 `tetroCells()` / `tetroAddInfluence()`（独立于 `M`，不影响图鉴 / 题库码 / 成就雷种统计）
+│     ├─ 05-generator.js        题目生成 / 影响值重算 / 信息栏（v1.4.0 新增 `genFreeGame()`：自由模式按 `K` 种雷选型、各至少 1 颗、余量随机，`T/K` 按面积与可用雷型收敛；预设 / 教学 / 挑战仍走 `genGame()` 旧配比；v1.5.0 新增 `genTetrisGame()`：`T` 为骨牌总块数、7 种骨牌随机配额、随机朝向与互不重复的锚点，反算骨牌题面；`computeInfluenceMap()` 支持按 `G.rot` 结算骨牌）
+│     ├─ 06-render.js           棋盘差量渲染 / 地雷槽 / 影响值提示与效果预览 / 硬核配色与准确数（v1.3.10 起按开局快照 `gameHardcore` 分支）；v1.5.0 增加俄罗斯方块模式四件套 `applyGameTetris()` / `setTetrisMode()` / `toggleTetrisMode()` / `syncTetrisUI()`、骨牌槽 `renderTetrisSlot()`（形状预览 + 旋转按钮 `rotateTetrisType()`）与棋盘骨牌覆盖层 `renderTetroOverlay()` / `hideTetroOverlay()`（body 级 fixed 层，越界照画）
+│     ├─ 07-board.js            尺寸度量 / 拖拽与点选放置 / 增删地雷；v1.5.0 增加骨牌放置 `placeTetroAt()` 与整块删除 `removeTetroAt()`
+│     ├─ 08-ui.js               侧边栏 / 难度 / 成绩 / 挑战记录 / 特效 / 弹窗（v1.3.10 起 `checkWin()` 有幂等守卫、`saveRec()` 按本局快照记账；v1.4.0 自由模式参数面板改为 `setVal()` 的 `size / sr / sc / total / kinds` 五项、`toggleFreeRect()` 切换矩形棋盘、`syncFreeRectPanel()` 同步显隐、`applySet()` 开局前经 `applyBoardParams()` 收敛；`PRE.free` 仅作面板初值）；v1.5.0 增加成绩筛选 `setRecordFilter()` / `syncRecordFilterTabs()` / 重写 `renderRecordList()`（四档筛选 + `.record-hc` / `.record-tet` 子行）、`saveRec()` 俄罗斯方块记账分支、打开难度弹窗时 `syncTetrisUI()`，并修复基础挑战未完成时入口误进练习的 BUG）
 │     ├─ 09-tutorial.js         基础挑战 + 系列挑战 + 教学流程
-│     ├─ 10-game.js             新游戏 / 全局重置 / 页面级事件（v1.3.10 起开局计算硬核快照、`fullReset()` 重置快照与结算标记）
+│     ├─ 10-game.js             新游戏 / 全局重置 / 页面级事件（v1.3.10 起开局计算硬核快照、`fullReset()` 重置快照与结算标记）；v1.5.0 在 `newGame()` / `beginPresetGame()` 计算 `gameTetris` 快照并按 `gameTetris ? genTetrisGame() : genGame()` 分流，`fullReset()` 清 `gameTetris` / `tetroRot` / `G.rot` 并收起覆盖层
 │     ├─ 11-create.js           创造模式 / 题库码生成与解析
 │     ├─ 12-settings.js         音量设置持久化 / 暴露 _gameNS
 │     ├─ 13-achievements.js     成就系统 + 解锁时间 + 钩子装配（v1.3.10 起 `init()` 不再开首局；v1.4.0 数据表扩到 **62 个成就 / 8 个分组**，新增「🪚 硬核」分组与 17 个新成就、隐藏成就 14→20，`catOrder` 同步；v1.4.1 这 17 个成就补全正式名称 / 彩蛋文案，隐藏成就「火药沙拉」判定改为自由模式参与地雷种类数 > 20）
 │     ├─ 14-bgeffects.js        背景漂浮地雷特效
-│     ├─ 15-boot.js             启动自检 / 存档管理 UI / 导入验签 / 存档详情（v1.3.10 起对比表含硬核行、详情含硬核成绩小节；v1.4.0 启动时读取 `Store.legacyRejected` 提示「旧版本存档已不再兼容，已按新档开始」、`markSaveManageUsed()` 解锁存档管理隐藏成就；v1.4.1 导出复用 `downloadJsonFile()`、新增 `downloadTestSave()` 测试存档）
+│     ├─ 15-boot.js             启动自检 / 存档管理 UI / 导入验签 / 存档详情（v1.3.10 起对比表含硬核行、详情含硬核成绩小节；v1.4.0 启动时读取 `Store.legacyRejected` 提示「旧版本存档已不再兼容，已按新档开始」、`markSaveManageUsed()` 解锁存档管理隐藏成就；v1.4.1 导出复用 `downloadJsonFile()`、新增 `downloadTestSave()` 测试存档；v1.5.0 测试存档补 `mineTetrisMode`、三列对比在硬核 5 行后追加 5 行「🧱 俄罗斯方块·难度」（参与丢失 / 增加标记）、存档详情新增「🧱 俄罗斯方块成绩」小节）
 │     └─ 16-guide.js            新手引导层（小手动画 / 高亮 / 气泡 / 频率调度）
 ├─ docs/
 │  └─ SAVE-FORMAT.md            存档格式 / 安全模型 / 开发者接口 / 测试说明
@@ -298,22 +316,22 @@
 
 | 文件 | 行数 | 模块形式 | 职责 |
 | --- | ---: | --- | --- |
-| [00-core.js](源文件/js/00-core.js) | 400 | 全局脚本（非严格） | `RM` 命名空间、版本常量（`VERSION="1.4.1"`、`SAVE_SCHEMA=2`、`SAVE_FORMAT=2`、`ACH_IDS` 62 个成就 id 的规范位序）、日志与错误兜底、toast、**棋盘参数模型**（`S / SR / SC / T / TY / SP / K`、`freeRectExpanded`、`LIMIT`、`PRE`、`STD_PARAM_INTRO / STD_PARAM_FULL`、`applyBoardParams()` / `syncBoardParamDisplays()`、`applyStandardParams()` / `applyPresetParams()`）、难度 / 棋盘 / 系列门槛常量（`SERIES_TOTAL=6`、`HELL_SERIES_REQ=5`，地狱与脑王共用）与全局状态（含 `isPracticeMode`、硬核偏好 `isHardcoreMode`、本局快照 `gameHardcore`、结算标记 `winSettled`、刷新局归类标记 `isRefreshFreeGame`） |
-| [01-storage.js](源文件/js/01-storage.js) | 2809 | IIFE + strict | **紧凑签名存档引擎** `Store`：单键容器、位打包 / varint、LZSS、SHA-256 计数器流 XOR 混淆、HMAC-SHA256 签名、双槽回退、损坏隔离、验签导入 / 合并预览 / 存档画像与详情 / 导入前快照、旧键一次性迁移；系列位图（6 bit）、挑战进度（4 个早期系列进二进制段，扑克牌进度走附加 JSON `tutorial_poker`）、系列开关状态、成绩 `rec` / 最近用时 `lt` / 胜场 `wins`；v1.3.9 新增硬核偏好 `mineHardcoreMode` 与硬核三组成绩 `mineHardcoreWins` / `mineHardcoreRecords` / `mineHardcoreLastTimes`（附加 JSON，默认值 + 「只增不减」合并规则），并派生 `hcWins` / `hcRec` / `hcLt`；v1.3.10 起 `readRecords()` 同时汇总硬核数据（`hcList` / `hcTotal`），`profileOfRawMap()` 与 `inspect()` 输出硬核字段供导入对比与存档详情使用；**v1.4.0 起 `DATA_VERSION` 1→2**（`decodePayload()` 拒绝旧结构、成就位图 6→8 字节、`Store.legacyRejected` 标记旧档被拒），旧导出文件同样被拒；**v1.4.1 新增 `exportRawMapFile(partial)`**（默认值 + 受管键覆盖 → `encodeRawMap` + `sealPayload`，返回与 `exportFile()` 同结构、不读写当前存档，供测试者工具构造测试档） |
+| [00-core.js](源文件/js/00-core.js) | 417 | 全局脚本（非严格） | `RM` 命名空间、版本常量（`VERSION="1.4.1"`、`SAVE_SCHEMA=2`、`SAVE_FORMAT=2`、`ACH_IDS` 62 个成就 id 的规范位序）、日志与错误兜底、toast、**棋盘参数模型**（`S / SR / SC / T / TY / SP / K`、`freeRectExpanded`、`LIMIT`、`PRE`、`STD_PARAM_INTRO / STD_PARAM_FULL`、`applyBoardParams()` / `syncBoardParamDisplays()`、`applyStandardParams()` / `applyPresetParams()`）、难度 / 棋盘 / 系列门槛常量（`SERIES_TOTAL=6`、`HELL_SERIES_REQ=5`，地狱与脑王共用）与全局状态（含 `isPracticeMode`、硬核偏好 `isHardcoreMode`、本局快照 `gameHardcore`、结算标记 `winSettled`、刷新局归类标记 `isRefreshFreeGame`；v1.5.0 增加俄罗斯方块偏好 `isTetrisMode` / 本局快照 `gameTetris` / 槽位朝向 `tetroRot` 与 `G.rot`） |
+| [01-storage.js](源文件/js/01-storage.js) | 2886 | IIFE + strict | **紧凑签名存档引擎** `Store`：单键容器、位打包 / varint、LZSS、SHA-256 计数器流 XOR 混淆、HMAC-SHA256 签名、双槽回退、损坏隔离、验签导入 / 合并预览 / 存档画像与详情 / 导入前快照、旧键一次性迁移；系列位图（6 bit）、挑战进度（4 个早期系列进二进制段，扑克牌进度走附加 JSON `tutorial_poker`）、系列开关状态、成绩 `rec` / 最近用时 `lt` / 胜场 `wins`；v1.3.9 新增硬核偏好 `mineHardcoreMode` 与硬核三组成绩 `mineHardcoreWins` / `mineHardcoreRecords` / `mineHardcoreLastTimes`（附加 JSON，默认值 + 「只增不减」合并规则），并派生 `hcWins` / `hcRec` / `hcLt`；v1.3.10 起 `readRecords()` 同时汇总硬核数据（`hcList` / `hcTotal`），`profileOfRawMap()` 与 `inspect()` 输出硬核字段供导入对比与存档详情使用；**v1.4.0 起 `DATA_VERSION` 1→2**（`decodePayload()` 拒绝旧结构、成就位图 6→8 字节、`Store.legacyRejected` 标记旧档被拒），旧导出文件同样被拒；**v1.4.1 新增 `exportRawMapFile(partial)`**（默认值 + 受管键覆盖 → `encodeRawMap` + `sealPayload`，返回与 `exportFile()` 同结构、不读写当前存档，供测试者工具构造测试档） |
 | [02-audio.js](源文件/js/02-audio.js) | 697 | IIFE + strict | 统一音频总线：`AudioFX` 音效、`RetroBGM` 8-bit 背景音乐、成就音；单一 `AudioContext` + 双 `Gain` 总线 |
 | [03-timer.js](源文件/js/03-timer.js) | 226 | IIFE + strict | 计时器：以 `performance.now()` 单调时钟为准、不做暂停、墙钟互相校验的反作弊取值；对外 `RM.timer`；v1.3.2 起显示文本未变化时跳过 DOM 写入 |
-| [04-mines.js](源文件/js/04-mines.js) | 926 | 全局脚本 | 地雷图鉴 `M`（26 种 / 6 系列）与 `CATEGORY`（6 系列）、各雷种影响函数 `f()`、战术类连锁结算；图例数据支持 `values` / `labels` / `marks` / `guides` 与战术多图例 `demos`；v1.3.6 十字辣椒归入异形系列、异形图标改 🔶、对角辣椒 / 大对角辣椒图标改 ❌（十字辣椒保留 ➕）；v1.3.7 新增扑克牌系列 `POKER_PATTERN`（5×5 花色矩阵）与 `addPattern()`，红桃 / 黑桃 / 方块 / 梅花 4 种雷由矩阵直接结算与出图例 |
-| [05-generator.js](源文件/js/05-generator.js) | 439 | 全局脚本 | `genGame()` 随机出题（预设 / 教学 / 挑战沿用 `TY` / `SP` 旧配比）、**v1.4.0 新增 `genFreeGame()`**（自由模式 `T` / `K` 新模型：先定种类再分配余量，矩形棋盘按 `SR×SC` 出题）、教学题生成（基础挑战牌库随系列调整）、**图例渲染 `genPreHtml()` 支持中心点 / 平分线 / 文本气泡 / 多雷标记**、炸弹信息栏（v1.3.3 起只展示雷种与解锁状态，v1.3.6 战术系列改为多图例 + 说明常驻展示，v1.3.7 图鉴顺序加入扑克牌系列）、影响值重算、脑王彩蛋 |
-| [06-render.js](源文件/js/06-render.js) | 1189 | IIFE + strict | 影响值提示 / 效果预览开关、棋盘**差量渲染**引擎、地雷槽渲染（v1.3.2 节点缓存 + 计数差量更新）、v1.3.3 槽内清空条保留与数量 / 禁用态同步、v1.3.4 **加载中占位 `showBoardLoading()` / `hideBoardLoading()`**（生成期隐藏棋盘 / 地雷槽，按住创造模式 / 预设待开局的状态守卫）、v1.3.9 **硬核模式**（`setHardcoreMode()` / `toggleHardcoreMode()` / `syncHardcoreUI()` / `refreshHardcoreStat()`、`updateCell()` / `legacyRender()` 两处配色分支、地块提示锁定与 `askExitHardcore()` 退出确认、启动时读取偏好）、v1.3.10 **本局快照 `applyGameHardcore()` / `exitHardcoreForCurrentGame()`**（配色、提示锁定、准确数与记账全部改读 `gameHardcore`；`setHardcoreMode()` 只改偏好、局中切换下一局生效，不再重绘本局）、v1.3.11 **`syncBoardVisibility()`**（无题目且地雷槽无雷卡时隐藏 `#board` / `#slot`，`fullReset()` 与 `hideBoardLoading()` 收尾调用）与**效果预览默认开启的一次性迁移**（`mineEffectPreviewDefaultOn_v1` 标记，旧存档的关闭值迁移为开启）、`RM.renderEngine` |
-| [07-board.js](源文件/js/07-board.js) | 1164 | 全局脚本 | 棋盘尺寸度量、放置模式（拖拽 / 点选，字段 `placeMode_v1`）、指针拖拽、放置 `drop()` 与删除 `del()`；v1.3.4 **触屏双击删除（320ms、与 480ms 长按并存，三块棋盘通用）** 与 **地雷卡效果说明气泡**（body 级 `#mineTipFixed`；窄屏点按选中即显示、无需长按，宽屏触屏长按 420ms，避免被槽位 overflow 裁剪）；v1.3.5 `showMineTip()` 增加可选文本参数与多行排版，系列开关行复用同一气泡 |
-| [08-ui.js](源文件/js/08-ui.js) | 1916 | 全局脚本 | 侧边栏、系列开关（6 个，v1.3.7 加入扑克牌）、难度预设（地狱与脑王均需开启 5 个系列）、成绩记录（v1.3.4 起成绩条目标记 `diff-<难度>` 供淡色底配色）、v1.3.0 **🎯 挑战进度面板 `renderChallengeList()`**（v1.3.7 起 7 行；v1.3.8 起练习入口走 `startCategoryPractice()`）、v1.3.1 **记录栏折叠 `toggleRecordAcc()`**、v1.3.2 **全屏切换 `toggleFullscreen()` / 记录跳转 `gotoRecordScores()` / 恢复默认 `resetCustomParams()`**、v1.3.3 **挑战弹窗 `openChallengeModal()` / `closeChallengeModal()`，挑战进度行按钮与 `gotoSeriesChallenge()` 改道**、v1.3.5 **系列开关二级分组与锁定徽标、炸弹清单气泡、基础开关提示、信息栏炸弹信息跳转 `gotoMineInfo()`**、v1.3.8 **完成弹窗点击后自动新局 `closeTutorialComplete()`**、v1.3.9 **`saveRec()` 硬核记账分支、成绩卡内「🪚 硬核」子行、脑王门槛合并普通 + 硬核地狱通关次数 `getHellWinCount()`、`openDifficultyModal()` 打开时 `syncHardcoreUI()`**、v1.3.10 **`checkWin()` 结算幂等守卫 `winSettled`（胜利后缩放 / 重绘不再重复记账）、`saveRec()` 改按开局快照 `gameHardcore` 决定记入硬核还是普通成绩**、v1.3.11 **`updatePresetButtons()` 按 `isRefreshFreeGame` 区分「刷新局」与「主动选择的自由模式」**（刷新局仍按真实门槛显示锁定态）、`setPre()` 选择难度时清除该标记、**v1.4.0 自由模式新参数面板**（`setVal()` 支持 `size / sr / sc / total / kinds` 五项并按 `T ≤ SR×SC`、`K ≤ min(26,T)` 动态收敛；`toggleFreeRect()` / `syncFreeRectPanel()` 切换与同步矩形棋盘；`setPre("free")` 用 `PRE.free` 作面板初值并按 `type + 1` 推出 `K`；`applySet()` 开局前经 `applyBoardParams()` 统一收敛；`resetCustomParams()` 恢复标准档并收起矩形）、庆祝特效、胜利判定（题库码通关后复位参数）、通用确认弹窗、引导钩子 |
+| [04-mines.js](源文件/js/04-mines.js) | 1016 | 全局脚本 | 地雷图鉴 `M`（26 种 / 6 系列）与 `CATEGORY`（6 系列）、各雷种影响函数 `f()`、战术类连锁结算；图例数据支持 `values` / `labels` / `marks` / `guides` 与战术多图例 `demos`；v1.3.6 十字辣椒归入异形系列、异形图标改 🔶、对角辣椒 / 大对角辣椒图标改 ❌（十字辣椒保留 ➕）；v1.3.7 新增扑克牌系列 `POKER_PATTERN`（5×5 花色矩阵）与 `addPattern()`，红桃 / 黑桃 / 方块 / 梅花 4 种雷由矩阵直接结算与出图例；v1.5.0 增加独立骨牌表 `TETRO_ORDER` / `TETRO` 与 `tetroCells()` / `tetroAddInfluence()`（不进 `M`，不影响图鉴 / 题库码 / 成就雷种统计） |
+| [05-generator.js](源文件/js/05-generator.js) | 523 | 全局脚本 | `genGame()` 随机出题（预设 / 教学 / 挑战沿用 `TY` / `SP` 旧配比）、**v1.4.0 新增 `genFreeGame()`**（自由模式 `T` / `K` 新模型：先定种类再分配余量，矩形棋盘按 `SR×SC` 出题）、教学题生成（基础挑战牌库随系列调整）、**图例渲染 `genPreHtml()` 支持中心点 / 平分线 / 文本气泡 / 多雷标记**、炸弹信息栏（v1.3.3 起只展示雷种与解锁状态，v1.3.6 战术系列改为多图例 + 说明常驻展示，v1.3.7 图鉴顺序加入扑克牌系列）、影响值重算、脑王彩蛋；v1.5.0 增加 `genTetrisGame()`（骨牌题面生成）与 `computeInfluenceMap()` 的骨牌分支；v1.5.1 预设难度骨牌块数按约 2/3 收敛（至少 3 块），自由模式不变 |
+| [06-render.js](源文件/js/06-render.js) | 1722 | IIFE + strict | 影响值提示 / 效果预览开关、棋盘**差量渲染**引擎、地雷槽渲染（v1.3.2 节点缓存 + 计数差量更新）、v1.3.3 槽内清空条保留与数量 / 禁用态同步、v1.3.4 **加载中占位 `showBoardLoading()` / `hideBoardLoading()`**（生成期隐藏棋盘 / 地雷槽，按住创造模式 / 预设待开局的状态守卫）、v1.3.9 **硬核模式**（`setHardcoreMode()` / `toggleHardcoreMode()` / `syncHardcoreUI()` / `refreshHardcoreStat()`、`updateCell()` / `legacyRender()` 两处配色分支、地块提示锁定与 `askExitHardcore()` 退出确认、启动时读取偏好）、v1.3.10 **本局快照 `applyGameHardcore()` / `exitHardcoreForCurrentGame()`**（配色、提示锁定、准确数与记账全部改读 `gameHardcore`；`setHardcoreMode()` 只改偏好、局中切换下一局生效，不再重绘本局）、v1.3.11 **`syncBoardVisibility()`**（无题目且地雷槽无雷卡时隐藏 `#board` / `#slot`，`fullReset()` 与 `hideBoardLoading()` 收尾调用）与**效果预览默认开启的一次性迁移**（`mineEffectPreviewDefaultOn_v1` 标记，旧存档的关闭值迁移为开启）、`RM.renderEngine`；v1.5.0 增加俄罗斯方块模式四件套、骨牌槽 `renderTetrisSlot()` / `rotateTetrisType()` 与棋盘骨牌覆盖层 `renderTetroOverlay()` / `hideTetroOverlay()`；v1.5.1 修复覆盖层坐标漏加锚点行列的问题，并新增棋盘 `dblclick` 旋转入口与单击放置记录 `noteTetroClickPlace()` |
+| [07-board.js](源文件/js/07-board.js) | 1368 | 全局脚本 | 棋盘尺寸度量、放置模式（拖拽 / 点选，字段 `placeMode_v1`）、指针拖拽、放置 `drop()` 与删除 `del()`；v1.3.4 **触屏双击删除（320ms、与 480ms 长按并存，三块棋盘通用）** 与 **地雷卡效果说明气泡**（body 级 `#mineTipFixed`；窄屏点按选中即显示、无需长按，宽屏触屏长按 420ms，避免被槽位 overflow 裁剪）；v1.3.5 `showMineTip()` 增加可选文本参数与多行排版，系列开关行复用同一气泡；v1.5.0 增加 `placeTetroAt()` / `removeTetroAt()` 与 `drop()` / `del()` 的骨牌分支（整块搬移 / 整块删除）；v1.5.1 新增 `findTetroAnchorAt()` / `noteTetroClickPlace()` / `rotateTetroOnDouble()`（双击绕锚点旋转，触屏双击分支改为旋转、长按仍删除） |
+| [08-ui.js](源文件/js/08-ui.js) | 2086 | 全局脚本 | 侧边栏、系列开关（6 个，v1.3.7 加入扑克牌）、难度预设（地狱与脑王均需开启 5 个系列）、成绩记录（v1.3.4 起成绩条目标记 `diff-<难度>` 供淡色底配色）、v1.3.0 **🎯 挑战进度面板 `renderChallengeList()`**（v1.3.7 起 7 行；v1.3.8 起练习入口走 `startCategoryPractice()`）、v1.3.1 **记录栏折叠 `toggleRecordAcc()`**、v1.3.2 **全屏切换 `toggleFullscreen()` / 记录跳转 `gotoRecordScores()` / 恢复默认 `resetCustomParams()`**、v1.3.3 **挑战弹窗 `openChallengeModal()` / `closeChallengeModal()`，挑战进度行按钮与 `gotoSeriesChallenge()` 改道**、v1.3.5 **系列开关二级分组与锁定徽标、炸弹清单气泡、基础开关提示、信息栏炸弹信息跳转 `gotoMineInfo()`**、v1.3.8 **完成弹窗点击后自动新局 `closeTutorialComplete()`**、v1.3.9 **`saveRec()` 硬核记账分支、成绩卡内「🪚 硬核」子行、脑王门槛合并普通 + 硬核地狱通关次数 `getHellWinCount()`、`openDifficultyModal()` 打开时 `syncHardcoreUI()`**、v1.3.10 **`checkWin()` 结算幂等守卫 `winSettled`（胜利后缩放 / 重绘不再重复记账）、`saveRec()` 改按开局快照 `gameHardcore` 决定记入硬核还是普通成绩**、v1.3.11 **`updatePresetButtons()` 按 `isRefreshFreeGame` 区分「刷新局」与「主动选择的自由模式」**（刷新局仍按真实门槛显示锁定态）、`setPre()` 选择难度时清除该标记、**v1.4.0 自由模式新参数面板**（`setVal()` 支持 `size / sr / sc / total / kinds` 五项并按 `T ≤ SR×SC`、`K ≤ min(26,T)` 动态收敛；`toggleFreeRect()` / `syncFreeRectPanel()` 切换与同步矩形棋盘；`setPre("free")` 用 `PRE.free` 作面板初值并按 `type + 1` 推出 `K`；`applySet()` 开局前经 `applyBoardParams()` 统一收敛；`resetCustomParams()` 恢复标准档并收起矩形）、庆祝特效、胜利判定（题库码通关后复位参数）、通用确认弹窗、引导钩子；v1.5.0 增加成绩四档筛选（`setRecordFilter()` / `syncRecordFilterTabs()` / 重写 `renderRecordList()`）、`saveRec()` 骨牌记账分支、`openDifficultyModal()` 同步骨牌开关，并修复基础挑战入口误进练习的 BUG |
 | [09-tutorial.js](源文件/js/09-tutorial.js) | 1312 | 全局脚本 | 系列挑战（10×10 / 5 雷；v1.3.7 起含扑克牌系列）+ 基础挑战（8×8 / 4 雷）+ 引导教学（`TEACH_LEVELS` 12 关）全流程、每关开场的规则高亮卡（文案与棋盘示例同步，每次最多两句）、v1.3.3 从挑战弹窗开始挑战后收起弹窗、v1.3.4 挑战 / 教学棋盘生成期接入加载中占位、v1.3.8 **练习模式**（`startCategoryPractice()` / 顶部 `applyPracticeBar()` 换成「XX练习」+ 红色退出、`exitPracticeMode()`、练习通关轻提示并自动换题不写进度）与**教学槽位底部退出条** |
-| [10-game.js](源文件/js/10-game.js) | 271 | 全局脚本 | `newGame()` / `fullReset()` / `beginPresetGame()` / `clearAll()`、启动时同步默认参数、`window.onload` 与页面级事件接线；v1.3.4 新游戏 / 预设开始生成期接入加载中占位（计时在收起占位之后启动）；v1.3.8 `fullReset()` 统一清理练习模式标记与练习形态进度条；v1.3.10 在参数确定后调用 `applyGameHardcore()` 计算本局硬核快照（含预设待开局分支与 `beginPresetGame()`），`fullReset()` 重置 `gameHardcore` / `winSettled` 并同步硬核界面；v1.3.11 `window.onload` 把刷新后自动生成的标准参数局归入自由难度（`diff="free"`、`isFreeMode=true`、`isRefreshFreeGame=true`），`fullReset()` 收尾调用 `syncBoardVisibility()` 隐藏空棋盘 / 空地雷槽 |
+| [10-game.js](源文件/js/10-game.js) | 286 | 全局脚本 | `newGame()` / `fullReset()` / `beginPresetGame()` / `clearAll()`、启动时同步默认参数、`window.onload` 与页面级事件接线；v1.3.4 新游戏 / 预设开始生成期接入加载中占位（计时在收起占位之后启动）；v1.3.8 `fullReset()` 统一清理练习模式标记与练习形态进度条；v1.3.10 在参数确定后调用 `applyGameHardcore()` 计算本局硬核快照（含预设待开局分支与 `beginPresetGame()`），`fullReset()` 重置 `gameHardcore` / `winSettled` 并同步硬核界面；v1.3.11 `window.onload` 把刷新后自动生成的标准参数局归入自由难度（`diff="free"`、`isFreeMode=true`、`isRefreshFreeGame=true`），`fullReset()` 收尾调用 `syncBoardVisibility()` 隐藏空棋盘 / 空地雷槽；v1.5.0 在开局计算 `gameTetris` 快照并按 `gameTetris ? genTetrisGame() : genGame()` 分流，`fullReset()` / `clearAll()` 同步清理骨牌状态 |
 | [11-create.js](源文件/js/11-create.js) | 756 | 全局脚本 | 创造模式：自定义棋盘、放置与移动、`generatePuzzleCode()` 题库码生成 / `applyPuzzleCode()` 解析（v1.3.4 解析装配期接入加载中占位；v1.3.10 增加「至少 1 雷 / 坐标范围」校验并把 `diff` 提前清空）；v1.3.2 开放全部地雷、雷种按系列分行渲染并配合新三行布局（v1.3.7 起 26 种 / 6 行，按 `CATEGORY.order` 排序）；**题库码雷种索引使用冻结表 `MINE_CODE_TYPES`**（旧 22 种顺序不变 + 4 种扑克牌追加末尾），旧题库码仍可正确解码 |
 | [12-settings.js](源文件/js/12-settings.js) | 151 | IIFE + strict | 音量滑块持久化与生效、暴露 `window._gameNS`（成就系统挂钩子用）、v1.3.3 从 `RM.VERSION` 同步「关于」版本号 |
 | [13-achievements.js](源文件/js/13-achievements.js) | 1498 | IIFE + strict | **62 个成就**的数据表（v1.4.0：45→62，新增 17 个；分组 **8 类**：新手村 3 / 预设难度 8 / 🪚 硬核 7 / 系列道具 7 / 速通系列 6 / 创造模式 6 / 累计通关 5 / 隐藏 20；这 17 个成就**在 v1.4.1 已补全正式名称与彩蛋文案**，如 `unlock_poker`「Twisted Fate」、`hidden_free_26`「火药沙拉」）、**完整 ISO 解锁时间**与面板本地时间展示、分组标题与折叠摘要、解锁弹窗队列、`installHooks()` 钩子装配（新增 `unlockSeries` 的扑克牌分支、`del` 的累计删除计数、全屏 `fullscreenchange` 监听）、成就存档 `achievementState_v1`、只读查询接口 `list / byId / unlockTime / summary`；v1.3.7 隐藏成就「场面一度十分混乱」同步为单局用上六大系列；v1.3.10 `init()` 移除 `newGame()` 调用，启动只装钩子并渲染面板，首局统一交给 10-game 的 `window.onload`（消除首屏重复生成两局）；**v1.4.1 `hidden_free_26`「火药沙拉」判定改为：自由模式通关时 `G.pool` 与已放置 `G.placed` 的雷型并集去重后 > 20 种**（原为 25 种特殊雷；v1.4.1 同时修复了 v1.4.0 把 `G.placed` 坐标键当雷型、会虚高种类数并误触发的缺陷） |
 | [14-bgeffects.js](源文件/js/14-bgeffects.js) | 75 | IIFE（非严格） | 背景漂浮地雷特效（随机 emoji 幽灵节点）；v1.3.2 窄屏 / 省流 / 减少动效不生成、后台暂停 |
-| [15-boot.js](源文件/js/15-boot.js) | 1381 | IIFE + strict | 启动自检（必需 + 可选模块）、存档状态徽章 `refreshHint()`、导出 / 导入 / 清空 / 撤销接线、导入先验签再弹三列对比（当前 / 覆盖后 / 合并后）、`showDetails()` 存档详情弹窗（v1.3.7 挑战与系列计数随 `SERIES_TOTAL` 变为 x/6；v1.3.10 `buildTable()` 在 5 个难度行之后追加 5 行「🪚 硬核·<难度>」并参与丢失 / 增加判定，`buildDetailHtml()` 新增「🪚 硬核成绩」小节；v1.4.0 启动时按 `Store.legacyRejected` 提示一次旧存档不再兼容、`markSaveManageUsed()` 在六个存档管理入口解锁隐藏成就；**v1.4.1 导出改为复用 `downloadJsonFile()`，新增 `downloadTestSave()`** 并挂到 `window.RMSave.downloadTestSave`——用 `Store.exportRawMapFile()` 构造全系列解锁 / 预设难度全开的测试档，只下载不写当前存档） |
+| [15-boot.js](源文件/js/15-boot.js) | 1427 | IIFE + strict | 启动自检（必需 + 可选模块）、存档状态徽章 `refreshHint()`、导出 / 导入 / 清空 / 撤销接线、导入先验签再弹三列对比（当前 / 覆盖后 / 合并后）、`showDetails()` 存档详情弹窗（v1.3.7 挑战与系列计数随 `SERIES_TOTAL` 变为 x/6；v1.3.10 `buildTable()` 在 5 个难度行之后追加 5 行「🪚 硬核·<难度>」并参与丢失 / 增加判定，`buildDetailHtml()` 新增「🪚 硬核成绩」小节；v1.4.0 启动时按 `Store.legacyRejected` 提示一次旧存档不再兼容、`markSaveManageUsed()` 在六个存档管理入口解锁隐藏成就；**v1.4.1 导出改为复用 `downloadJsonFile()`，新增 `downloadTestSave()`** 并挂到 `window.RMSave.downloadTestSave`——用 `Store.exportRawMapFile()` 构造全系列解锁 / 预设难度全开的测试档，只下载不写当前存档）；v1.5.0 测试存档补 `mineTetrisMode`、三列对比追加 5 行「🧱 俄罗斯方块·难度」、详情新增「🧱 俄罗斯方块成绩」小节 |
 | [16-guide.js](源文件/js/16-guide.js) | 1012 | IIFE + strict | 新手引导层：候选判定（教学 / 门槛 / 基础挑战 / 侧栏逐项介绍 / v1.3.2 记录栏成绩跳转 / v1.3.3 🎯挑战入口 / v1.3.5 信息栏炸弹信息跳转）、小手 emoji 路径动画、按元素实时位置跟随的高亮与气泡、居中「下一处」按钮（不点不消失）、除教学 4-12 关外均立即出现、系列挑战指引时挑战弹窗对应行闪烁联动（v1.3.3）、设置介绍新增「关于」、后台标签页暂停巡检、`rmGuideState` 已读记录 |
 
 ### 2.3 脚本加载顺序
@@ -326,7 +344,7 @@
 → 12-settings → 13-achievements → 14-bgeffects → 15-boot → 16-guide
 ```
 
-> 当前工作区 `js/` 只含 00–16 共 **17 个模块**，全部由 `index.html` 按序加载；主线 / 仙人相关的 `rmMainQuest_v1` / `rmLooks_v1` 状态键仍由存档容器托管（见 3.6）。
+> 当前工作区 `js/` 只含 00–16 共 **17 个模块**，全部由 `index.html` 按序加载；
 
 几个关键的先后关系：
 
@@ -364,15 +382,24 @@
 | `isPracticeMode` | 00-core | 练习模式标志：练习局不写挑战进度、不解锁系列，顶部显示「XX练习」+ 退出按钮；`fullReset()` 统一清理 |
 | `isHardcoreMode` | 00-core | 硬核模式**跨局偏好**（存 `mineHardcoreMode`）：只决定难度弹窗开关外观与「下一局是否继承」，不再直接决定本局渲染 / 记账（v1.3.9 引入；v1.3.10 起仅代表偏好） |
 | `gameHardcore` | 00-core | **本局硬核快照**：开局时由 `applyGameHardcore()` 按模式计算（仅预设难度 / 自由模式、且偏好开启时为 true），整局保持不变；棋盘配色、地块提示锁定、准确数与成绩记账都读它（v1.3.10） |
+| `isTetrisMode` / `gameTetris` / `tetroRot` | 00-core | v1.5.0 俄罗斯方块玩法：`isTetrisMode` 为**跨局偏好**（存 `mineTetrisMode`，与硬核偏好互斥）；`gameTetris` 为**本局快照**（仅预设难度 / 自由模式继承偏好，开局由 `applyGameTetris()` 计算）；`tetroRot` 记录槽位里每种骨牌当前朝向 0~3（每局由 `genTetrisGame()` 重置） |
 | `winSettled` | 00-core | **本局结算标记**：`checkWin()` 通过胜利判定时置 true，拦住胜利后缩放 / 重绘路径的重复记账，由 `fullReset()` 重置（v1.3.10） |
 | `isRefreshFreeGame` | 00-core | **刷新局归类标记**：`window.onload` 自动生成的首局使用标准固定参数，按自由难度归类（`diff="free"`、`isFreeMode=true`）并置位；难度按钮仍按真实门槛显示锁定态，玩家主动选难度时由 `setPre()` 清除（v1.3.11） |
 | `setHardcoreMode()` / `toggleHardcoreMode()` | 06-render | 设置 / 切换硬核**偏好**：只写存档并同步开关外观，不重绘本局棋盘、不改本局快照；局中切换时 toast「硬核设置已保存，将在下一局生效」（v1.3.9 引入；v1.3.10 改为只改偏好、下一局生效） |
 | `applyGameHardcore()` / `exitHardcoreForCurrentGame()` | 06-render | 按当前模式计算本局硬核快照（教学 / 挑战 / 练习 / 创造 / 题库码恒为普通局）/ 玩家在硬核局中确认退出硬核：同时清偏好与本局快照、立即恢复三态配色，本局按普通模式结算（v1.3.10） |
+| `applyGameTetris()` / `setTetrisMode()` / `toggleTetrisMode()` / `syncTetrisUI()` | 06-render | v1.5.0：按当前模式计算本局骨牌快照（为真时同时清掉 `gameHardcore`）/ 设置或切换骨牌偏好（写 `mineTetrisMode`，开启时静默关闭硬核偏好，下一局生效）/ 同步 `#tetrisToggle`、`#tetrisHint` 与 `body.tetris-mode` |
 | `syncHardcoreUI()` / `refreshHardcoreStat()` | 06-render | 同步难度弹窗开关与设置栏锁定态（偏好 / 快照分工，含 `body.hc-mode`）/ 刷新「🧩 地块准确数：x/x」（v1.3.9；v1.3.10 把开关外观归偏好、锁定态与配色归快照；v1.3.11 图标改为 🧩） |
 | `syncBoardVisibility()` | 06-render | 没有任何题目（`G.tar` 为空或尺寸不符）且地雷槽没有雷卡时隐藏 `#board` / `#slot`，否则恢复显示；创造 / 教学 / 预设待开局跳过，由 `fullReset()` 与 `hideBoardLoading()` 收尾调用（v1.3.11） |
 | `hcWins` / `hcRec` / `hcLt` | 01-storage | 硬核成绩：各难度通关次数 / 最快 / 本次（附加 JSON，与 `wins` / `rec` / `lt` 分开记账，v1.3.9；v1.3.10 起 `readRecords()` 另汇总 `hcList` / `hcTotal` 供导入对比与存档详情） |
+| `tetWins` / `tetRec` / `tetLt` | 01-storage | v1.5.0 俄罗斯方块成绩：各难度通关次数 / 最快 / 本次（附加 JSON 键 `mineTetrisWins` / `mineTetrisRecords` / `mineTetrisLastTimes`，与普通 / 硬核成绩三套分开记账，`readRecords()` 汇总 `tetList` / `tetTotal`） |
 | `getHellWinCount()` | 08-ui | 地狱累计通关次数 = 普通 `wins.hell` + 硬核 `hcWins.hell`，脑王门槛与提示复用（v1.3.9） |
 | `#hardcoreToggle` / `#hcInfo` / `#hcLockNote` | index.html | 难度弹窗硬核开关 / 状态行「🧩 地块准确数」/ 设置栏锁定说明；说明文案由 `syncHardcoreUI()` 按偏好与本局快照动态切换（v1.3.9，v1.3.10 补充适用范围与「局中切换下一局生效」，v1.3.11 准确数与「💣 已放置雷数」同排） |
+| `#tetrisToggle` / `#tetrisHint` | index.html | v1.5.0 难度弹窗「🎲 玩法」里的俄罗斯方块开关与说明文字（与硬核开关同骨架、紫色系），由 `syncTetrisUI()` 同步 `.on` / `aria-checked` 与两态文案；V1.5.1 说明文字改为悬浮气泡，另见 `#hardcoreRow` / `#tetrisRow` / `#presetStartMode` 行 |
+| `#hardcoreRow` / `#tetrisRow` 的 说明气泡 | index.html + 06-render | V1.5.1：玩法开关的常驻说明改为 hover / 点按气泡，行上 `data-tip` 由 `syncHardcoreUI()` / `syncTetrisUI()` 同步，气泡复用 07 的 `#mineTipFixed`（`showMineTip(el)` / `hideMineTip()`） |
+| `syncInfluenceHintLockUI()` / `releaseTetrisInfluenceLock()` | 06-render | V1.5.1：骨牌局固定开启「🔺 实时影响」并给设置栏开关加锁定外观；离开骨牌局（`fullReset()` 或切到非骨牌局）时恢复玩家原本的偏好（强制期间不写存档） |
+| `#presetStartMode` / `.preset-start-mode` | index.html + 08-ui | V1.5.1：「准备好了吗？」待开始卡片的模式胶囊（经典 / 硬核 / 俄罗斯方块），由 `enterPresetPending()` 按 `gameTetris` / `gameHardcore` 快照填写并切换卡片配色类 |
+| `.record-filter-tabs` / `.record-filter-tab` / `window.setRecordFilter` | index.html + 08-ui | v1.5.0 成绩栏筛选标签（`data-mode` = `all` / `classic` / `hardcore` / `tetris`）与切换入口；`.active` 表示当前筛选，渲染只影响成绩列表 |
+| `placeTetroAt()` / `rotateTetrisType()` / `renderTetroOverlay()` | 07-board / 06-render | v1.5.0 骨牌放置（锚点 / 配额 / 总块数校验）、槽位旋转与棋盘骨牌覆盖层重绘（body 级 fixed 层，`window` 上暴露）；v1.5.1 新增 `rotateTetroOnDouble()` / `findTetroAnchorAt()` / `noteTetroClickPlace()`：双击已放置骨牌绕锚点旋转，并撤销双击第一下可能造成的误放 |
 | `startCategoryPractice()` / `exitPracticeMode()` | 09-tutorial | 系列练习入口（不写进度）/ 退出练习（恢复标准参数并直接开新局） |
 | `applyPracticeBar(on)` | 09-tutorial | 顶部进度条的挑战 / 练习形态切换：隐藏 n/5 文本与进度轨道、显示 `#practiceExitBtn` |
 | `#practiceExitBtn` / `#teachExitBtn` | index.html | 顶部「退出练习」按钮 / 教学气泡之外（`#slot` 之后）的「🔙 退出教学」按钮，均沿用「挑战」按钮同款红色浅底样式（v1.3.8） |
@@ -382,6 +409,7 @@
 | `window.RMSave` | 15-boot | 存档管理入口：`exportSave` / `importSave` / `pickFile` / `resetSave` / `undoImport` / `showDetails` / `refreshHint`，以及 **`downloadTestSave`（v1.4.1：下载测试存档）** |
 | `#testSaveBtn` / `.about-tester` | index.html | 设置 → 关于 底部的「🧪 测试者工具」区块与「⬇️ 下载测试存档」按钮（`onclick="RMSave.downloadTestSave()"`，v1.4.1；外观见第 69 段） |
 | `window.toggleRecordAcc` | 08-ui | 记录栏折叠：`toggleRecordAcc(id)` 展开 / 收起成绩 / 成就区并刷新内容 |
+| `window.setRecordFilter` | 08-ui | v1.5.0 成绩栏次级筛选：`setRecordFilter(mode)` 切换 全部 / 经典 / 硬核 / 俄罗斯方块 并重绘成绩列表（非法值忽略） |
 | `window.openChallengeModal` / `window.closeChallengeModal` | 08-ui | 打开 / 关闭「🎯挑战」弹窗（v1.3.3） |
 | `window.openDifficultyModal` / `window.closeDifficultyModal` | 08-ui | 打开 / 关闭「难度」弹窗（v1.3.3 由原 `openChallengeModal` 更名） |
 | `window.toggleFullscreen` | 08-ui | 右上角按钮的全屏 / 退出全屏切换（v1.3.2） |
@@ -434,6 +462,7 @@
 - **v1.3.11 新增第 67 段「状态行：已放置雷数与地块准确数」**：`.hud-stats`（`.hud-meta` 仍是 `display:contents`，故它是 body 的普通 flex 子项：宽屏 `flex-direction: row` 把两枚胶囊排在同一行，`≤700px` 改 `column` 上下两行）、`.hud-stats .info`（统一胶囊内边距 / 圆角 / 字号，覆盖第 7 段与移动端 `.info` 的旧值）、`.hud-stats .placed-info`（墨绿底 `rgba(47,122,89,.14)` + 深绿字 `#1f5c3a`，`#placed` / `#max` 用 `#123f28` 加粗）；`.hud-stats .hc-info` 只把 66.4 的单行居中边距归零，钢蓝配色与 `#hcAccNum` 加粗保持不变。该段只新增选择器并覆盖状态行内部数值，不修改 `.hud-meta` 的 `display:contents` 与 66.6 的隐藏规则。
 - **v1.4.0 新增第 68 段「自由模式：矩形棋盘开关与行 / 列参数行」**：`.custom-rect-row`（矩形切换行的间距）、`.rm-free-rect-toggle`（全宽虚线描边胶囊按钮，hover / active / `:focus-visible` / `.on` 四态；`.on` 用青色实线表示「当前按行列设置」）、`#srRow.custom-item` / `#scRow.custom-item`（左侧缩进 + 一条竖线表示它们是「棋盘大小」的细分参数）、`≤700px` 收窄按钮高度 / 字号与两行缩进。该段只负责外观，显隐与按钮文案由 `08-ui.js#syncFreeRectPanel()` 控制（样式表内不写 `display` 状态规则）；只新增选择器并复用第 1 段 `--rm-*` 令牌、第 20 段 `.custom-panel` / `.custom-item` / `.num-control` 与 59.4 的自定义按钮行视觉。
 - **v1.4.1 新增第 69 段「关于 · 测试者工具」**：`.about-tester`（关于板块底部区块：`margin-top: 14px` + `padding-top: 12px` + 虚线上分隔线）、`.about-test-hint`（12px 说明文字，`--rm-ink-2` 色、行高 1.6）、`.about-test-btn`（整行按钮，复用存档管理按钮的 `.apply-input-btn` 外观，本段只补宽度）。该段不覆盖既有按钮配色，仅新增容器分隔线、说明文字与整行排版；标题沿用「📣 更新公告」的 `.about-announce-title` 样式。
+- **v1.5.0 新增第 70 段「俄罗斯方块玩法 / 成绩筛选」**（`style.css` 共 9668 行）：70.1 玩法区块第二个开关（`#tetrisToggle.on` 紫色系，压过 66 段的钢蓝；`#tetrisHint.tetris-on` 紫字）；70.2 成绩筛选标签 `.record-filter-tabs` / `.record-filter-tab`（四等分药丸，`.active` 深色底，`tetris` 标签紫底，≤700px 缩字号、≤380px 换 2×2）；70.3 成绩卡内 `.record-tet` 青绿子行（仿 66.5 的 `.record-hc`）；70.4 `.mine-item.tetro-item`（96×104，窄屏 74×84）、`.tetro-shape`（CSS grid，列数读 `--tetro-cols`、格径读 `--tetro-cell`）、`.ts-cell.on` / `.on.anchor`（半透明填充 + 2px 同色描边，锚点更不透明并加深）、`.tetro-rotate`（右上角小圆钮，hover / `.selected` / `.tip-show` / 触屏选中常显）；70.5 `.tetro-overlay` / `.tetro-cell`（棋盘骨牌覆盖层，`position: fixed`、`pointer-events: none`、z-index 5，锚点 `.is-anchor`）；70.6 / 70.7 窄屏与 `prefers-reduced-motion` 覆盖。该段只新增选择器，不影响经典 `.mine-item` 尺寸与既有成绩卡配色。
 - **v1.3.3 命名规范化**：难度与挑战不再共用 `challenge*`——难度改为 `#difficultyBtn` / `#difficultyModal` / `openDifficultyModal()` / `closeDifficultyModal()`；挑战改为 `#challengeBtn` / `#challengeModal` / `openChallengeModal()` / `closeChallengeModal()`。两个弹窗共用的外壳改为中性 `.game-modal / .game-modal-card / .game-modal-head / .game-modal-icon / .game-modal-close / .game-modal-body`（原 `.challenge-*`，动画 `gameModalCardIn`），进度容器 `#achChallengeList → #challengeList`，行入口按钮统一 `.challenge-entry-btn` + `.is-challenge / .is-practice`（原 `.tutorial-btn-*` + `.challenge-action`），提示条 `.record-tip / .record-tip-link → .tip-note / .tip-note-link`，清空按钮 `#clear → #slotClearBtn`。
 - **v1.3.2 新增第 59 段「全屏按钮 / 创造布局 / 记录跳转 / 移动端背景减负」**：`.rm-fullscreen-btn`（右上角固定胶囊，`.is-fullscreen` 为蓝底退出态）、`.create-edit-row`（创造模式两栏编辑区）、`.create-mine-row` / `.create-mine-cat` / `.create-mine-items`（雷种按系列分行，标签在左、窄屏换到卡片上方；v1.3.7 起 6 行 / 26 种）、`.create-code-actions` / `.create-code-hint`（题库码卡片按钮同排 + 使用提示，码框弹满卡片剩余高度）、`.tip-note-link`（行内「📝记录」文字链接，不再整行套边框）、`.custom-btn-row` / `.reset-params-btn`（应用设置与恢复默认同排同高）；并在 `@media (max-width: 700px)` 内取消 `background-attachment: fixed`、关闭 `body::before` 噪点层、隐藏 `#bgEffects` 与背景动画，`prefers-reduced-motion: reduce` 时同样关闭背景动画层。
 - 版面骨架由三个包装层组成：`.hero`（标题 + 操作提示）、`.hud`（主按钮条 + 计时 / 放置数）、`.board-tray`（包住 `#board` 的棋盘托盘）；样式表把这三个包装层设为 `display: contents`，让标题 / 按钮 / 棋盘重新成为 `body` 的直接 flex 子项，保持 1.2.1 的原始排布。
@@ -470,6 +499,7 @@ v1.3.0 起存档只保留**一个签名容器**。格式、安全模型与开发
 - **dataVersion 与旧存档（v1.4.0 破坏性变更）**：成就总数 45→62 使位图长度按 `ceil(ACH_IDS.length / 8)` 由 6 字节变为 **8 字节**；同长度的旧位图按新长度解码会错位（`decodePayload()` 会抛「存档尾部存在未知数据」），因此本版**不保留旧结构解码分支**，直接把 `DATA_VERSION` 升到 2：读到 v1.3.x（dataVersion=1）的容器时 `decodePayload()` 抛「数据结构版本不兼容」，`load()` 按「主档 → 备份档 → 默认值」回退，并置 `Store.legacyRejected`；由旧档导出的 JSON 在 `parseFile()` 解码阶段同样失败。v1.2.x 多键明文的「旧键 → 新容器」单向迁移仍保留（迁移后按新 dataVersion 重新编码）。
 - **系列与挑战的位宽**：系列开关 / 解锁位图各用一个 u8（当前 6 bit，`01-storage.js` 的 `SERIES` 顺序即位序，新系列只能追加到末尾）；结构化挑战进度段固定写 4 个早期系列（`SERIES_STORED_NONBASIC`），v1.3.7 新增的扑克牌进度放在附加 JSON 的 `tutorial_poker` 键里（**该部分在 v1.3.7 时按「不改 dataVersion」设计，v1.4.0 的 dataVersion 升级是成就位图长度的需要，与系列位宽无关**）。
 - **硬核数据**：`mineHardcoreMode` 与 `mineHardcoreWins` / `mineHardcoreRecords` / `mineHardcoreLastTimes` 命中受管 `mine` 前缀，原样进入附加 JSON；缺这些键时按「偏好关闭 / 成绩 0 / 无纪录」的默认值读取。v1.3.10 起 `readRecords()` 会把这组键汇总成 `hcList` / `hcWins` / `hcRec` / `hcLast` / `hcTotal`，`profileOfRawMap()` 与 `inspect()` 一并输出（`hcTotal` / `hcWins` / `hcRec` / `hcLast` / `hcRecords`），供导入三列对比与存档详情只读展示；`mergeRawMap()` 对它按「次数取大 / 纪录取小 / 本次以当前为准」只增不减地合并。这组键本身仍走附加 JSON、不进二进制位段（v1.4.0 升级 dataVersion 与它们无关）。
+- **v1.5.0 俄罗斯方块数据**：`mineTetrisMode`（偏好，"true"/"false"）与 `mineTetrisWins` / `mineTetrisRecords` / `mineTetrisLastTimes`（三组成绩，形状与普通 / 硬核完全一致）同样命中受管 `mine` 前缀、只进附加 JSON，**不改变容器格式与二进制位段**；`defaultRawMap()` 给出默认值，`readRecords()` 汇总 `tetList` / `tetTotal`，`profileOfRawMap()` / `inspect()` 输出 `tetTotal` / `tetWins` / `tetRec` / `tetLast` / `tetRecords`（导入三列对比与存档详情据此追加 5 行「🧱 俄罗斯方块·难度」与小节），`mergeRawMap()` 按「次数取大 / 纪录取小 / 本次以当前为准」合并。因此骨牌成绩的导入 / 覆盖 / 合并与既有成绩走同一套链路，但三套成绩互不覆盖。
 - **v1.3.11 的默认值迁移标记**：`mineEffectPreviewDefaultOn_v1` 同样命中受管 `mine` 前缀、只进附加 JSON（不改二进制位段），用于把旧存档里由历史默认值写入的 `mineEffectPreview="false"` 一次性改为开启；标记存在后以玩家自己的开关值为准，导入 / 合并时偏好仍保留当前存档。
 - 写入：结构化编码 → LZSS 压缩（只在更小时采用）→ SHA-256 计数器流 XOR → HMAC-SHA256 签名 → 写主档，上一份通过验签的主档转入备份槽；读取失败按「主档 → 备份 → 默认值」逐级回退，并把损坏原文放进隔离区。
 - 详细字节布局、校验顺序与合并规则见 [docs/SAVE-FORMAT.md](docs/SAVE-FORMAT.md) 第 3–6 节。
@@ -516,7 +546,11 @@ v1.3.0 起存档只保留**一个签名容器**。格式、安全模型与开发
 17. **启动首局只在 `10-game.js` 的 `window.onload` 触发**：`13-achievements.js#init()` 只安装钩子并渲染成就 / 成绩面板，不要再加 `newGame()`（会重复生成两局并造成首屏占位闪烁）；新增启动逻辑同样不要自行开首局，也不要在模块顶层假设「棋盘已存在」。该首局使用标准固定参数并按自由难度归类（`isFreeMode=true`、`diff="free"`、`isRefreshFreeGame=true`），因此**不计时、不写成绩**；难度按钮仍按真实门槛显示锁定态，需改动难度外观时同时考虑 `isRefreshFreeGame`。
 18. **没有题目 / 没有雷卡时不要让空棋盘露出来**：`06-render.js#syncBoardVisibility()` 会在 `G.tar` 为空（或尺寸不符）且 `#slot` 没有 `.mine-item` 时隐藏 `#board` / `#slot`，`fullReset()` 与 `hideBoardLoading()` 都会调用它；新增「重置后暂不生成棋盘」的流程（如预设门禁失败、参数面板待应用）时不要绕过它，也不要在创造 / 教学 / 预设待开局下强行恢复 `display`。
 19. **棋盘参数只能经 `00-core.js#applyBoardParams()` 写入**（v1.4.0 起）：它统一收敛 `T ≤ SR×SC`、`K ≤ min(26, T)`、`SP ≤ T`、`TY ≤ SP` 并刷新面板显示；自由模式的新参数是 `size / rows / cols / total / kinds`，预设 / 教学 / 挑战仍传 `size / total / type / spec`（`kinds` 会按 `type + 1` 推导）。不要在业务代码里零散改 `S / SR / SC / T / K` 后忘记同步，也不要把自由模式的 `K` 当成旧「特殊雷数量」使用。新增自由模式参数相关逻辑时同时检查 `05-generator.js#genFreeGame()` 的收敛顺序（它还会按实际可用雷型数收敛 `K`）。
-20. **改 `dataVersion` 等于一次强制换档**：`01-storage.js` 的 `DATA_VERSION` 只在**二进制布局真的变化**时递增（如 v1.4.0 的成就位图 6→8 字节），递增后旧档与旧导出文件都会被拒、玩家进度按默认值重来；仅新增附加 JSON 键（如 `mineHardcore*`、`mineEffectPreviewDefaultOn_v1`）**不需要**动它。改完必须同步本文件 3.6 / 4.1 / 4.4、《更新日志》与 `index.html` 的公告，并确认 `Store.legacyRejected` 的提示仍然只在「旧结构被拒」时触发。
+20. **改 `dataVersion` 等于一次强制换档**：`01-storage.js` 的 `DATA_VERSION` 只在**二进制布局真的变化**时递增（如 v1.4.0 的成就位图 6→8 字节），递增后旧档与旧导出文件都会被拒、玩家进度按默认值重来；仅新增附加 JSON 键（如 `mineHardcore*`、`mineTetris*`、`mineEffectPreviewDefaultOn_v1`）**不需要**动它。改完必须同步本文件 3.6 / 4.1 / 4.4、《更新日志》与 `index.html` 的公告，并确认 `Store.legacyRejected` 的提示仍然只在「旧结构被拒」时触发。
+21. **俄罗斯方块骨牌不是 `M` 里的雷种**：`TETRO_ORDER` / `TETRO` 与 `M` 分开维护，图标 / 名称 / 图鉴 / 题库码索引 / 成就「雷种」统计全部以 `M` 为准；骨牌 key（`I/O/J/L/S/Z/T`）只会出现在 `G.placed` 的值里，且其朝向单独存于 `G.rot["r,c"]`。新增或修改骨牌形状只改 `04-mines.js` 的 `TETRO`，不要塞进 `M`（会破坏 26 种雷的图鉴、题库码冻结索引与 `all_types_used` / `hidden_free_26` 判定）。
+22. **骨牌图形绝不能画进 `#board`**：差量引擎会 `innerHTML` 清空棋盘并校验 `childElementCount`，把跨格图形塞进 `#board` 会被判成网格损坏、每次重绘都整块重建。骨牌由 `06-render.js#renderTetroOverlay()` 画在 body 级 fixed 覆盖层 `#tetroOverlay` 上（超出棋盘的部分照画、不占布局）；格子内只保留 `.mine-here` 标记与不变量计数。改放置 / 删除逻辑时务必让 `G.placed` 与 `G.rot` **同增同删**（`placeTetroAt()` / `removeTetroAt()` 是统一入口，`drop()` 与 click 委托两条落子路径都要走它）。
+23. **俄罗斯方块 / 硬核都是「偏好 + 本局快照」两层**：`isTetrisMode` / `isHardcoreMode` 只决定开关外观与下一局是否继承，渲染 / 记账 / 判定一律读 `gameTetris` / `gameHardcore`（开局由 `applyGameTetris()` / `applyGameHardcore()` 计算，`fullReset()` 清空）。两种玩法互斥：`setTetrisMode(true)` 会静默关硬核、`setHardcoreMode(true)` 会静默关骨牌，新增模式开关时沿用同一套 `setXxxMode / toggleXxxMode / syncXxxUI / applyGameXxx` 四件套。
+24. **新增成绩类型时必须同步四处**：`01-storage.js` 的默认值 + `readRecords()` 汇总 + `profileOfRawMap()` / `inspect()` 输出 + `mergeRawMap()` 合并规则；`08-ui.js#saveRec()` 的记账分支与 `renderRecordList()` 的筛选标签；`15-boot.js` 的三列对比（`buildTable()`）与存档详情（`buildDetailHtml()`）。成绩只读展示（`renderRecordList()` 本身不写存档），不要顺手在渲染函数里做持久化。
 
 ---
 
@@ -526,7 +560,7 @@ v1.3.0 起存档只保留**一个签名容器**。格式、安全模型与开发
 
 | 项目 | 值 | 定义位置 |
 | --- | --- | --- |
-| 游戏版本 | **v1.4.1** | `源文件/js/00-core.js` → `RM.VERSION`，页脚与设置栏「关于」同步显示 |
+| 游戏版本 | **v1.5.1** | `源文件/js/00-core.js` → `RM.VERSION`，页脚与设置栏「关于」同步显示 |
 | 存档 schema | **2** | `源文件/js/00-core.js` → `RM.SAVE_SCHEMA`；`Store.schema` |
 | 存档数据结构号 | **dataVersion 2**（v1.4.0 由 1 升到 2） | `源文件/js/01-storage.js` → `DATA_VERSION`（payload 首字节）；递增后旧结构存档与旧导出文件不再解码 |
 | 存档容器格式 | **2** | `源文件/js/00-core.js` → `RM.SAVE_FORMAT`；`01-storage.js` → `FORMAT` |
@@ -535,22 +569,23 @@ v1.3.0 起存档只保留**一个签名容器**。格式、安全模型与开发
 | 音量设置字段 | `mineSoundSettings` | `源文件/js/12-settings.js` |
 | 放置模式字段 | `placeMode_v1` | `源文件/js/07-board.js` |
 | 硬核偏好 / 成绩字段 | `mineHardcoreMode` / `mineHardcoreWins` / `mineHardcoreRecords` / `mineHardcoreLastTimes` | `源文件/js/01-storage.js`（受管 `mine` 前缀 → 附加 JSON） |
+| 俄罗斯方块偏好 / 成绩字段 | `mineTetrisMode` / `mineTetrisWins` / `mineTetrisRecords` / `mineTetrisLastTimes`（v1.5.0） | `源文件/js/01-storage.js`（受管 `mine` 前缀 → 附加 JSON，派生 `tetWins` / `tetRec` / `tetLt`） |
 | 效果预览默认值 / 迁移标记 | `mineEffectPreview`（默认 `"true"`）/ `mineEffectPreviewDefaultOn_v1` | `源文件/js/01-storage.js` 默认值；`06-render.js` 启动时一次性迁移（受管 `mine` 前缀 → 附加 JSON） |
 | 导出文件格式 | `{ app, schema:2, format:2, exportedAt, encodedAt, size, bytes, payloadBytes, compressed, digest, save }` | `源文件/js/01-storage.js` → `exportFile()`；测试存档走 `exportRawMapFile(partial)`（v1.4.1，同结构） |
-| 页脚署名 | v1.4.1 · © 2026 L1Nzy · lin060911@qq.com | `源文件/index.html` 页脚 |
+| 页脚署名 | v1.5.1 · © 2026 L1Nzy · lin060911@qq.com | `源文件/index.html` 页脚 |
 
 ### 4.2 规模统计
 
 | 部分 | 文件数 | 行数 |
 | --- | ---: | ---: |
-| HTML | 1（`源文件/index.html`） | 816 |
-| CSS | 1（`源文件/style.css`） | 9283 |
-| JavaScript | 17（`源文件/js/00`–`js/16`） | 16222 |
+| HTML | 1（`源文件/index.html`） | 847 |
+| CSS | 1（`源文件/style.css`） | 9909 |
+| JavaScript | 17（`源文件/js/00`–`js/16`） | 17457 |
 | 文档 | 2（`README.md` + `docs/SAVE-FORMAT.md`） | `docs` 166 行 + 本文 |
 | 测试 | 2（`tests/save-engine.test.js` / `tests/browser-save.test.js`） | 1136 行（33 项 Node 单测 + 65 项浏览器冒烟检查） |
 | 素材 | 0（运行时；音频实时合成，无图片 / 音频素材文件） | — |
 
-内容规模：地雷图鉴 26 种 / 6 系列，成就 **62 个 / 8 大类（含 20 个隐藏）**，预设难度 5 档 + 自由模式（v1.4.0 参数模型：`S / SR / SC / T / K`，矩形棋盘与地雷种类数），创造模式边长 4–20、总格数上限 400；（设计内容）主线 9 环 + 支线 6 条、外观 19 件 + 3 称号，对应模块当前不在工作区；v1.3.9 新增 🪚 硬核模式（独立配色 / 地块提示锁定 / 地块准确数 / 成绩并入难度卡）；v1.3.10 为修复与范围调整（硬核本局快照 / 结算幂等 / 启动单局 / 存档对比与详情硬核 / CSS 合并；硬核仅预设难度与自由模式生效）；v1.3.11 为状态行统一、效果预览默认开启、刷新局归类自由难度与空棋盘隐藏；**v1.4.0 为成就扩充到 62 个（新增 🪚 硬核分组与 17 个成就）、自由模式新参数模型（矩形棋盘 / 地雷种类数 / 移除特殊雷总数）与存档 dataVersion 2（旧档不再兼容）；v1.4.1 为设置 → 关于新增「🧪 测试者工具」（测试存档下载）、17 个新成就补全正式名称 / 彩蛋文案、隐藏成就「火药沙拉」判定改为 `G.pool` 与已放置 `G.placed` 的雷型并集去重后 > 20 种（并修复 v1.4.0 把坐标键当雷型的遗留缺陷）**，内容数量不变。
+内容规模：地雷图鉴 26 种 / 6 系列，成就 **62 个 / 8 大类（含 20 个隐藏）**，预设难度 5 档 + 自由模式（v1.4.0 参数模型：`S / SR / SC / T / K`，矩形棋盘与地雷种类数），**v1.5.0 新增「俄罗斯方块」玩法（7 种四格骨牌 + 独立成绩 + 成绩四档筛选）**，创造模式边长 4–20、总格数上限 400；（设计内容）主线 9 环 + 支线 6 条、外观 19 件 + 3 称号，对应模块当前不在工作区；v1.3.9 新增 🪚 硬核模式（独立配色 / 地块提示锁定 / 地块准确数 / 成绩并入难度卡）；v1.3.10 为修复与范围调整（硬核本局快照 / 结算幂等 / 启动单局 / 存档对比与详情硬核 / CSS 合并；硬核仅预设难度与自由模式生效）；v1.3.11 为状态行统一、效果预览默认开启、刷新局归类自由难度与空棋盘隐藏；**v1.4.0 为成就扩充到 62 个（新增 🪚 硬核分组与 17 个成就）、自由模式新参数模型（矩形棋盘 / 地雷种类数 / 移除特殊雷总数）与存档 dataVersion 2（旧档不再兼容）；v1.4.1 为设置 → 关于新增「🧪 测试者工具」（测试存档下载）、17 个新成就补全正式名称 / 彩蛋文案、隐藏成就「火药沙拉」判定改为 `G.pool` 与已放置 `G.placed` 的雷型并集去重后 > 20 种（并修复 v1.4.0 把坐标键当雷型的遗留缺陷）**；**v1.5.0 为成绩栏新增「全部 / 经典 / 硬核 / 俄罗斯方块」四档筛选、新增俄罗斯方块玩法（7 种骨牌 / 槽内旋转 / 越界显示 / 独立成绩）、修复基础挑战入口误进练习的 BUG**；**v1.5.1 修复骨牌图形全部画在棋盘首格的坐标缺陷、把预设难度骨牌块数降为约 2/3（自由模式不变）、新增双击已放置骨牌绕锚点旋转**，经典 26 种雷与 62 个成就数量不变。
 
 ### 4.3 技术栈与兼容性
 
@@ -559,13 +594,43 @@ v1.3.0 起存档只保留**一个签名容器**。格式、安全模型与开发
 - **CSS**：CSS 自定义属性（`:root` 设计令牌）、Flex/Grid 布局、渐变与 `@keyframes` 动画、`backdrop-filter` 毛玻璃遮罩、`env(safe-area-inset-*)` 移动端安全区、`body:has(...)` 选择器实现抽屉蒙层 / 模式联动、`scrollbar-gutter: stable`（v1.3.8 固定弹窗滚动条槽位），以及 `prefers-reduced-motion` 动效降级。
 - **性能（v1.3.2）**：地雷槽复用 DOM 节点、计时与计数文本只在变化时写入 DOM；窄屏端取消固定背景、去掉全屏噪点 SVG 图层、隐藏背景扫描光带与漂浮特效，减少移动端绘制开销。
 - **交互（v1.3.4）**：触屏删除在原有 480ms 长按之外新增 320ms 双击（Pointer Events 层判定、同一棋盘同一格、不干扰拖拽 / 点选）；地雷卡效果气泡改为 body 级 `position: fixed` 浮层并做视口夹取，既绕开窄屏地雷槽的 `overflow` 裁剪，也把层级提升到棋盘格子之上。
+- **交互（v1.5.0）**：俄罗斯方块玩法复用同一套放置 / 删除 / 拖拽事件，骨牌图形用 body 级 fixed 覆盖层按棋盘格子的真实视口坐标绘制（滚动 / 缩放自动对位）；槽位旋转按钮的 `click` 与 `pointerdown` 均阻止冒泡，避免误触选中切换与拖拽会话。
 - **浏览器要求**：需要较新的现代浏览器（`body:has()` 自 2022 年起才在主流浏览器落地，`backdrop-filter` 与 WebAudio 同理）；不支持 IE。
 - **存储**：`localStorage` 优先，不可用（隐私模式 / 受限环境）时自动降级为内存。
 - **音频**：WebAudio API；浏览器要求在用户交互后才能播放，因此首次点击后才会出声。
 
 ### 4.4 版本沿革
 
-> **阅读说明**：以下每个版本条目都按**发布当时**的口径记录，不会回改历史数字。因此条目里的「45 个成就 / 7 大类 / 14 隐藏」「`dataVersion` 仍为 1」等表述描述的是**当时值**；**当前值**请以本文表头、1.4 / 1.7 / 3.6 与 4.1 为准（v1.4.1：62 个成就 / 8 大类 / 20 隐藏、`dataVersion=2`）。v1.4.0 条目里的「新增成就占位文案（名称 = 条件原文、`tip` = 待补充）」与「`hidden_free_26` = 25 种特殊雷」也属当时口径，**v1.4.1 已补全正式文案并把判定改为参与地雷种类数 > 20**（见下方 v1.4.1 条目）。本节内各版本的验证数字（断言项数、测试通过数等）同样是当时记录，未在本版重跑。
+> **阅读说明**：以下每个版本条目都按**发布当时**的口径记录，不会回改历史数字。因此条目里的「45 个成就 / 7 大类 / 14 隐藏」「`dataVersion` 仍为 1」等表述描述的是**当时值**；**当前值**请以本文表头、1.4 / 1.7 / 3.6 与 4.1 为准（v1.5.1：62 个成就 / 8 大类 / 20 隐藏、`dataVersion=2`、俄罗斯方块玩法（预设难度骨牌数约 2/3、双击旋转）与四档成绩筛选）。v1.4.0 条目里的「新增成就占位文案（名称 = 条件原文、`tip` = 待补充）」与「`hidden_free_26` = 25 种特殊雷」也属当时口径，**v1.4.1 已补全正式文案并把判定改为参与地雷种类数 > 20**（见下方 v1.4.1 条目）。本节内各版本的验证数字（断言项数、测试通过数等）同样是当时记录，未在本版重跑。
+
+#### v1.5.1 · 骨牌图形坐标修复 / 骨牌模式降难 / 双击旋转已放骨牌
+
+本版处理 V1.5.0 验收反馈的 3 项（覆盖层视觉错位、骨牌模式难度偏大、双击已放置骨牌旋转），**无存档格式变化、无成就增减、无脚本加载顺序变化**；经典模式行为不变：
+
+- **修复骨牌图形全画在首格**：`06-render.js#renderTetroOverlay()` 计算每格视口坐标时只用了骨牌内部偏移、漏加锚点行列，导致所有骨牌图形叠加在棋盘首格（影响值本身正确）。现按 `锚点 + 偏移` 定位，滚动 / 缩放重对位逻辑不变。
+- **骨牌模式降难**：`05-generator.js#genTetrisGame()` 在**预设难度**下把骨牌块数降为 `max(3, ceil(T×2/3))`（简单 3 / 中等 6 / 困难 8 / 地狱 10 / 脑王 11），棋盘尺寸不变；**自由模式仍按玩家设定的总雷数**出牌。`G.max` 与槽位配额、状态行显示的块数随之收敛；开关提示文案同步说明该口径。
+- **双击已放置骨牌旋转**：新增 `07-board.js#rotateTetroOnDouble()`（绕锚点顺时针 90°、`G.rot`+1 并重算影响值）与 `findTetroAnchorAt()`（锚点 / 覆盖格反查，删除与旋转共用）。桌面由 `06-render` 的 `dblclick` 委托触发，触屏由 07 指针层的双击分支触发；**经典局双击仍是删除**，骨牌局长按 / 右键仍是删除整块。由于单击放置即时生效，双击第一下若误放了一块新骨牌会被自动撤销（同一锚点 600ms 内），保证「双击 = 旋转」稳定。
+- **V1.5.1 后续补充（不升版本号，仍 1.5.1）**：
+  - **骨牌局固定开启实时影响**：`applyGameTetris()` 为真时把「🔺 实时影响」强制打开并在设置栏加 `.locked` 锁定外观（`syncInfluenceHintLockUI()`）；强制只作用于本局、**不写存档**，`fullReset()` / 切回经典局时由 `releaseTetrisInfluenceLock()` 恢复玩家原本偏好；骨牌局点该开关只 toast「固定开启」。
+  - **「游戏选择」弹窗分区卡片化**：`style.css` 70.9 把 `.game-modal-body` 铺淡蓝底、内部各 `.sidebar-section` 还原为与设置栏一致的白底圆角卡片（`#HardcoreSection` 另加淡紫底），「难度挑战 / 系列开关 / 玩法 / 成绩入口」各自独立成块。
+  - **玩法开关说明改气泡**：两个模式的常驻说明文字移除（`.switch-hint.mode-tip-src` 隐藏），改为悬浮 / 点按玩法行时用统一气泡 `#mineTipFixed` 显示（`#hardcoreRow` / `#tetrisRow` 的 `data-tip` 由 `syncHardcoreUI()` / `syncTetrisUI()` 实时更新，含多行文案）。
+  - **「准备好了吗？」卡片重做 + 显示模式**：`enterPresetPending()` 按本局快照填写模式胶囊 `#presetStartMode`（🎯 经典 / 🪚 硬核 / 🧱 俄罗斯方块）、卡片配色类、图标与参数摘要（棋盘尺寸 / 总雷数或骨牌块数），`newGame()` 与 `setPre()` 都改为先算玩法快照再进待开局；样式见 70.10（模式色条 / 参数胶囊 / 现代按钮）。
+  - **覆盖层残留修复（补充自测发现）**：`enterPresetPending()`、`showBoardLoading()`、`syncBoardVisibility()` 在隐藏棋盘时都会同步 `hideTetroOverlay()`，避免"棋盘已隐藏、body 级骨牌覆盖层仍悬浮在待开始卡片 / 加载占位之上"。
+  - 验证记录见《更新日志》V1.5.1 「四、补充改动」段；同样受限于无头 Edge 不可用，卡片与气泡的视觉/悬浮手感建议真机目检。
+- **验证**：见《更新日志》V1.5.1 段「三、验证结果」。本会话仍无法启动无头 Edge，覆盖层像素级对位与真实双击/触屏手感建议真机目检。
+- **版本与文档**：`RM.VERSION` 1.5.0 → **1.5.1**；`index.html` 关于版本号 / 公告（**V1.5.1 + V1.5.0 + V1.4.1**）与页脚同步；README / 《更新日志》/《未来更新方向》同步。
+
+#### v1.5.0 · 成绩四档筛选 / 俄罗斯方块玩法 / 基础挑战入口修复
+
+本版落实《未来更新方向.txt》**V1.5.0** 全部 3 条（0 成绩栏次级筛选、1 俄罗斯方块反向扫雷、2 基础挑战入口 BUG），**无存档格式变化（`dataVersion` 仍为 2、成就位图仍 8 字节、62 成就不变）**，仅新增 4 个受管附加 JSON 键（`mineTetrisMode` 与三组成绩）；脚本加载顺序与文件数量（17 个 JS）不变，经典 26 种雷、教学 / 挑战 / 创造 / 题库码的行为保持不变：
+
+- **成绩栏四档筛选**：`#recSection` 顶部新增「全部 / 经典 / 硬核 / 俄罗斯方块」标签（`08-ui.js#setRecordFilter()`）。「全部」保持原有效果——同一难度卡内普通成绩为主行、有硬核 / 俄罗斯方块成绩时追加 `.record-hc` / `.record-tet` 子行（无成绩不展示）；其余三个标签只展示对应玩法数据，五个预设难度全部列出、无成绩显示「暂无记录」，折叠摘要按当前筛选统计。筛选只改渲染、不动存档。
+- **俄罗斯方块玩法**：难度弹窗「🎲 玩法」新增「🧱 俄罗斯方块模式」开关（`#tetrisToggle`），与硬核开关**互斥**、均为跨局偏好、下一局生效；仅预设难度与自由模式进入骨牌局（开局快照 `gameTetris`）。地雷槽换成 7 种四格骨牌（I/O/J/L/S/Z/T），每张卡用骨牌实际影响范围图形表示（半透明玻璃色块 + 2px 同色描边、锚点更深），悬浮（触屏选中）出现旋转按钮顺时针旋转；每块骨牌覆盖的 4 格各 +1，**锚点格不可叠放、影响值可叠加**，贴边时越界部分不影响棋盘但**依旧显示**（body 级 fixed 覆盖层，不占布局）。删除 / 拖拽移动按整块处理，目标是经典雷 / 骨牌混排时以 `gameTetris` 快照分流，经典路径零改动。
+- **独立成绩**：预设难度的骨牌局写入 `mineTetrisWins` / `mineTetrisRecords` / `mineTetrisLastTimes`（派生 `tetWins` / `tetRec` / `tetLt`），不写普通 / 硬核成绩；`mergeRawMap()` 支持只增不减合并，导入三列对比追加 5 行「🧱 俄罗斯方块·难度」，存档详情新增「🧱 俄罗斯方块成绩」小节。
+- **基础挑战入口修复**：`renderChallengeList()` 基础行入口原先恒为 `openPracticeMode()`，未完成挑战时点按钮会进入练习（练习分支不写进度），导致基础挑战永远停在 0；现在按 `isBasicChallengeDone()` 分流：未完成进**挑战**（并收起挑战弹窗），完成后才进**练习**。
+- **样式**：`style.css` 末尾新增第 **70** 段（70.1 玩法开关紫色系 / 70.2 成绩筛选药丸 / 70.3 `.record-tet` 青绿子行 / 70.4 骨牌槽卡与旋转按钮 / 70.5 棋盘骨牌覆盖层 / 70.6–70.7 窄屏与 reduced-motion），只新增选择器、复用既有令牌。**V1.5.1 补充 70.8–70.11（不升版本号）**：70.8 玩法开关说明改为悬浮气泡（隐藏常驻 `.switch-hint.mode-tip-src`、玩法行 `data-tip` + `cursor:help`）；70.9「游戏选择」弹窗分区还原为设置栏同款白底卡片（`.game-modal-body` 淡蓝底 + `.sidebar-section` 白卡圆角阴影，`#HardcoreSection` 另加淡紫底）；70.10「准备好了吗？」待开始卡重做（模式色条 `::before`、`.preset-start-mode` 模式胶囊、`.preset-start-params` 参数胶囊、现代圆角按钮）；70.11 窄屏适配。该补充段只覆盖末段组件、不修改更早版本的既有规则。
+- **验证**：见《更新日志》V1.5.0 段「三、验证结果」（静态检查 + Node DOM 桩整页断言 + 同源逻辑测试；本会话沙箱无法启动无头 Edge，真实浏览器视觉叠放未做，建议真机目视骨牌槽 / 覆盖层 / 筛选标签）。
+- **版本与文档**：`RM.VERSION` 1.4.1 → **1.5.0**；`index.html` 关于版本号、公告（**V1.5.0 + V1.4.1 + V1.4.0**）与页脚同步 v1.5.0；README / 《更新日志》/《未来更新方向》同步。
 
 #### v1.4.1 · 🧪 测试者工具 / 「火药沙拉」判定调整 / 17 个新成就正式文案
 

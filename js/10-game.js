@@ -4,7 +4,8 @@
  * 职责：统一管理一局游戏的开始、重置与模式切换，并把页面级入口
  *       （新游戏、清空放置、首次访问引导、每日欢迎弹窗）接到具体函数。
  * 依赖：全局状态 diff / G / SR / SC / S（00-core）、ts 与 resetTi / startTi
- *       （03-timer）、genGame 与 resetP（05-generator）、render（06-render）、
+ *       （03-timer）、genGame / genTetrisGame 与 resetP（05-generator）、render（06-render）、
+ *       applyGameHardcore / applyGameTetris / syncTetrisUI（06-render）、
  *       renderRecordList 与预设难度相关函数（08-ui）、AudioFX（02-audio）、
  *       Store（01-storage）。
  * 对外：newGame / fullReset / beginPresetGame / clearAll 等全局函数；
@@ -39,19 +40,22 @@ function newGame() {
     AudioFX.confirm();
     fullReset();
     if (isPresetDifficulty(diff) && !isFreeMode && !isTutorialMode) {
-        // 先套用预设参数并进入待开局，尺寸只由难度决定，不受上一局影响
+        // 先套用预设参数并确定本局玩法快照，待开始卡片要显示当前模式（经典 / 硬核 / 骨牌）
         applyPresetParams(diff);
-        enterPresetPending(diff);
-        // 待开局阶段就确定本局硬核快照，地块提示锁定与开关状态保持一致
         applyGameHardcore();
+        if (typeof applyGameTetris === "function") applyGameTetris();
+        enterPresetPending(diff);
         return;
     }
-    // 参数确定后立即计算本局硬核快照：只有预设难度与自由模式会继承偏好
+    // 参数确定后立即计算本局玩法快照：只有预设难度与自由模式会继承偏好
     applyGameHardcore();
+    if (typeof applyGameTetris === "function") applyGameTetris();
     // 生成期间用"加载中"占位遮住棋盘与地雷槽，生成完立即收起
     showBoardLoading();
     try {
-        genGame();
+        // 俄罗斯方块局走骨牌出题，其它局保持经典生成逻辑
+        if (gameTetris && typeof genTetrisGame === "function") genTetrisGame();
+        else genGame();
         render();
         renderRecordList();
         document.getElementById("win").style.display = "none";
@@ -75,9 +79,11 @@ function fullReset() {
     isPresetPending = false;
     pendingDiff = null;
     currentTutorialType = null;
-    // 上一局的硬核快照与结算标记全部作废；各入口在参数确定后调用
-    // applyGameHardcore() 重新计算本局是否硬核
+    // 上一局的玩法快照与结算标记全部作废；各入口在参数确定后调用
+    // applyGameHardcore() / applyGameTetris() 重新计算本局玩法
     gameHardcore = false;
+    gameTetris = false;
+    tetroRot = {};
     winSettled = false;
     document.getElementById("tutorialProgressBar").style.display = "none";
     // 练习形态的进度条（隐藏进度轨道 + 退出按钮）一并还原，避免串到下一局
@@ -125,6 +131,11 @@ function fullReset() {
     // 硬核快照已清空：同步一次开关 / 锁定态与准确数提示，避免沿用上一局外观
     if (typeof syncHardcoreUI === "function") syncHardcoreUI();
     if (typeof refreshHardcoreStat === "function") refreshHardcoreStat();
+    // 俄罗斯方块快照已清空：同步开关外观、棋盘覆盖层与 body 标记
+    if (typeof syncTetrisUI === "function") syncTetrisUI();
+    if (typeof hideTetroOverlay === "function") hideTetroOverlay();
+    // 恢复玩家原本的「实时影响」偏好（骨牌局会把它临时强制开启）
+    if (typeof releaseTetrisInfluenceLock === "function") releaseTetrisInfluenceLock();
     // 重置后可能既没有题目也没有雷卡（例如预设门槛校验失败）：此时隐藏
     // 棋盘与地雷槽，避免留下空白棋盘
     if (typeof syncBoardVisibility === "function") syncBoardVisibility();
@@ -143,8 +154,9 @@ function beginPresetGame() {
     AudioFX.confirm();
     // 参数只取决于当前难度，生成前重设一次，避免跨模式残留的尺寸参与生成
     if (isPresetDifficulty(diff)) applyPresetParams(diff);
-    // 待开局确认后重新计算一次本局硬核快照（防止等待期间偏好被改动）
+    // 待开局确认后重新计算一次本局玩法快照（防止等待期间偏好被改动）
     applyGameHardcore();
+    if (typeof applyGameTetris === "function") applyGameTetris();
     document.getElementById("presetStartCard").style.display = "none";
     // 生成期间用"加载中"占位遮住棋盘与地雷槽，生成完立即收起
     showBoardLoading();
@@ -154,7 +166,8 @@ function beginPresetGame() {
         isPresetPending = false;
         isTutorialMode = false;
         document.getElementById("tutorialProgressBar").style.display = "none";
-        genGame();
+        if (gameTetris && typeof genTetrisGame === "function") genTetrisGame();
+        else genGame();
         render();
         renderRecordList();
         document.getElementById("win").style.display = "none";
@@ -175,6 +188,8 @@ function beginPresetGame() {
 function clearAll() {
     AudioFX.confirm();
     G.placed = {};
+    // 骨牌局的影响值依赖锚点朝向，清空时一并重置
+    G.rot = {};
     resetP();
     render();
 }

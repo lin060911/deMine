@@ -169,6 +169,17 @@
         check: function() {
             return seriesUnlocked && seriesUnlocked.physics;
         }
+    },  {
+        id: "unlock_poker",
+        cat: "系列道具",
+        emoji: "🤡",
+        name: "Twisted Fate",
+        desc: "解锁扑克牌系列",
+        tip: "幸运女神在微笑",
+        type: "special",
+        check: function() {
+            return !!(seriesUnlocked && seriesUnlocked.poker);
+        }
     }, {
         id: "unlock_symmetry",
         cat: "系列道具",
@@ -499,20 +510,8 @@
         tip: "三點幾嘞，飲茶先啦",
         type: "once",
         hidden: true
-    }, {
-        /* ---------- 4.1 成就数据表（五）：硬核、全类型与存档管理 ---------- */
-        // 扑克牌系列与困难首次通关：追加在历史成就之后，位序与 ACH_IDS 一致
-        id: "unlock_poker",
-        cat: "系列道具",
-        emoji: "🤡",
-        name: "Twisted Fate",
-        desc: "解锁扑克牌系列",
-        tip: "幸运女神在微笑",
-        type: "special",
-        check: function() {
-            return !!(seriesUnlocked && seriesUnlocked.poker);
-        }
-    }, {
+    }, /* ---------- 4.1 成就数据表（五）：硬核、全类型与存档管理 ---------- */ 
+      {
         // 硬核系列：只有预设难度与自由模式会继承硬核偏好
         id: "hc_first",
         cat: "🪚 硬核",

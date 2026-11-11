@@ -7,8 +7,8 @@
  * 依赖：04 的 M / applyTacticalEffects / getEnabledMineKeys、00-core 的
  *       SR/SC/T/TY/SP/K/isFreeMode 等参数、01-storage 的 Store；
  *       图鉴与预览依赖对应 CSS 类名。
- * 对外：genGame、genFreeGame、genTutorialGame、setupTutorialParams、genPreHtml、
- *       renderMineInfo、resetP、applyBrainEgg、lastChallengeTypes。
+ * 对外：genGame、genFreeGame、genTetrisGame、genTutorialGame、setupTutorialParams、
+ *       genPreHtml、renderMineInfo、resetP、applyBrainEgg、lastChallengeTypes。
  * 设计要点：
  *   1) 出题思路是"先随机布雷、再反算目标值"：先随机决定每颗雷的位置与类型，
  *      再把所有雷的影响函数依次作用到全零矩阵上，得到目标值矩阵。这样任意
@@ -167,6 +167,85 @@ function genFreeGame() {
     G.pool = pool;
     G.max = total;
     G.placed = {};
+    resetP();
+}
+
+/* ---------- 6. 俄罗斯方块出题 ---------- */
+/**
+ * 生成一局「俄罗斯方块反向扫雷」题目：总块数取当前 T（骨牌占 1 个锚点格，
+ * 因此受 SR×SC 约束），预设难度会再降为约 2/3（至少 3 块）以降低可旋转带来的
+ * 推理量，自由模式尊重玩家设定的总雷数；7 种骨牌按随机配额分配——总块数 ≥ 7
+ * 时每种至少 1 块，余量在已出现的类型里随机追加；总块数 < 7 时随机取 T 种各 1 块。
+ * 每块骨牌随机朝向与锚点，锚点互不重复（自身格不可叠放）；影响值按覆盖的
+ * 4 格各 +1 反算，越界部分不参与目标值（与放置时的裁剪规则一致）。
+ * @sideeffect 写 G.tar / G.pool / G.max / G.placed / G.rot，重置 tetroRot 并调用 resetP
+ */
+function genTetrisGame() {
+    const area = Math.max(1, SR * SC);
+    // 骨牌块数：自由模式尊重玩家设定的总雷数；预设难度降为约 2/3（至少 3 块），
+    // 让棋盘更空、可旋转带来的推理想象量下降，整体难度与经典难度更接近
+    let total = Math.max(1, Math.min(T, area));
+    const presetMode = !isFreeMode && typeof isPresetDifficulty === "function" &&
+        isPresetDifficulty(diff);
+    if (presetMode) total = Math.max(3, Math.ceil(total * 2 / 3));
+    // 配额：先保证每种出现的类型 1 块，剩余名额在已选类型里随机分配
+    const kinds = Math.min(TETRO_ORDER.length, total);
+    const order = shuffleArr(TETRO_ORDER).slice(0, kinds);
+    let pool = {};
+    order.forEach(t => {
+        pool[t] = 1;
+    });
+    let remain = total - kinds;
+    while (remain > 0) {
+        pool[order[Math.floor(Math.random() * order.length)]]++;
+        remain--;
+    }
+    // 展开成待放置队列并打乱顺序，使锚点分布不偏向某一种骨牌
+    let pieces = [];
+    for (let t in pool) for (let i = 0; i < pool[t]; i++) pieces.push(t);
+    pieces = shuffleArr(pieces).slice(0, total);
+    // 逐块随机锚点：锚点已被占用就重抽；总块数不超过面积，顺序扫描必然能兜底
+    let anchors = {}, ans = {}, rots = {};
+    for (let i = 0; i < pieces.length; i++) {
+        const t = pieces[i];
+        let picked = null;
+        for (let attempt = 0; attempt < 200; attempt++) {
+            const r = Math.random() * SR | 0;
+            const c = Math.random() * SC | 0;
+            const k = r + "," + c;
+            if (!anchors[k]) {
+                picked = k;
+                break;
+            }
+        }
+        // 随机多次撞车时按键序找第一个空锚点，保证生成一定成功
+        if (!picked) {
+            for (let r = 0; r < SR && !picked; r++) for (let c = 0; c < SC; c++) {
+                if (!anchors[r + "," + c]) {
+                    picked = r + "," + c;
+                    break;
+                }
+            }
+        }
+        if (!picked) break;
+        anchors[picked] = true;
+        ans[picked] = t;
+        rots[picked] = Math.floor(Math.random() * 4);
+    }
+    // 目标值从全零矩阵开始，逐块累加覆盖的 4 格（含锚点自身）
+    let tar = Array(SR).fill().map(() => Array(SC).fill(0));
+    for (let k in ans) {
+        const parts = k.split(",");
+        tetroAddInfluence(ans[k], rots[k], +parts[0], +parts[1], tar);
+    }
+    // 写回本局状态：答案矩阵、牌池、总块数，并清空玩家进度与槽位朝向
+    G.tar = tar;
+    G.pool = pool;
+    G.max = Object.keys(ans).length;
+    G.placed = {};
+    G.rot = {};
+    tetroRot = {};
+    // 经典模式的战术雷结算对骨牌 key 无副作用，保持调用以复用同一条重算路径
     resetP();
 }
 
@@ -393,16 +472,21 @@ function renderMineInfo() {
 /**
  * 按给定放置表结算整盘影响值，不写入任何对局状态。
  * 先逐颗累加每颗雷的影响核，再结算战术雷的连锁语义；棋盘尺寸取当前 SR/SC。
- * @param {Object} placed 坐标键 "r,c" -> 雷型 key 的放置表
+ * 俄罗斯方块模式下 placed 的值为骨牌 key（不在 M 中），按 G.rot 记录的朝向
+ * 调用 tetroAddInfluence 结算，其余逻辑（战术雷、返回矩阵）完全一致。
+ * @param {Object} placed 坐标键 "r,c" -> 雷型 key（或骨牌 key）的放置表
  * @returns {number[][]} SR×SC 的影响值矩阵
  */
 function computeInfluenceMap(placed) {
     let board = Array(SR).fill().map(() => Array(SC).fill(0));
     for (let k in placed) {
         let [r, c] = k.split(",");
-        M[placed[k]].f(+r, +c, board);
+        const t = placed[k];
+        // 经典雷型走 M 的影响函数；骨牌走独立结算，两者不会出现在同一局
+        if (M[t]) M[t].f(+r, +c, board);
+        else if (TETRO[t]) tetroAddInfluence(t, G.rot[k] || 0, +r, +c, board);
     }
-    // 战术雷依赖整份放置集合，放在基础影响核重算之后结算
+    // 战术雷依赖整份放置集合，放在基础影响核重算之后结算（骨牌局为空操作）
     applyTacticalEffects(board, placed);
     return board;
 }

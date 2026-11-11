@@ -924,3 +924,93 @@ function pickMinesFromEnabled(count, excludeNormal) {
     }
     return pool;
 }
+
+/* ---------- 13. 俄罗斯方块骨牌（独立于 M 的第二种"雷"） ---------- */
+/* 与 M 的分工：M 描述经典模式的 26 种地雷（key 进 G.pool / G.placed，影响函数
+   只接收数字坐标）；骨牌只在俄罗斯方块模式下出现，key 使用大写字母（I/O/J/L/S/Z/T），
+   朝向单独存 G.rot，因此不影响 M 的 key 集合（图鉴、题库码、成就的"雷种"统计
+   均以 M 为准，骨牌不会混入）。
+   每个骨牌由 4 个格组成：cells 为相对「自身格」（锚点，也就是槽位图里颜色更深的
+   那一格）的 [dr, dc] 偏移，数组首项固定是 [0, 0]，描述初始朝向；其余 3 格是
+   影响范围。放置时锚点不可与其它骨牌锚点重叠，影响值按"每格 +1"叠加并可越界裁剪。 */
+const TETRO_ORDER = [ "I", "O", "J", "L", "S", "Z", "T" ];
+
+/* 七种骨牌的元数据：n 槽位字母名 / color 代表色（玻璃色块与棋盘覆盖层共用）
+   / cells 初始朝向的锚点相对偏移。旋转由 tetroCells() 统一推导，样式表只读 color。 */
+const TETRO = {
+    I: {
+        n: "I",
+        color: "#4dd0e1",
+        cells: [ [ -1, 0 ], [ 0, 0 ], [ 1, 0 ], [ 2, 0 ] ]
+    },
+    O: {
+        n: "O",
+        color: "#f2c94c",
+        cells: [ [ 0, 0 ], [ 0, 1 ], [ 1, 0 ], [ 1, 1 ] ]
+    },
+    J: {
+        n: "J",
+        color: "#5c86f5",
+        cells: [ [ 0, 0 ], [ 0, 1 ], [ 1, 0 ], [ 2, 0 ] ]
+    },
+    L: {
+        n: "L",
+        color: "#f5a04a",
+        cells: [ [ -2, 0 ], [ -1, 0 ], [ 0, 0 ], [ 0, 1 ] ]
+    },
+    S: {
+        n: "S",
+        color: "#57c96b",
+        cells: [ [ 0, 0 ], [ 0, 1 ], [ 1, -1 ], [ 1, 0 ] ]
+    },
+    Z: {
+        n: "Z",
+        color: "#ef6b6b",
+        cells: [ [ 0, -1 ], [ 0, 0 ], [ 1, 0 ], [ 1, 1 ] ]
+    },
+    T: {
+        n: "T",
+        color: "#b06cf0",
+        cells: [ [ 0, -1 ], [ 0, 0 ], [ 0, 1 ], [ 1, 0 ] ]
+    }
+};
+
+/**
+ * 取某种骨牌在指定朝向下的四格偏移（相对锚点）。
+ * 旋转规则：以锚点为轴顺时针旋转，屏幕坐标下 (dr,dc) -> (dc,-dr)；
+ * O 形四格对称，任何朝向都返回初始形状，避免绕角旋转产生位置漂移。
+ * @param {string} type 骨牌 key（I/O/J/L/S/Z/T）
+ * @param {number} [rot=0] 朝向 0~3，顺时针递增
+ * @returns {number[][]} 四组 [dr,dc]，首项为锚点 [0,0]
+ */
+function tetroCells(type, rot) {
+    const meta = TETRO[type];
+    if (!meta) return [];
+    const base = meta.cells;
+    const n = ((rot | 0) % 4 + 4) % 4;
+    if (type === "O" || n === 0) return base.map(c => [ c[0], c[1] ]);
+    let out = base.map(c => [ c[0], c[1] ]);
+    for (let i = 0; i < n; i++) {
+        out = out.map(c => [ c[1], -c[0] ]);
+    }
+    return out;
+}
+
+/**
+ * 把一块骨牌的影响叠加到矩阵上：4 个格各 +1（含锚点格自身），越界格跳过。
+ * 与 addVal 一样只读坐标、不读棋盘状态，因此出题反算与玩家操作后的重算共用。
+ * @param {string} type 骨牌 key
+ * @param {number} rot 朝向 0~3
+ * @param {number} r 锚点行
+ * @param {number} c 锚点列
+ * @param {number[][]} v 目标影响值矩阵
+ * @sideeffect 直接修改入参 v
+ */
+function tetroAddInfluence(type, rot, r, c, v) {
+    const cells = tetroCells(type, rot);
+    for (let i = 0; i < cells.length; i++) {
+        const y = r + cells[i][0];
+        const x = c + cells[i][1];
+        if (y >= 0 && y < SR && x >= 0 && x < SC) v[y][x] += 1;
+    }
+}

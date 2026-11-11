@@ -11,8 +11,8 @@
  *      导入前先 Store.parseFile() 验签，再用「覆盖 / 合并 / 取消」三列对比框确认；
  *      破坏性写入前调用 Store.backupCurrent() 留快照，可一键撤销。
  *   4) 存档详情：运行时创建 #rmSaveDetailOverlay / #rmSaveDetailModal，展示
- *      存储后端、编码体积、实时验签、各难度成绩、成就首末解锁时间与逐项时间、
- *      教学 / 基础 / 五系列挑战进度以及设置摘要。
+ *      存储后端、编码体积、实时验签、各难度成绩（普通 / 硬核 / 俄罗斯方块）、
+ *      成就首末解锁时间与逐项时间、教学 / 基础 / 五系列挑战进度以及设置摘要。
  * 依赖：00-core 的 RM（toast / onError / warn / missingModules）、
  *       01-storage 的 Store（exportFile / parseFile / importFile / profile /
  *       profileOfFile / previewMergeFile / getStatus / verify / inspect /
@@ -88,6 +88,8 @@
     /* ---------- 2. 小工具：格式化与安全转义 ---------- */
     // 难度键到中文名：与 01-storage.js 中 Store 的 DIFFS 顺序保持一致
     var DIFF_LABEL = { easy: "简单", medium: "中等", hard: "困难", hell: "地狱", brain: "脑王" };
+    // 逐难度数据（成绩行、详情行）的展示顺序：与 01-storage.js 的 DIFFS 一致
+    var DIFF_KEYS = ["easy", "medium", "hard", "hell", "brain"];
 
     /**
      * 数字补零。
@@ -369,7 +371,7 @@
         });
 
         // 各难度：通关次数 + 最快纪录；纪录以毫秒存储，数值越小越快
-        var DIFFS = ["easy", "medium", "hard", "hell", "brain"];
+        var DIFFS = DIFF_KEYS;
         for (i = 0; i < DIFFS.length; i++) {
             d = DIFFS[i];
             var cw = cur.wins[d] || 0, ow = ov.wins[d] || 0, mw = mg.wins[d] || 0;
@@ -408,6 +410,28 @@
                 mg: cell(mhw + " 次", fmt(mhr)),
                 ovLoss: ohw < chw || hcRecLoss,
                 mgGain: mhw > chw || hcRecGain
+            });
+        }
+
+        // 俄罗斯方块成绩：与硬核成绩并列独立统计，字段缺失时按 0 / 无纪录处理
+        for (i = 0; i < DIFFS.length; i++) {
+            d = DIFFS[i];
+            var ctw = (cur.tetWins && cur.tetWins[d]) || 0;
+            var otw = (ov.tetWins && ov.tetWins[d]) || 0;
+            var mtw = (mg.tetWins && mg.tetWins[d]) || 0;
+            var ctr = (cur.tetRec && cur.tetRec[d] !== undefined) ? cur.tetRec[d] : null;
+            var otr = (ov.tetRec && ov.tetRec[d] !== undefined) ? ov.tetRec[d] : null;
+            var mtr = (mg.tetRec && mg.tetRec[d] !== undefined) ? mg.tetRec[d] : null;
+            // 与普通成绩同一套判定：覆盖后次数变少、纪录变慢或消失都算丢失
+            var tetRecLoss = (ctr === null) ? false : (otr === null || otr > ctr);
+            var tetRecGain = (ctr === null && mtr !== null) || (ctr !== null && mtr !== null && mtr < ctr);
+            rows.push({
+                k: "🧱 俄罗斯方块·" + (DIFF_LABEL[d] || d),
+                cur: cell(ctw + " 次", fmt(ctr)),
+                ov: cell(otw + " 次", fmt(otr)),
+                mg: cell(mtw + " 次", fmt(mtr)),
+                ovLoss: otw < ctw || tetRecLoss,
+                mgGain: mtw > ctw || tetRecGain
             });
         }
 
@@ -757,6 +781,7 @@
                 mineEffectPreview: "true",
                 mineSoundSettings: { bgm: 50, sfx: 50 },
                 mineHardcoreMode: "false",
+                mineTetrisMode: "false",
                 // 抑制首访 / 每日欢迎与脑王解锁提示，便于连续测试
                 hasVisitedBefore: "true",
                 welcomeLastShown: (new Date).toDateString(),
@@ -1023,7 +1048,8 @@
     }
 
     /**
-     * 生成详情弹窗完整内容：头部徽章 + 存储信息 + 成绩 + 成就 + 挑战 + 设置。
+     * 生成详情弹窗完整内容：头部徽章 + 存储信息 + 成绩（普通 / 硬核 / 俄罗斯方块）
+     * + 成就 + 挑战 + 设置。
      * 数据全部来自 Store.getStatus / Store.verify / Store.inspect 与
      * Achievements.summary / byId；任何一项异常都会在调用方被捕获。
      * @returns {string} 弹窗 HTML
@@ -1124,6 +1150,26 @@
         }
         if (!hcShown) {
             parts.push('<div class="rm-detail-empty">还没有硬核通关记录；开启硬核模式通关预设难度后会显示在这里。</div>');
+        }
+        parts.push("</div>");
+
+        // 🧱 俄罗斯方块成绩：与硬核成绩结构一致；没有通关记录时给一句引导说明
+        var tet = insp.tetris || { total: 0, records: [] };
+        var tetList = tet.records || [];
+        parts.push('<div class="rm-detail-sec"><div class="rm-detail-title">🧱 俄罗斯方块成绩 <small>' +
+            (tet.total ? "累计 " + esc(tet.total + " 次") : "暂无俄罗斯方块通关") + "</small></div>");
+        var tetShown = 0;
+        for (var ti = 0; ti < tetList.length; ti++) {
+            var ttr = tetList[ti];
+            // 与成绩栏一致：没有通关过的难度不单列
+            if (!ttr.wins) continue;
+            tetShown++;
+            var tetLastTxt = (ttr.last === null || ttr.last === undefined) ? "本次 无" : "本次 " + fmt(ttr.last);
+            parts.push(dRow("🧱 俄罗斯方块" + (DIFF_LABEL[ttr.key] || ttr.key),
+                "最快 " + fmt(ttr.best) + " · 通关 " + (ttr.wins || 0) + " 次（" + tetLastTxt + "）"));
+        }
+        if (!tetShown) {
+            parts.push('<div class="rm-detail-empty">还没有俄罗斯方块通关记录；开启俄罗斯方块模式通关预设难度后会显示在这里。</div>');
         }
         parts.push("</div>");
 

@@ -21,6 +21,50 @@
         <span class="rm-fs-label">全屏</span>
     </button>
 
+    <!-- 区块：B 站外链音乐播放器
+         设置栏「🎧 外链音乐播放器」开关开启后，右上角出现 🎵 悬浮钮；
+         桌面端悬停（或键盘聚焦 / 点击固定）展开成 bilibili2.html 同款面板：
+         播放器画面 + 当前曲目 + 歌单，移出后自动收起；触屏点按展开 / 收起。
+         开关开启期间游戏背景音乐被静音（滑块数值保留），关闭开关后恢复并停止播放；
+         收起面板不会停止音乐，方便边玩边听。
+         显隐、歌单渲染、iframe 懒加载与 BGM 闪避全部由 17-bili.js 控制 -->
+    <div class="bili-stage" id="biliStage">
+        <button class="bili-launcher" id="biliLauncher" type="button"
+                aria-label="打开音乐播放器" aria-expanded="false" title="音乐">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M9 18V6l10-2v12" fill="none" stroke="currentColor" stroke-width="2"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="6.5" cy="18" r="2.5"/>
+                <circle cx="16.5" cy="16" r="2.5"/>
+            </svg>
+            <span class="bili-label">音乐</span>
+        </button>
+        <div class="bili-player" id="biliPanel" role="dialog" aria-label="B 站外链音乐播放器" aria-hidden="true" inert>
+            <div class="bili-content">
+                <div class="bili-screen" id="biliScreen">
+                    <div class="bili-screen-hint" id="biliScreenHint">外链播放器加载中…<br><span>需要联网才能播放</span></div>
+                    <div class="bili-frame-box" id="biliFrameBox">
+                        <iframe id="biliFrame" title="哔哩哔哩外链播放器"
+                                allowfullscreen="true" allow="autoplay; fullscreen"
+                                sandbox="allow-top-navigation allow-same-origin allow-forms allow-scripts"></iframe>
+                    </div>
+                </div>
+
+                <div class="bili-deck">
+                    <div class="bili-deck-head">
+                        <span class="bili-eyebrow">当前播放</span>
+                    </div>
+                    <div class="bili-deck-main">
+                        <span class="bili-title" id="biliNowLabel">—</span>
+                        <span class="bili-eq bili-deck-eq" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+                    </div>
+                </div>
+
+                <ul class="bili-playlist" id="biliPlaylist" aria-label="播放列表"></ul>
+            </div>
+        </div>
+    </div>
+
     <!-- ==================================================================
          反向扫雷 · 页面骨架（index.html）
 
@@ -41,7 +85,7 @@
           13) 右侧栏开关、记录侧栏（成绩 / 成就）与成就解锁弹层
           14) 创造侧栏、设置侧栏（存档管理 + 关于）
           15) 页脚：署名与联系方式
-          16) 脚本加载区：js/ 共 17 个模块文件（00 ~ 16），本页按序全部加载
+          16) 脚本加载区：js/ 共 18 个模块文件（00 ~ 17），本页按序全部加载
 
          阅读提示：本文件只负责结构与文案，交互全部由底部 00 ~ 16 号脚本
          接管；每个区块前的「区块：xxx」注释会说明该区块由谁操作。
@@ -719,9 +763,9 @@
     </div>
 
     <!-- 区块：设置侧边栏
-         操作方式、音量、地块提示与存档管理四块：前两者由 07-board.js /
-         12-settings.js 持久化，地块提示由 06-render.js 控制，存档管理调用
-         15-boot.js 暴露的 RMSave -->
+         操作方式、音量（含外链播放器开关）、地块提示与存档管理四块：前两者由
+         07-board.js / 12-settings.js 持久化，外链开关由 17-bili.js 接管，
+         地块提示由 06-render.js 控制，存档管理调用 15-boot.js 暴露的 RMSave -->
     <div class="setting-sidebar" id="settingSidebar">
         <div class="sidebar-section">
             <div class="sidebar-title mode-title">🖱️ 操作方式</div>
@@ -753,6 +797,15 @@
                 </div>
                 <input type="range" min="0" max="100" value="50" class="sound-slider sfx-slider" id="sfxSlider">
             </div>
+            <div class="sound-hint"><br></div>
+            <!-- 外链播放器开关：开启后背景音乐被压到 0（滑块数值与存档保持不变，
+                 显示为 0%（播放器）），右上角出现 🎵 悬浮钮；关闭后按滑块值恢复
+                 BGM 并停止播放器。开关、显隐与播放逻辑都在 17-bili.js -->
+            <div class="switch-row">
+                <div class="switch-label">🎧 音乐播放器</div>
+                <div class="switch-toggle" id="biliToggle" onclick="toggleBiliPlayer()"></div>
+            </div>
+            <div class="switch-hint">开启后<strong>关闭游戏背景音乐</strong>，页面右上角出现 <strong>🎵 音乐</strong>，可播放 B 站外链歌单；关闭后恢复背景音乐并停止播放器</div>
             <div class="sound-hint"><br></div>
         </div>
         <div class="sidebar-section" id="SuggestiveSetting">
@@ -791,10 +844,11 @@
              更新公告为静态摘要，避免多处版本号不一致 -->
         <div class="sidebar-section" id="AboutSection">
             <div class="sidebar-title about-title">ℹ️ 关于</div>
-            <div class="about-version">🔧 版本号 <strong id="aboutVersion">v1.5.2</strong></div>
+            <div class="about-version">🔧 版本号 <strong id="aboutVersion">v1.5.3</strong></div>
             <div class="about-announce">
                 <div class="about-announce-title">📣 更新公告</div>
                 <ul class="about-announce-list">
+                    <li><b>V1.5.3</b>：设置栏「🔊 音量设置」新增「🎧 外链音乐播放器」开关。开启后关闭游戏背景音乐（滑块数值保留）、右上角出现 🎵 悬浮钮，可播放 B 站外链歌单（14 首固定 + 自定义 BV）；关闭后恢复背景音乐并停止播放器。</li>
                     <li><b>V1.5.2</b>：俄罗斯方块模式图标改为🐻、代表色改为红色；骨牌颜色透明度提高（锚点格更明显）；棋盘右侧新增常驻操作 tips；「准备好了吗？」面板随玩法切换实时刷新；新增「🐻 俄罗斯方块」成就分组 8 个成就；「预设难度 / 速通系列」更名为「经典 / 速通」，且只判定经典玩法。</li>
                     <li><b>V1.5.1</b>：修复骨牌图形全部画在首格的问题；预设难度骨牌数降为约 2/3（自由模式不变）；双击已放置骨牌可绕锚点旋转（触屏长按仍删除）。</li>
                     <li><b>V1.5.0</b>：成绩栏新增「全部 / 经典 / 硬核 / 俄罗斯方块」四档筛选；新增🐻俄罗斯方块玩法（地雷槽换成七种四格骨牌，可旋转、影响值叠加）；修复基础挑战入口问题。</li>
@@ -820,10 +874,10 @@
 
     <!-- 区块：页脚
          署名与联系方式，纯静态文本，脚本不依赖 -->
-    <footer class="sidebar-version">ReverseMinesweeper v1.5.2<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
+    <footer class="sidebar-version">ReverseMinesweeper v1.5.3<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
 
     <!-- 区块：脚本加载区（顺序即依赖）
-         17 个外部脚本按 00 → 16 的书写顺序同步执行，共享同一个全局作用域：
+         18 个外部脚本按 00 → 17 的书写顺序同步执行，共享同一个全局作用域：
          前一个模块用 function 声明或全局变量暴露的能力，后一个模块直接使用，
          因此顺序即依赖，不能调换。各模块职责如下：
            00-core          RM 命名空间、常量、全局状态与错误兜底
@@ -843,6 +897,7 @@
            14-bgeffects     背景漂浮幽灵，只依赖 DOM，位置相对自由
            15-boot          启动自检与存档管理，排在 14 之后、16 之前
            16-guide         新手引导层（小手动画 / 高亮 / 提示气泡）
+           17-bili          B 站外链音乐播放器（设置开关 / 悬浮面板 / 歌单）
 
          举例：06-render.js 在顶层就调用 Store.get 读取提示开关，如果它排在
          01-storage.js 前面，加载阶段就会因 Store 未定义而报错。 -->
@@ -863,5 +918,6 @@
     <script src="js/14-bgeffects.js"></script>
     <script src="js/15-boot.js"></script>
     <script src="js/16-guide.js"></script>
+    <script src="js/17-bili.js"></script>
 </body>
 </html>

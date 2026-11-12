@@ -2,13 +2,15 @@
  * 模块 12 · 音量设置持久化与业务命名空间（js/12-settings.js）
  *
  * 职责：读取并保存背景音乐 / 音效音量，把滑块变化实时作用到音频模块，
- *       并登记 window._gameNS 供成就系统等扩展模块取用业务函数。
+ *       并登记 window._gameNS 供成就系统等扩展模块取用业务函数；外链播放器
+ *       启用期间通过 BgmDuck 闪避背景音乐（只压总线，不改滑块与存档）。
  * 依赖：Store（01-storage）、AudioFX 与 RetroBGM（02-audio）、
  *       setInfluenceHint / influenceHintOn 与 setEffectPreview / effectPreviewOn
  *       （06-render）。
  * 对外：window._gameNS，集中引用 newGame / fullReset / clearAll / del /
  *       drop / onTutorialWin / unlockSeries / generatePuzzleCode /
- *       applyPuzzleCode；本模块只读取这些函数，不包装它们。
+ *       applyPuzzleCode；window.BgmDuck（duck / unduck / isDucked）。
+ *       本模块只读取业务函数，不包装它们。
  * 设计要点：
  *   1) 音量属于纯偏好设置，统一落在 localStorage 的 mineSoundSettings 键，
  *      不参与对局与成就状态，刷新页面或换局都不受影响。
@@ -41,6 +43,9 @@
     // 默认值取一组"能听见但不吵"的参数：BGM 50%、音效 50%；合法存档则沿用其值
     const bgmInit = typeof saved.bgm === "number" ? clamp(saved.bgm) : 50;
     const sfxInit = typeof saved.sfx === "number" ? clamp(saved.sfx) : 50;
+    // 背景音乐闪避标记：外链播放器启用期间把 BGM 总线压到 0，但既不修改滑块
+    // 数值也不写存档，关闭播放器后按滑块当前值恢复，用户偏好不会被临时静音覆盖。
+    let bgmDucked = false;
     /**
      * 把两个滑块的当前值序列化后写回 localStorage。
      * 每次拖动都会调用，因此只写音量字段，不触碰其他设置。
@@ -66,12 +71,30 @@
         el.classList.toggle("muted", val === 0);
     }
     /**
+     * 同步背景音乐音量的界面显示：闪避期间固定显示为 0%，不暴露滑块原值，
+     * 让玩家明确"现在听不到 BGM 是因为外链播放器接管了声音"。
+     * @param {number} val 滑块上的音量值（0~100）
+     * @sideeffect 改写 #bgmValue 的文本与 muted 类名
+     */
+    function paintBgm(val) {
+        if (!bgmValue) return;
+        if (bgmDucked) {
+            bgmValue.textContent = "0%（播放器）";
+            bgmValue.classList.add("muted");
+            return;
+        }
+        paintValue(bgmValue, val);
+    }
+    /**
      * 把 0~100 的音量换算成 0~1 后交给背景音乐模块。
+     * 闪避期间无论滑块数值多少，实际音量都压到 0。
      * @param {number} val 0~100 的音量值
      * @sideeffect 调用 RetroBGM.setVolume；模块不存在时跳过。
      */
     function applyBgm(val) {
-        if (window.RetroBGM && window.RetroBGM.setVolume) window.RetroBGM.setVolume(val / 100);
+        if (window.RetroBGM && window.RetroBGM.setVolume) {
+            window.RetroBGM.setVolume(bgmDucked ? 0 : val / 100);
+        }
     }
     /**
      * 把 0~100 的音量换算成 0~1 后交给音效模块。
@@ -85,16 +108,48 @@
         if (AudioFX.setVolume) AudioFX.setVolume(val / 100);
     }
 
+    /* ---------- 1.1 背景音乐闪避（外链播放器） ---------- */
+
+    /**
+     * 切换背景音乐闪避状态：只改音频总线与显示，不写存档、不动滑块。
+     * 重复调用同一状态时直接返回，避免每次请求都重算一遍音量。
+     * @param {boolean} on true = 闪避（BGM 静音）；false = 恢复
+     * @sideeffect 改写 bgmDucked，并重新应用 / 显示当前滑块音量
+     */
+    function setBgmDucked(on) {
+        on = !!on;
+        if (bgmDucked === on) return;
+        bgmDucked = on;
+        const val = clamp(bgmSlider.value);
+        applyBgm(val);
+        paintBgm(val);
+    }
+
+    // 外链播放器（17-bili.js）通过这套接口接管 BGM：启用播放器时闪避、关闭时恢复
+    window.BgmDuck = {
+        duck: function() {
+            setBgmDucked(true);
+        },
+        unduck: function() {
+            setBgmDucked(false);
+        },
+        isDucked: function() {
+            return bgmDucked;
+        }
+    };
+
     /* ---------- 2. 初始化与滑块交互 ---------- */
 
     /**
      * 用读到的初始值填充两个滑块并立刻作用到音频模块。
      * 页面加载时调用一次，保证界面显示与实际音量一致。
+     * 闪避状态在脚本加载阶段就可能被播放器模块置位，因此这里显示的
+     * 是"闪避后"的实际音量（0），而不是存档里的偏好值。
      * @sideeffect 改写滑块 value、百分比文本与音频模块音量。
      */
     function initSlider() {
         bgmSlider.value = bgmInit;
-        paintValue(bgmValue, bgmInit);
+        paintBgm(bgmInit);
         applyBgm(bgmInit);
         sfxSlider.value = sfxInit;
         paintValue(sfxValue, sfxInit);
@@ -105,7 +160,7 @@
     }
     bgmSlider.addEventListener("input", function() {
         const val = clamp(this.value);
-        paintValue(bgmValue, val);
+        paintBgm(val);
         applyBgm(val);
         saveSound();
     });

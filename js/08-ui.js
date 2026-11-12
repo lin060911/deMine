@@ -1954,9 +1954,9 @@ function syncFullscreenBtn() {
     btn.setAttribute("aria-pressed", on ? "true" : "false");
     btn.setAttribute("aria-label", on ? "退出全屏" : "进入全屏");
     btn.title = on ? "退出全屏" : "进入全屏";
-    // 进入全屏后用"重叠方框"表示退出，避免与普通状态混淆
+    // 进入全屏后用"重叠方框"表示退出，避免与普通状态混淆；文案用「还原」，与「全屏」等宽
     if (icon) icon.textContent = on ? "🗗" : "⛶";
-    if (label) label.textContent = on ? "退出全屏" : "全屏";
+    if (label) label.textContent = on ? "还原" : "全屏";
 }
 
 /**

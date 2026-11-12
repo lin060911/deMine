@@ -10227,4 +10227,580 @@ body.tetris-mode .board-tips {
     }
 }
 
+/* ==========================================================================
+ * 72. B 站外链音乐播放器
+ *   72.1 悬浮钮与展开式容器（.bili-stage / .bili-player / .bili-launcher）
+ *   72.2 面板内容（播放器画面 / 当前曲目 / 歌单）
+ *   72.3 窄屏与矮视口适配
+ *   72.4 动效偏好
+ * 约束：播放器是独立的右上角浮层，不参与主界面排版；展开 / 收起沿用
+ *       bilibili2.html 的悬停展开节奏（宽高 0.9s + 内容淡入延迟），色板以
+ *       B 站品牌蓝 `#00a1d6` 为主；本段只新增 `.bili-*` 类，不覆盖 1 ~ 71 段。
+ * ========================================================================== */
+
+/* ---- 72.1 悬停展开式容器 ---- */
+
+/* 收起时是与「全屏」按钮同款的 72×36 玻璃胶囊（音乐图标 + 「音乐」），
+   桌面悬停 / 键盘聚焦 / 点击固定（.is-open）时展开为 720×320。
+   宽高过渡与延迟沿用 bilibili2.html：移入立即展开、移出延迟 0.14s 再收起 */
+.bili-stage {
+    position: fixed;
+    top: max(56px, calc(env(safe-area-inset-top, 0px) + 56px));
+    right: max(12px, env(safe-area-inset-right, 0px));
+    /* 压在主内容之上、但低于左右侧栏按钮（997）/ 抽屉（998）与弹窗，
+       这样右侧「创造 / 设置」入口不会被面板挡住点不到 */
+    z-index: 996;
+    display: none;
+    width: 72px;
+    height: 36px;
+    transition:
+        width .9s cubic-bezier(.16, 1, .3, 1) .14s,
+        height .9s cubic-bezier(.16, 1, .3, 1) .14s;
+    will-change: width, height;
+}
+
+.bili-stage.is-enabled {
+    display: block;
+}
+
+/* 点击固定（.is-open）在所有设备生效；矮视口压到视口内，避免底部被裁 */
+.bili-stage.is-open {
+    width: 720px;
+    height: min(320px, calc(100vh - 68px));
+    transition:
+        width .9s cubic-bezier(.16, 1, .3, 1) 0s,
+        height .9s cubic-bezier(.16, 1, .3, 1) 0s;
+}
+
+/* 桌面悬停 / 键盘聚焦展开：只在支持 hover 的精细指针设备上生效，
+   避免触屏浏览器的 :hover 粘滞导致面板收不起来（触屏走点按 .is-open） */
+@media (hover: hover) and (pointer: fine) {
+    .bili-stage:hover,
+    .bili-stage:focus-within {
+        width: 720px;
+        height: min(320px, calc(100vh - 68px));
+        transition:
+            width .9s cubic-bezier(.16, 1, .3, 1) 0s,
+            height .9s cubic-bezier(.16, 1, .3, 1) 0s;
+    }
+}
+
+/* 收起态与「全屏」按钮同款：白玻璃胶囊 + 细白描边 + 轻投影；
+   展开时过渡成白色面板底 + 18px 圆角 */
+.bili-player {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, .7);
+    border-radius: 999px;
+    background-color: rgba(255, 255, 255, .62);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    backdrop-filter: blur(14px) saturate(160%);
+    box-shadow:
+        0 4px 14px rgba(18, 38, 58, .14),
+        inset 0 1px 0 rgba(255, 255, 255, .5);
+    transition:
+        border-radius .9s cubic-bezier(.16, 1, .3, 1) .14s,
+        background-color .3s ease,
+        border-color .3s ease,
+        box-shadow .4s ease;
+}
+
+.bili-stage.is-open .bili-player {
+    border-color: rgba(20, 33, 43, .08);
+    border-radius: 18px;
+    background-color: #ffffff;
+    box-shadow:
+        0 2px 6px rgba(0, 0, 0, .04),
+        0 26px 56px -26px rgba(0, 0, 0, .22);
+    transition:
+        border-radius .9s cubic-bezier(.16, 1, .3, 1) 0s,
+        background-color .3s ease,
+        border-color .3s ease,
+        box-shadow .4s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .bili-stage:hover .bili-player,
+    .bili-stage:focus-within .bili-player {
+        border-color: rgba(20, 33, 43, .08);
+        border-radius: 18px;
+        background-color: #ffffff;
+        box-shadow:
+            0 2px 6px rgba(0, 0, 0, .04),
+            0 26px 56px -26px rgba(0, 0, 0, .22);
+        transition:
+            border-radius .9s cubic-bezier(.16, 1, .3, 1) 0s,
+            background-color .3s ease,
+            border-color .3s ease,
+            box-shadow .4s ease;
+    }
+}
+
+/* 收起态的点击入口：铺满胶囊，图标 + 「音乐」文案，字号 / 颜色与「全屏」按钮一致 */
+.bili-launcher {
+    position: absolute;
+    z-index: 2;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0;
+    border: 0;
+    border-radius: inherit;
+    background: transparent;
+    color: var(--rm-ink-2);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .02em;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 1;
+    transition: opacity .3s ease .55s, color .24s ease;
+}
+
+.bili-launcher:focus-visible {
+    outline: 2px solid rgba(47, 127, 235, .45);
+    outline-offset: 2px;
+}
+
+.bili-launcher svg {
+    display: block;
+    width: 15px;
+    height: 15px;
+    fill: currentColor;
+}
+
+.bili-launcher .bili-label {
+    white-space: nowrap;
+}
+
+.bili-launcher:hover {
+    color: var(--rm-blue-deep);
+}
+
+.bili-stage.is-open .bili-launcher {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .15s ease 0s;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .bili-stage:hover .bili-launcher,
+    .bili-stage:focus-within .bili-launcher {
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .15s ease 0s;
+    }
+}
+
+/* 播放中且面板收起：胶囊外圈脉冲提示"还在响" */
+.bili-launcher::after {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border: 1px solid rgba(0, 161, 214, .4);
+    border-radius: inherit;
+    opacity: 0;
+    transform: scale(.94);
+    pointer-events: none;
+}
+
+.bili-stage.is-playing:not(.is-open) .bili-launcher::after {
+    animation: biliPulse 2.4s ease-out infinite;
+}
+
+@keyframes biliPulse {
+    0% { opacity: .5; transform: scale(.94); }
+    70%, 100% { opacity: 0; transform: scale(1.12); }
+}
+
+/* ---- 72.2 面板内容 ---- */
+
+/* 桌面布局：左列「画面 + 当前曲目」，右列整高歌单；总宽 = 380 + 12 + 300 + 28 内边距，
+   总高 320 = 214 画面 + 12 间距 + 66 曲目卡 + 28 内边距（与 bilibili2.html 一致） */
+.bili-content {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-columns: 380px 300px;
+    grid-template-rows: 214px minmax(0, 1fr);
+    gap: 12px;
+    padding: 14px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .34s ease 0s;
+}
+
+/* 内容淡入：展开时延时 0.3s，收起时立即淡出（bilibili2.html 的节奏） */
+.bili-stage.is-open .bili-content {
+    opacity: 1;
+    pointer-events: auto;
+    transition: opacity .4s ease .3s;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .bili-stage:hover .bili-content,
+    .bili-stage:focus-within .bili-content {
+        opacity: 1;
+        pointer-events: auto;
+        transition: opacity .4s ease .3s;
+    }
+}
+
+/* 播放器画面：内层固定 480×270，由 17-bili.js#layoutScreen() 缩放到实际尺寸，
+   保证窄画面下 B 站播放器仍保留音量键 */
+.bili-screen {
+    position: relative;
+    grid-column: 1;
+    grid-row: 1;
+    overflow: hidden;
+    border-radius: 14px;
+    background: #0b0d0f;
+    box-shadow: 0 12px 28px -18px rgba(0, 0, 0, .45);
+}
+
+.bili-frame-box {
+    position: absolute;
+    z-index: 1;
+    top: 0;
+    left: 0;
+    width: 480px;
+    height: 270px;
+    transform-origin: top left;
+}
+
+.bili-frame-box iframe {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
+/* 外链资源加载前的占位：iframe 首次 load 后由 17-bili.js 隐藏 */
+.bili-screen-hint {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: rgba(255, 255, 255, .72);
+    font-size: 11px;
+    line-height: 1.7;
+    text-align: center;
+}
+
+.bili-screen-hint span {
+    color: rgba(255, 255, 255, .45);
+    font-size: 10px;
+}
+
+/* 当前曲目卡：与 bilibili2.html 一致——只保留「当前播放」小标题与曲目标题 */
+.bili-deck {
+    position: relative;
+    grid-column: 1;
+    grid-row: 2;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden;
+    padding: 0 16px;
+    border-radius: 14px;
+    background:
+        radial-gradient(90% 120% at 12% 0%, #ffffff, transparent 62%),
+        linear-gradient(150deg, #f1f9fc, #e8f2f7);
+}
+
+.bili-deck-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 3px;
+}
+
+.bili-eyebrow {
+    font-size: 9.5px;
+    line-height: 1.2;
+    letter-spacing: .14em;
+    color: #9fb0b8;
+}
+
+.bili-deck-main {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+}
+
+.bili-title {
+    min-width: 0;
+    overflow: hidden;
+    color: #26343b;
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* 均衡器：播放中由 .is-playing 打开，桌面与歌单选中行共用 */
+.bili-eq {
+    display: none;
+    flex: none;
+    align-items: flex-end;
+    gap: 2.4px;
+    width: 15px;
+    height: 13px;
+}
+
+.bili-stage.is-playing .bili-eq {
+    display: inline-flex;
+}
+
+.bili-eq i {
+    width: 3px;
+    height: 100%;
+    border-radius: 2px;
+    background: #00a1d6;
+    transform-origin: bottom;
+    animation: biliEq 1s ease-in-out infinite;
+}
+
+.bili-eq i:nth-child(2) { animation-delay: -.35s; }
+.bili-eq i:nth-child(3) { animation-delay: -.6s; }
+.bili-eq i:nth-child(4) { animation-delay: -.15s; }
+
+@keyframes biliEq {
+    0%, 100% { transform: scaleY(.35); }
+    50% { transform: scaleY(1); }
+}
+
+/* 歌单：右列整高滚动区，条目沿用 bilibili2.html 的轻量列表语言 */
+.bili-playlist {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    min-height: 0;
+    margin: 0;
+    padding: 6px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    list-style: none;
+    border-radius: 14px;
+    background: #f7fafb;
+    scrollbar-width: thin;
+    scrollbar-color: #dbe2e6 transparent;
+}
+
+.bili-playlist::-webkit-scrollbar {
+    width: 5px;
+}
+
+.bili-playlist::-webkit-scrollbar-thumb {
+    border-radius: 3px;
+    background: #e1e7ea;
+}
+
+.bili-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    width: 100%;
+    padding: 5px 9px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: #394246;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color .16s ease, color .16s ease;
+}
+
+.bili-item:hover {
+    background: rgba(0, 161, 214, .06);
+}
+
+.bili-item.is-active {
+    background: rgba(0, 161, 214, .1);
+}
+
+.bili-item:focus-visible {
+    outline: 2px solid rgba(0, 161, 214, .45);
+    outline-offset: -2px;
+}
+
+.bili-ix {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 16px;
+    color: #b2bcc1;
+    font-size: 10px;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+
+.bili-item-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    color: #394246;
+    font-size: 12.5px;
+    line-height: 1.3;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.bili-item.is-active .bili-item-name {
+    color: #0076a3;
+    font-weight: 600;
+}
+
+.bili-item-meta {
+    flex: none;
+    color: #a7b1b6;
+    font-size: 10px;
+    line-height: 1.3;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.bili-item.is-active .bili-item-meta {
+    color: #8fb9ca;
+}
+
+/* 歌单行内的小号均衡器：只有"播放中 + 当前曲目"才替换掉序号 */
+.bili-item .bili-eq {
+    width: 14px;
+    height: 11px;
+}
+
+.bili-item .bili-eq i {
+    width: 2px;
+}
+
+.bili-stage.is-playing .bili-item.is-active .bili-num {
+    display: none;
+}
+
+.bili-stage.is-playing .bili-item.is-active .bili-eq {
+    display: inline-flex;
+}
+
+/* ---- 72.3 窄屏与矮视口适配 ---- */
+
+/* 触屏 / 窄屏：不依赖悬停，点按悬浮钮以 .is-open 展开为整宽单列浮层 */
+
+@media (max-width: 760px) {
+    .bili-stage {
+        top: max(54px, calc(env(safe-area-inset-top, 0px) + 54px));
+        right: 12px;
+    }
+
+    .bili-stage.is-open {
+        width: calc(100vw - 24px);
+        height: min(calc(100vh - 66px), 640px);
+    }
+
+    .bili-content {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto auto minmax(0, 1fr);
+        gap: 10px;
+        padding: 12px;
+    }
+
+    .bili-screen {
+        grid-column: 1;
+        grid-row: 1;
+        aspect-ratio: 16 / 9;
+    }
+
+    .bili-deck {
+        grid-column: 1;
+        grid-row: 2;
+        padding: 8px 12px;
+    }
+
+    .bili-playlist {
+        grid-column: 1;
+        grid-row: 3;
+    }
+
+    .bili-title {
+        font-size: 15px;
+    }
+}
+
+@media (max-width: 400px) {
+    .bili-stage.is-open {
+        width: calc(100vw - 16px);
+        right: 8px;
+    }
+}
+
+/* 窄窗口的桌面（支持 hover）同样收窄到视口内，避免悬停展开时 720px 撑出屏幕 */
+@media (max-width: 760px) and (hover: hover) and (pointer: fine) {
+    .bili-stage:hover,
+    .bili-stage:focus-within {
+        width: calc(100vw - 24px);
+        height: min(calc(100vh - 66px), 640px);
+    }
+}
+
+@media (max-width: 400px) and (hover: hover) and (pointer: fine) {
+    .bili-stage:hover,
+    .bili-stage:focus-within {
+        width: calc(100vw - 16px);
+        right: 8px;
+    }
+}
+
+/* 矮视口（横屏手机 / 小窗口）：画面按剩余高度缩放，曲目卡让位，
+   避免固定行高（214px 画面 + 66px 曲目卡）把面板撑出视口被裁 */
+@media (min-width: 761px) and (max-height: 620px) {
+    .bili-content {
+        grid-template-rows: minmax(0, 1fr) auto;
+        gap: 8px;
+        padding: 10px;
+    }
+
+    .bili-deck {
+        padding: 6px 12px;
+    }
+}
+
+@media (max-width: 760px) and (max-height: 620px) {
+    .bili-content {
+        grid-template-rows: minmax(0, 1fr) auto minmax(0, 0.8fr);
+    }
+
+    .bili-screen {
+        aspect-ratio: auto;
+    }
+
+    .bili-deck {
+        padding: 6px 12px;
+    }
+}
+
+/* ---- 72.4 动效偏好 ---- */
+
+@media (prefers-reduced-motion: reduce) {
+    .bili-stage,
+    .bili-player,
+    .bili-content,
+    .bili-launcher {
+        transition-duration: .01ms !important;
+    }
+
+    .bili-eq i,
+    .bili-stage.is-playing:not(.is-open) .bili-launcher::after {
+        animation: none !important;
+    }
+}
+
 

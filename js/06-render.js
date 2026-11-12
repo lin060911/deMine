@@ -326,9 +326,13 @@ function setHardcoreMode(on, silent) {
         if (isHardcoreMode && AudioFX.locked) AudioFX.locked();
         else if (AudioFX.toggle) AudioFX.toggle(isHardcoreMode);
     } catch (e2) {}
-    // 本局已有棋盘且与设置不一致：明确告诉玩家改动在下一局生效
+    // 本局已有棋盘且与设置不一致：明确告诉玩家改动在下一局生效；
+    // 预设待开局时改动会即时反映到开始卡片并作用于这局，文案区分开
+    let pending = (typeof isPresetPending !== "undefined" && isPresetPending);
     let inGame = (typeof G !== "undefined" && G.max > 0);
-    if (changed && inGame && gameHardcore !== isHardcoreMode) {
+    if (changed && pending) {
+        if (window.RM && RM.toast) RM.toast(isHardcoreMode ? "🪚 硬核模式已开启（本局生效）" : "已关闭硬核模式（本局生效）");
+    } else if (changed && inGame && gameHardcore !== isHardcoreMode) {
         if (window.RM && RM.toast) RM.toast("硬核设置已保存，将在下一局生效");
     } else if (window.RM && RM.toast) {
         RM.toast(isHardcoreMode ? "🪚 硬核模式已开启" : "已关闭硬核模式");
@@ -338,6 +342,8 @@ function setHardcoreMode(on, silent) {
 /** 切换硬核模式（难度弹窗开关的 onclick 入口）。 */
 function toggleHardcoreMode() {
     setHardcoreMode(!isHardcoreMode);
+    // 待开局卡片显示期间切换玩法：立即重绘「准备好了吗？」卡片
+    if (typeof refreshPresetStartCard === "function") refreshPresetStartCard();
 }
 
 /**
@@ -406,7 +412,36 @@ function syncTetrisUI() {
     if (document.body) document.body.classList.toggle("tetris-mode", !!gameTetris);
     // 骨牌局强制开启实时影响，开关锁定外观随本局快照同步
     if (typeof syncInfluenceHintLockUI === "function") syncInfluenceHintLockUI();
+    // tips 的摆放方式依赖棋盘实际宽度：模式 / 棋盘变化后重新判断
+    syncBoardTipsPlacement();
 }
+
+/**
+ * 同步右侧 tips 的摆放方式：桌面端默认绝对定位在棋盘右侧（不占排版宽度，
+ * 棋盘保持页面居中）；右侧可用空间不足以同时容纳 tips（220+18）与
+ * 「创造 / 设置」两个固定悬浮钮（约 96）时，给 body 加 tips-stack，
+ * 改为棋盘在上、tips 在下的堆叠布局。
+ * @sideeffect 切换 body 的 tips-stack 类；非骨牌局或窄屏（≤1100px）时移除
+ */
+function syncBoardTipsPlacement() {
+    if (!document.body) return;
+    let on = (typeof gameTetris !== "undefined") && gameTetris;
+    // 用布局视口宽度（不含竖向滚动条）判断，和 body 的实际内容宽度一致
+    let vw = (document.documentElement && document.documentElement.clientWidth) || window.innerWidth || 0;
+    if (!on || vw <= 1100) {
+        document.body.classList.remove("tips-stack");
+        return;
+    }
+    let host = document.getElementById("board");
+    if (!host || host.style.display === "none") return;
+    let w = host.getBoundingClientRect().width;
+    if (!w) return;
+    // 页面左右各 24px 内边距，棋盘居中后单侧可用空间 = (视口 - 内边距 - 棋盘宽) / 2
+    let space = (vw - 48 - w) / 2;
+    let need = 220 + 18 + 96;
+    document.body.classList.toggle("tips-stack", space < need);
+}
+window.syncBoardTipsPlacement = syncBoardTipsPlacement;
 
 /**
  * 按当前模式计算本局骨牌快照：只有预设难度与自由模式继承全局偏好；
@@ -461,18 +496,24 @@ function setTetrisMode(on, silent) {
     try {
         if (AudioFX.toggle) AudioFX.toggle(isTetrisMode);
     } catch (e2) {}
-    // 本局已有棋盘且与设置不一致：明确告诉玩家改动在下一局生效
+    // 本局已有棋盘且与设置不一致：明确告诉玩家改动在下一局生效；
+    // 预设待开局时改动会即时反映到开始卡片并作用于这局，文案区分开
+    let pending = (typeof isPresetPending !== "undefined" && isPresetPending);
     let inGame = (typeof G !== "undefined" && G.max > 0);
-    if (changed && inGame && gameTetris !== isTetrisMode) {
+    if (changed && pending) {
+        if (window.RM && RM.toast) RM.toast(isTetrisMode ? "🐻 俄罗斯方块模式已开启（本局生效）" : "已关闭俄罗斯方块模式（本局生效）");
+    } else if (changed && inGame && gameTetris !== isTetrisMode) {
         if (window.RM && RM.toast) RM.toast("俄罗斯方块模式设置已保存，将在下一局生效");
     } else if (window.RM && RM.toast) {
-        RM.toast(isTetrisMode ? "🧱 俄罗斯方块模式已开启，将在下一局生效" : "已关闭俄罗斯方块模式");
+        RM.toast(isTetrisMode ? "🐻 俄罗斯方块模式已开启，将在下一局生效" : "已关闭俄罗斯方块模式");
     }
 }
 
 /** 切换俄罗斯方块模式（玩法开关的 onclick 入口）。 */
 function toggleTetrisMode() {
     setTetrisMode(!isTetrisMode);
+    // 待开局卡片显示期间切换玩法：立即重绘「准备好了吗？」卡片
+    if (typeof refreshPresetStartCard === "function") refreshPresetStartCard();
 }
 
 /**
@@ -1384,7 +1425,7 @@ function renderTetrisSlot() {
         // 代表色挂在卡片上：形状预览与旋转按钮的描边都读同一个 --tc
         div.style.setProperty("--tc", TETRO[t].color || "");
         // 悬浮提示沿用一句话说明：骨牌覆盖的 4 格各 +1
-        div.dataset.tip = "骨牌 " + t + "：覆盖的 4 格各 +1（锚点格也可放）";
+        div.dataset.tip = "骨牌 " + t ;
         // 子节点顺序固定：[0] 形状预览 [1] 名称 [2] 计数 [3] 旋转按钮
         let name = document.createElement("div");
         name.className = "tetro-name";
@@ -1535,6 +1576,8 @@ function renderTetroOverlay() {
     // 非骨牌局：覆盖层不参与显示
     if (!gameTetris) {
         hideTetroOverlay();
+        // tips 只属于骨牌局：离开骨牌局时收起堆叠标记，避免影响下一局布局
+        if (typeof syncBoardTipsPlacement === "function") syncBoardTipsPlacement();
         return;
     }
     let host = document.getElementById("board");
@@ -1589,6 +1632,8 @@ function renderTetroOverlay() {
     let ov = ensureTetroOverlay();
     ov.style.display = "block";
     ov.innerHTML = html;
+    // 棋盘尺寸 / 位置变化后重算 tips 采用侧边还是堆叠布局
+    if (typeof syncBoardTipsPlacement === "function") syncBoardTipsPlacement();
 }
 window.renderTetroOverlay = renderTetroOverlay;
 

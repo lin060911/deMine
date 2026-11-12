@@ -50,7 +50,15 @@ function calcCellSize(rows, cols) {
     // 兜底：内嵌 iframe 等场景下 window 尺寸可能为 0，退回文档元素宽度
     if (!vw && document.documentElement) vw = document.documentElement.clientWidth || 0;
     if (!vw && document.body) vw = document.body.clientWidth || 0;
-    if (!vw || vw > 700) return MAX;
+    if (!vw) return MAX;
+    // 桌面端骨牌局会在棋盘右侧常驻一块操作提示（样式表断点同为 1100px）：
+    // 此时棋盘可用宽度要扣掉提示面板与间距，避免整行溢出视口
+    const tipsSide = vw > 1100 && (typeof gameTetris !== "undefined" && gameTetris);
+    if (vw > 700) {
+        if (!tipsSide) return MAX;
+        const byTips = Math.floor((vw - 48 - 220 - 18 - PAD - GAP * (cols - 1)) / cols);
+        return Math.max(MIN, Math.min(MAX, byTips));
+    }
     // 宽度约束：扣除左右留白、棋盘内边距和格间距后，均分给每一列
     const byW = Math.floor((vw - 14 - PAD - GAP * (cols - 1)) / cols);
     const vh = window.innerHeight || 0;
@@ -737,7 +745,11 @@ window.addEventListener("resize", function() {
         const cols = kind === "create" ? createCols : SC;
         // 尺寸键含模式、行列数与格子边长：只改窗口高度但格子不变时不重绘
         const key = kind + "|" + rows + "x" + cols + "|" + calcCellSize(rows, cols);
-        if (key === _lastSizeKey) return;
+        if (key === _lastSizeKey) {
+            // 格子尺寸没变，但视口宽度可能变了：tips 的侧边 / 堆叠判定仍要复算
+            if (typeof syncBoardTipsPlacement === "function") syncBoardTipsPlacement();
+            return;
+        }
         _lastSizeKey = key;
         clearPlacementPreview();
         if (kind === "create") {
@@ -747,6 +759,8 @@ window.addEventListener("resize", function() {
             renderTeachBoard();
             renderTeachSlot();
         } else render();
+        // 重绘后棋盘宽度可能变化：再复算一次 tips 摆放方式
+        if (typeof syncBoardTipsPlacement === "function") syncBoardTipsPlacement();
     }, 180);
 });
 

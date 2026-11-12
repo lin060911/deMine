@@ -22,7 +22,7 @@ var RM = window.RM || {};
 window.RM = RM;
 
 /* 程序标识串：仅随日志输出，用于问题定位，不参与任何游戏逻辑 */
-RM.VERSION = "1.5.1";
+RM.VERSION = "1.5.2";
 
 /* 程序英文名：页脚署名、存档导出与导入校验统一使用这一写法 */
 RM.APP_NAME = "ReverseMinesweeper";
@@ -52,7 +52,12 @@ RM.ACH_IDS = [
     "hc_easy", "hc_medium", "hc_hard", "hc_hell", "hc_brain",
     "hidden_hc_free_20", "all_types_used", "create_all_types",
     "hidden_free_26", "hidden_fullscreen", "hidden_savemanage",
-    "hidden_free_5x5", "hidden_del_100"
+    "hidden_free_5x5", "hidden_del_100",
+    /* 1.5.2 扩展：俄罗斯方块玩法成就，只能追加在末尾；
+       位序必须与 13-achievements.js 数据表末尾的 8 条完全一致，
+       位图字节数由本数组长度推导（70 条 → 9 字节，见 01-storage 的 DATA_VERSION 兼容分支）。 */
+    "Tetris_first", "Tetris_10", "Tetris_easy", "Tetris_medium",
+    "Tetris_hard", "Tetris_hell", "Tetris_brain", "hidden_Tetris_free_20"
 ];
 
 /* 环形错误记录：只保留最近 50 条，长时间运行也不会无限增长 */

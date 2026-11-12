@@ -170,12 +170,12 @@
                  状态与互斥同步由 06-render.js / 08-ui.js 负责；
                  说明文案改为悬浮气泡（data-tip），不再常驻占位 -->
             <div class="switch-row" id="tetrisRow"
-                 data-tip="开启后地雷槽换成 7 种四格骨牌（预设难度骨牌数约 2/3）&#10;仅预设难度 / 自由模式生效，双击已放骨牌可旋转&#10;骨牌局「🔺实时影响」固定开启">
-                <div class="switch-label">🧱 俄罗斯方块模式</div>
+                 data-tip="开启后地雷槽换成 7 种四格骨牌&#10;仅预设难度 / 自由模式生效，双击已放骨牌可旋转&#10;骨牌局「🔺实时影响」固定开启">
+                <div class="switch-label">🐻 俄罗斯方块模式</div>
                 <div class="switch-toggle" id="tetrisToggle" role="switch" aria-checked="false"
                      onclick="toggleTetrisMode()"></div>
             </div>
-            <div class="switch-hint mode-tip-src" id="tetrisHint" aria-hidden="true">开启后地雷槽换成 7 种四格骨牌（预设难度骨牌数约 2/3）<br>仅预设难度 / 自由模式生效，双击已放骨牌可旋转</div>
+            <div class="switch-hint mode-tip-src" id="tetrisHint" aria-hidden="true">开启后地雷槽换成 7 种四格骨牌<br>仅预设难度 / 自由模式生效，双击已放骨牌可旋转</div>
         </div>
 
         <!-- 成绩入口说明：仅「📝记录」三个字是跳转入口，点击后
@@ -382,7 +382,28 @@
          初始先隐藏，第一局生成完成后再由 06-render.js 的
          hideBoardLoading() 显示，期间用下方的 #boardLoading 占位遮丑 -->
     <div class="board-tray">
-        <div id="board" class="board" style="display:none;"></div>
+        <!-- 棋盘行：桌面端「棋盘 + 右侧常驻 tips」并排；窄屏改为上下堆叠。
+             托盘在布局骨架里是 display:contents，实际参与排版的是本行。
+             tips 在桌面端绝对定位、不参与排版，因此棋盘始终位于页面中间；
+             右侧空间不足时 06-render 的 syncBoardTipsPlacement() 给 body 加
+             tips-stack 类，改为棋盘在上、tips 在下的堆叠布局 -->
+        <div class="board-row" id="boardRow">
+            <div class="board-wrap" id="boardWrap">
+                <div id="board" class="board" style="display:none;"></div>
+                <!-- 俄罗斯方块模式的操作提示：仅本局为骨牌局时由 06-render.js
+                     的 syncTetrisUI() 通过 body.tetris-mode 显示，位置常驻棋盘右侧 -->
+                <aside class="board-tips" id="boardTips" aria-label="俄罗斯方块操作提示">
+                    <div class="board-tips-head">🐻 俄罗斯方块模式tips</div>
+                    <ul class="board-tips-list">
+                        <li><b>旋转</b>：悬停骨牌卡点右上角 ↻；<br>已放骨牌双击可绕锚点旋转</li>
+                        <li><b>贴边</b>：骨牌超出棋盘的部分不产生任何影响</li>
+                        <li><b>技巧</b>：先拼出远离边界的部分，再把边界上的搞定</li>
+                        <li><b>???</b>：传统俄罗斯方块游戏的游戏区域是10列20行哦</li>
+                    </ul>
+                    <div class="board-tips-note">骨牌局成绩与成就单独统计</div>
+                </aside>
+            </div>
+        </div>
     </div>
 
     <!-- 区块：加载中占位
@@ -558,7 +579,7 @@
                     <li>状态行显示「💣 已放置雷数：n/m」；硬核局还显示「🧩 地块准确数：x/x」</li>
                 </ul>
 
-                <h3>🧱 俄罗斯方块模式</h3>
+                <h3>🐻 俄罗斯方块模式</h3>
                 <ul>
                     <li>在「🕹️难度 → 游戏选择 → 🎲 玩法」里开启</li>
                     <li>地雷槽换成 I/O/J/L/S/Z/T 七种四格骨牌，槽内可旋转；</li>
@@ -770,12 +791,13 @@
              更新公告为静态摘要，避免多处版本号不一致 -->
         <div class="sidebar-section" id="AboutSection">
             <div class="sidebar-title about-title">ℹ️ 关于</div>
-            <div class="about-version">🔧 版本号 <strong id="aboutVersion">v1.5.1</strong></div>
+            <div class="about-version">🔧 版本号 <strong id="aboutVersion">v1.5.2</strong></div>
             <div class="about-announce">
                 <div class="about-announce-title">📣 更新公告</div>
                 <ul class="about-announce-list">
+                    <li><b>V1.5.2</b>：俄罗斯方块模式图标改为🐻、代表色改为红色；骨牌颜色透明度提高（锚点格更明显）；棋盘右侧新增常驻操作 tips；「准备好了吗？」面板随玩法切换实时刷新；新增「🐻 俄罗斯方块」成就分组 8 个成就；「预设难度 / 速通系列」更名为「经典 / 速通」，且只判定经典玩法。</li>
                     <li><b>V1.5.1</b>：修复骨牌图形全部画在首格的问题；预设难度骨牌数降为约 2/3（自由模式不变）；双击已放置骨牌可绕锚点旋转（触屏长按仍删除）。</li>
-                    <li><b>V1.5.0</b>：成绩栏新增「全部 / 经典 / 硬核 / 俄罗斯方块」四档筛选；新增🧱俄罗斯方块玩法（地雷槽换成七种四格骨牌，可旋转、影响值叠加）；修复基础挑战入口问题。</li>
+                    <li><b>V1.5.0</b>：成绩栏新增「全部 / 经典 / 硬核 / 俄罗斯方块」四档筛选；新增🐻俄罗斯方块玩法（地雷槽换成七种四格骨牌，可旋转、影响值叠加）；修复基础挑战入口问题。</li>
                     <li><b>V1.4.1</b>：关于板块新增「🔬 测试者工具」，可一键下载全系列解锁、所有预设难度可玩的测试存档；隐藏成就「火药沙拉」的判定改为自由模式参与地雷种类数超过 20；17 个新成就补全正式名称与彩蛋文案。</li>
                 </ul>
             </div>
@@ -798,7 +820,7 @@
 
     <!-- 区块：页脚
          署名与联系方式，纯静态文本，脚本不依赖 -->
-    <footer class="sidebar-version">ReverseMinesweeper v1.5.1<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
+    <footer class="sidebar-version">ReverseMinesweeper v1.5.2<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
 
     <!-- 区块：脚本加载区（顺序即依赖）
          17 个外部脚本按 00 → 16 的书写顺序同步执行，共享同一个全局作用域：

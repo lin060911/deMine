@@ -942,6 +942,22 @@ function enterPresetPending(d) {
     document.getElementById("placed").textContent = "0";
     document.getElementById("max").textContent = "0";
     document.getElementById("win").style.display = "none";
+    // 卡面内容与模式配色统一交给 syncPresetStartCard：待开局期间切换玩法时
+    // 只需要重绘这一段，不必重新清空棋局或重放弹窗音效
+    syncPresetStartCard(d);
+    document.getElementById("presetStartCard").style.display = "flex";
+    AudioFX.modalOpen();
+}
+
+/**
+ * 按当前玩法快照重绘「准备好了吗？」待开始卡片。
+ * 模式与参数摘要取自 gameTetris / gameHardcore（调用方需保证已用
+ * applyGameHardcore / applyGameTetris 算出快照），因此待开局时切换玩法
+ * 可以实时刷新本卡片，而不用重进 newGame。
+ * @param {string} d 难度键：easy / medium / hard / hell / brain
+ * @sideeffect 改写卡片文案、模式胶囊、难度标签与配色类；不改变对局状态
+ */
+function syncPresetStartCard(d) {
     // 难度标签与卡片的配色类一一对应，用于区分不同难度的开始卡片
     var labelMap = {
         easy: "😎简单",
@@ -950,13 +966,13 @@ function enterPresetPending(d) {
         hell: "👿地狱",
         brain: "🤯脑王"
     };
-    // 玩法模式：待开始卡片要说明本局是经典 / 硬核 / 俄罗斯方块（快照已在 newGame 中算好）
+    // 玩法模式：待开始卡片要说明本局是经典 / 硬核 / 俄罗斯方块（快照由调用方算好）
     var mode = gameTetris
-        ? { icon: "🧱", name: "俄罗斯方块模式", cls: "mode-tetris" }
+        ? { icon: "🐻", name: "俄罗斯方块模式", cls: "mode-tetris" }
         : (gameHardcore
             ? { icon: "🪚", name: "硬核模式", cls: "mode-hardcore" }
             : { icon: "🎯", name: "经典模式", cls: "mode-classic" });
-    // 参数摘要：骨牌局的块数按生成规则（预设难度约 2/3、至少 3 块）预估
+    // 参数摘要：骨牌局的块数按生成规则预估
     var params = "棋盘 " + SR + "×" + SC + " · ";
     if (gameTetris) {
         params += "骨牌 " + Math.max(3, Math.ceil(T * 2 / 3)) + " 块";
@@ -965,28 +981,50 @@ function enterPresetPending(d) {
         if (gameHardcore) params += " · 硬核配色";
     }
     var card = document.getElementById("presetStartCard");
-    // 卡片配色随模式切换：经典（蓝）/ 硬核（钢蓝）/ 骨牌（紫）
-    card.className = "preset-start-card " + mode.cls;
     var modeEl = document.getElementById("presetStartMode");
-    if (modeEl) {
-        modeEl.className = "preset-start-mode " + mode.cls;
-        modeEl.textContent = mode.icon + " " + mode.name;
-    }
-    document.getElementById("presetStartIcon").textContent = mode.icon;
-    document.getElementById("presetStartTitle").textContent = "准备好了吗？";
+    var iconEl = document.getElementById("presetStartIcon");
+    var titleEl = document.getElementById("presetStartTitle");
     var desc = document.getElementById("presetStartDesc");
+    var tag = document.getElementById("presetStartTag");
+    var tagText = document.getElementById("presetStartTagText");
+    if (!card || !modeEl || !iconEl || !titleEl || !desc || !tag || !tagText) return;
+    // 卡片配色随模式切换：经典（蓝）/ 硬核（钢蓝）/ 骨牌（红）
+    card.className = "preset-start-card " + mode.cls;
+    modeEl.className = "preset-start-mode " + mode.cls;
+    modeEl.textContent = mode.icon + " " + mode.name;
+    iconEl.textContent = mode.icon;
+    titleEl.textContent = "准备好了吗？";
     desc.innerHTML = '<b class="preset-start-params">' + params + "</b>" +
         '<span class="preset-start-sub">点击开始后题目将展现并启动计时' +
         (gameTetris ? "，双击已放骨牌可旋转" : (gameHardcore ? "，本局不显示三态配色" : "")) +
         "</span>";
-    var tag = document.getElementById("presetStartTag");
     tag.className = "preset-start-tag tag-" + d;
-    document.getElementById("presetStartTagText").textContent = labelMap[d] || d;
-    card.style.display = "flex";
-    AudioFX.modalOpen();
+    tagText.textContent = labelMap[d] || d;
     // 预设待开局时棋盘尚未生成：同步隐藏「地块准确数」提示，避免残留上一局数字
     if (typeof refreshHardcoreStat === "function") refreshHardcoreStat();
 }
+
+/**
+ * 待开局期间玩法偏好变化后的实时刷新：重算本局快照并重绘待开始卡片。
+ * 卡片未显示或不在待开局状态时直接返回，避免打扰已开始的对局。
+ * @sideeffect 可能改写 gameHardcore / gameTetris 与卡片内容
+ */
+function refreshPresetStartCard() {
+    if (typeof isPresetPending === "undefined" || !isPresetPending) return;
+    let d = (typeof pendingDiff !== "undefined" && pendingDiff) || diff;
+    if (!d || typeof isPresetDifficulty !== "function" || !isPresetDifficulty(d)) return;
+    // 这里只按偏好重算"下一局会用什么玩法"的卡片显示，不调用
+    // applyGameHardcore / applyGameTetris：那两个函数带有写存档、锁定地块提示、
+    // 重绘覆盖层等副作用，真正开局时 beginPresetGame 还会再算一次。
+    let eligible = !isTutorialMode && !teachActive && !createModeActive &&
+        (isFreeMode || isPresetDifficulty(d));
+    gameHardcore = !!(isHardcoreMode && eligible);
+    gameTetris = !!(isTetrisMode && eligible);
+    // 两种玩法互斥：骨牌局必定不是硬核局
+    if (gameTetris) gameHardcore = false;
+    syncPresetStartCard(d);
+}
+window.refreshPresetStartCard = refreshPresetStartCard;
 
 /* ---------- 11. 参数调整与成绩记录 ---------- */
 
@@ -1315,10 +1353,10 @@ function recordSubRowHtml(cls, label, count, best, last) {
  * 难度名 + 通关次数徽标，下面一行是「最快」与最近一次用时两项数据。
  * 筛选模式（recordFilter）决定卡片展示哪套数据：
  *   all      普通成绩为主行，有硬核 / 俄罗斯方块成绩时在同一张卡内追加
- *            虚线分隔的「🪚 硬核」/「🧱 俄罗斯方块」子行，没有则不显示；
+ *            虚线分隔的「🪚 硬核」/「🐻 俄罗斯方块」子行，没有则不显示；
  *   classic  只显示普通成绩；
  *   hardcore 用硬核成绩渲染，标签带 🪚；
- *   tetris   用俄罗斯方块成绩渲染，标签带 🧱。
+ *   tetris   用俄罗斯方块成绩渲染，标签带 🐻。
  * 后三种模式始终列出全部难度，没有成绩的难度以占位文案展示。
  * 列宽与字号与挑战条目一致。
  * @sideeffect 重写 #achRecordList 的 innerHTML，同步标签状态并更新折叠摘要
@@ -1362,7 +1400,7 @@ function renderRecordList() {
             rowWins = recordWinCount(tetWinsData, d);
             rowRec = recordTimeValue(tetRecData, d);
             rowLt = recordTimeValue(tetLtData, d);
-            rowLabel = "🧱 " + label;
+            rowLabel = "🐻 " + label;
         }
         totalWins += rowWins;
         // 追加 diff-<难度> 供成绩栏难度配色使用；brain 同时保留
@@ -1387,7 +1425,7 @@ function renderRecordList() {
             const tetWin = recordWinCount(tetWinsData, d);
             if (tetWin > 0) {
                 totalWins += tetWin;
-                html += recordSubRowHtml("record-tet", "🧱 俄罗斯方块", tetWin,
+                html += recordSubRowHtml("record-tet", "🐻 俄罗斯方块", tetWin,
                     recordTimeValue(tetRecData, d), recordTimeValue(tetLtData, d));
             }
         }

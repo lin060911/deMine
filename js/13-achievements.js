@@ -4,9 +4,10 @@
  * 职责：定义全部成就，维护解锁进度与计数器，渲染成就面板，并在通关、
  *       落子、删雷、生成题库码等业务动作之后判定是否解锁新成就。
  * 依赖：对局状态 diff / SR / SC / G / ct / ts / isTutorialMode / isFreeMode /
- *       gameHardcore（00-core 与 03-timer）、M（04-mines）、hcWins（01-storage）、
- *       createPlaced / createRows / createCols（11-create）、Store（01-storage）、
- *       AudioFX（02-audio）、renderRecordList 与 closeSidebarsExcept（08-ui）。
+ *       gameHardcore / gameTetris（00-core 与 03-timer）、M（04-mines）、
+ *       hcWins / tetWins（01-storage）、createPlaced / createRows / createCols
+ *       （11-create）、Store（01-storage）、AudioFX（02-audio）、
+ *       renderRecordList 与 closeSidebarsExcept（08-ui）。
  * 对外：window.checkWinAchievements（08-ui 通关时调用）、window.Achievements
  *       （unlock / incrementCounter / renderAchievements / state，以及只读查询
  *       list / byId / unlockTime / summary）。
@@ -14,7 +15,7 @@
  *   1) 成就判定与业务逻辑分离：业务文件不知道成就系统的存在，本文件在
  *      installHooks 中包装既有全局函数，只在原有行为前后追加统计，属于
  *      可插拔的横切扩展；不加载本文件即可整体关闭成就系统。
- *   2) 数据驱动：62 个成就集中在同一张表内，添加成就只需追加数据与触发点。
+ *   2) 数据驱动：70 个成就集中在同一张表内，添加成就只需追加数据与触发点。
  *   3) 解锁时间以完整 ISO 时间戳（含 T、时分秒与 Z 后缀）保存，面板展示时再
  *      换算成本地时间；已有存档中可能出现的纯日期值 / 数字时间戳在启动时统一
  *      规范化。解锁时间、计数器与本局过程数据合并成一条 localStorage 记录，
@@ -65,7 +66,7 @@
     }, {
         // 预设难度：按难度累计通关与首次通关
         id: "easy_10",
-        cat: "预设难度",
+        cat: "经典",
         emoji: "🥬",
         name: "小菜一碟",
         desc: "简单难度通关10次",
@@ -74,7 +75,7 @@
         target: 10
     }, {
         id: "medium_10",
-        cat: "预设难度",
+        cat: "经典",
         emoji: "🍗",
         name: "大菜一碟",
         desc: "中等难度通关10次",
@@ -83,7 +84,7 @@
         target: 10
     }, {
         id: "hard_first",
-        cat: "预设难度",
+        cat: "经典",
         emoji: "🥱",
         name: "难？困。。。",
         desc: "首次通关困难难度",
@@ -91,7 +92,7 @@
         type: "once"
     }, {
         id: "hard_10",
-        cat: "预设难度",
+        cat: "经典",
         emoji: "🤕",
         name: "头有点痒",
         desc: "困难难度通关10次",
@@ -100,7 +101,7 @@
         target: 10
     }, {
         id: "hell_first",
-        cat: "预设难度",
+        cat: "经典",
         emoji: "😈",
         name: "勇往直下",
         desc: "首次通关地狱难度",
@@ -108,7 +109,7 @@
         type: "once"
     }, {
         id: "hell_7",
-        cat: "预设难度",
+        cat: "经典",
         emoji: "👿",
         name: "地狱客厅",
         desc: "地狱累计通关10次",
@@ -117,7 +118,7 @@
         target: 10
     }, {
         id: "brain_first",
-        cat: "预设难度",
+        cat: "经典",
         emoji: "🫢",
         name: "这不是外挂？？",
         desc: "首次通关脑王难度",
@@ -125,7 +126,7 @@
         type: "once"
     }, {
         id: "brain_10",
-        cat: "预设难度",
+        cat: "经典",
         emoji: "🐮",
         name: "666，这个入是桂",
         desc: "脑王累计通关10次",
@@ -205,7 +206,7 @@
     }, {
         // 速通系列：在预设难度下用更短的时间通关
         id: "speed_easy",
-        cat: "速通系列",
+        cat: "速通",
         emoji: "⏱️",
         name: "颗秒!",
         desc: "简单难度通关＜7秒",
@@ -214,7 +215,7 @@
         target: 7e3
     }, {
         id: "speed_medium",
-        cat: "速通系列",
+        cat: "速通",
         emoji: "⚡",
         name: "借过!",
         desc: "中等难度通关＜25秒",
@@ -223,7 +224,7 @@
         target: 25e3
     }, {
         id: "speed_hard",
-        cat: "速通系列",
+        cat: "速通",
         emoji: "👎",
         name: "ez",
         desc: "困难难度通关＜60秒",
@@ -232,7 +233,7 @@
         target: 6e4
     }, {
         id: "speed_hell",
-        cat: "速通系列",
+        cat: "速通",
         emoji: "😈",
         name: "地狱归来",
         desc: "地狱难度通关＜3分钟",
@@ -241,7 +242,7 @@
         target: 18e4
     }, {
         id: "speed_brain",
-        cat: "速通系列",
+        cat: "速通",
         emoji: "🧠",
         name: "脑力王",
         desc: "脑王难度通关＜5分钟",
@@ -250,13 +251,15 @@
         target: 3e5
     }, {
         id: "speed_all",
-        cat: "速通系列",
+        cat: "速通",
         emoji: "🏁",
         name: "最速傳說",
-        desc: "5个预设难度，最佳成绩加起来<555秒",
+        desc: "5个经典难度，最佳成绩加起来<555秒",
         tip: "反向掃雷最速伝說の五項目",
         type: "special",
         check: function() {
+            // 速通总成就只判定经典玩法：硬核 / 俄罗斯方块局的成绩不计入速通
+            if (gameHardcore || gameTetris) return false;
             // 五项预设难度都要有最佳成绩，且总和低于 555 秒
             let sum = 0;
             let hasAll = true;
@@ -673,15 +676,92 @@
         type: "count",
         target: 100,
         hidden: true
+    }, /* ---------- 4.2 成就数据表（六）：俄罗斯方块玩法 ---------- */
+      {
+        // 俄罗斯方块玩法成就：判定口径为开局快照 gameTetris，自由局不计入预设
+        id: "Tetris_first",
+        cat: "🐻 俄罗斯方块",
+        emoji: "🐻‍❄️",
+        name: "Polar!",
+        desc: "首次通关任意预设难度俄罗斯方块",
+        tip: "秦始皇骑北极熊~",
+        type: "special",
+        check: function() {
+            // 与硬核首次通关同构：快照为真且存在真实难度键
+            return !!(gameTetris && diff && !isFreeMode);
+        }
+    }, {
+        id: "Tetris_10",
+        cat: "🐻 俄罗斯方块",
+        emoji: "🥔",
+        name: "永冻土",
+        desc: "累计通关10次俄罗斯方块预设难度",
+        tip: "西伯利亚挖土豆",
+        type: "count",
+        target: 10
+    }, {
+        id: "Tetris_easy",
+        cat: "🐻 俄罗斯方块",
+        emoji: "🪆",
+        name: "禁止禁止套娃",
+        desc: "俄罗斯方块通关简单",
+        tip: "“反弹！”“反弹你的反弹！”“反弹你反弹我的反弹！”",
+        type: "once"
+    }, {
+        id: "Tetris_medium",
+        cat: "🐻 俄罗斯方块",
+        emoji: "🥃",
+        name: "左手伏特加",
+        desc: "俄罗斯方块通关中等",
+        tip: "Shaken,not stirred ——007",
+        type: "once"
+    }, {
+        id: "Tetris_hard",
+        cat: "🐻 俄罗斯方块",
+        emoji: "🪖",
+        name: "右手波波沙",
+        desc: "俄罗斯方块通关困难",
+        tip: "PPSh-41 900RPM 71rounds",
+        type: "once"
+    }, {
+        id: "Tetris_hell",
+        cat: "🐻 俄罗斯方块",
+        emoji: "🪗",
+        name: "唱着喀秋莎",
+        desc: "俄罗斯方块通关地狱",
+        tip: "《Катюша》? BM-13 Rocket Artillery",
+        type: "once"
+    }, {
+        id: "Tetris_brain",
+        cat: "🐻 俄罗斯方块",
+        emoji: "🫡",
+        name: "高声喊Ура!",
+        desc: "俄罗斯方块通关脑王",
+        tip: "今天政委不在家",
+        type: "once"
+    }, {
+        id: "hidden_Tetris_free_20",
+        cat: "隐藏",
+        emoji: "🧸",
+        name: "抱一个",
+        desc: "俄罗斯方块模式通关20行×10列自由棋盘",
+        tip: "毛绒绒的俄罗斯方块",
+        type: "special",
+        hidden: true,
+        check: function() {
+            // 矩形自由棋盘：行数 20、列数 10，玩法快照为俄罗斯方块
+            return !!(gameTetris && isFreeMode && SR === 20 && SC === 10);
+        }
     } ];
 
     /* ---------- 4.5 与存档编码表的一致性校验 ---------- */
 
     /**
      * 校验成就数据表与 00-core 的 RM.ACH_IDS 编码表是否一致。
-     * 存档位图按 RM.ACH_IDS 的数组下标编码，两者的数量或顺序不一致会让解锁
-     * 状态错位，因此这里在初始化阶段做一次校验；只记录警告，不抛错、不改数据，
-     * 缺少 RM.ACH_IDS 时直接跳过。
+     * 存档位图按 RM.ACH_IDS 的数组下标编码，解码时再按 id 回查，因此真正
+     * 需要保证的是「两张表的 id 集合完全相同且各自无重复」；表内展示顺序
+     * 与位序可以不同（历史版本的位序与面板分组顺序本来就不一致，重排位序
+     * 会让旧存档的解锁状态错位）。只记录警告，不抛错、不改数据。
      * @sideeffect 不一致时写入一条 RM.warn 记录（标记 "achievements:ids"）。
      */
     function verifyAchievementIds() {
@@ -690,10 +770,14 @@
             let canonical = window.RM.ACH_IDS;
             if (!Array.isArray(canonical)) return;
             let ids = ACHIEVEMENTS.map(a => a.id);
-            let same = ids.length === canonical.length && ids.every(function(id, i) {
-                return id === canonical[i];
-            });
-            if (!same) RM.warn("achievements:ids", "成就 id 顺序与存档编码表不一致");
+            let dupCanonical = canonical.filter(function(id, i) { return canonical.indexOf(id) !== i; });
+            let dupTable = ids.filter(function(id, i) { return ids.indexOf(id) !== i; });
+            let sameSet = ids.length === canonical.length &&
+                ids.every(function(id) { return canonical.indexOf(id) >= 0; }) &&
+                canonical.every(function(id) { return ids.indexOf(id) >= 0; });
+            if (!sameSet || dupCanonical.length || dupTable.length) {
+                RM.warn("achievements:ids", "成就 id 集合与存档编码表不一致（表内顺序可以不同）");
+            }
         } catch (e) {}
     }
     // 本文件在 00-core 之后加载，IIFE 初始化阶段即可完成校验
@@ -927,7 +1011,9 @@
         [ "easy", "medium", "hard", "hell", "brain" ].forEach(function(d) {
             if (rec[d]) sumTime += rec[d]; else hasAllRec = false;
         });
-        if (hasAllRec && sumTime > 0 && sumTime < 555e3) unlock("speed_all");
+        // 五个预设难度的最佳成绩之和低于 555 秒时解锁速通总成就；
+        // 与分类口径一致，只判定经典玩法（硬核 / 骨牌局不触发）
+        if (!gameHardcore && !gameTetris && hasAllRec && sumTime > 0 && sumTime < 555e3) unlock("speed_all");
         // 扫描本局题目的期望值，判断是否同时出现正 / 零 / 负三种数值
         let hasPos = false, hasZero = false, hasNeg = false;
         for (let r = 0; r < SR; r++) for (let c = 0; c < SC; c++) {
@@ -935,21 +1021,24 @@
             if (v > 0) hasPos = true; else if (v < 0) hasNeg = true; else hasZero = true;
         }
         if (hasPos && hasZero && hasNeg) unlock("red_green_light");
-        // 预设难度专属：按难度累计通关次数，并检查限时与"一把过"成就
+        // 经典玩法专属：按难度累计通关次数，并检查限时与"一把过"成就。
+        // 硬核与俄罗斯方块玩法各有独立分组，不能把本局计入"经典"类成就。
         if (diff && !isFreeMode) {
-            if (diff === "easy") incrementCounter("easy_10");
-            if (diff === "medium") incrementCounter("medium_10");
-            if (diff === "hard") {
-                incrementCounter("hard_10");
-                unlock("hard_first");
-            }
-            if (diff === "hell") {
-                unlock("hell_first");
-                incrementCounter("hell_7");
-            }
-            if (diff === "brain") {
-                unlock("brain_first");
-                incrementCounter("brain_10");
+            if (!gameHardcore && !gameTetris) {
+                if (diff === "easy") incrementCounter("easy_10");
+                if (diff === "medium") incrementCounter("medium_10");
+                if (diff === "hard") {
+                    incrementCounter("hard_10");
+                    unlock("hard_first");
+                }
+                if (diff === "hell") {
+                    unlock("hell_first");
+                    incrementCounter("hell_7");
+                }
+                if (diff === "brain") {
+                    unlock("brain_first");
+                    incrementCounter("brain_10");
+                }
             }
             // 硬核预设难度：按难度记录首次硬核通关，并累计硬核总次数
             if (gameHardcore) {
@@ -969,8 +1058,27 @@
                     setCounter("hc_10", hcSum);
                 }
             }
-            // 限时成就只在有有效用时的前提下判定，避免异常计时污染结果
-            if (ct > 0) {
+            // 俄罗斯方块预设难度：记录各难度首通，并按五难度总胜场回填累计成就。
+            // 累计次数取成绩层的 tetWins 求和：08-ui 在本函数之前已把本局胜场
+            // 写入 tetWins，因此这里读到的是含本局的最新值（与 hc_10 同构）。
+            if (gameTetris) {
+                unlock("Tetris_first");
+                if (diff === "easy") unlock("Tetris_easy");
+                if (diff === "medium") unlock("Tetris_medium");
+                if (diff === "hard") unlock("Tetris_hard");
+                if (diff === "hell") unlock("Tetris_hell");
+                if (diff === "brain") unlock("Tetris_brain");
+                if (typeof tetWins !== "undefined" && tetWins) {
+                    let tetSum = 0;
+                    [ "easy", "medium", "hard", "hell", "brain" ].forEach(function(d) {
+                        tetSum += (typeof tetWins[d] === "number" ? tetWins[d] : 0);
+                    });
+                    setCounter("Tetris_10", tetSum);
+                }
+            }
+            // 限时成就只判定经典玩法，且只在有有效用时的前提下判定，
+            // 避免硬核 / 骨牌局污染速通成绩
+            if (!gameHardcore && !gameTetris && ct > 0) {
                 if (diff === "easy" && ct < 7e3) unlock("speed_easy");
                 if (diff === "medium" && ct < 25e3) unlock("speed_medium");
                 if (diff === "hard" && ct < 6e4) unlock("speed_hard");
@@ -1092,7 +1200,7 @@
             groups[a.cat].push(a);
         });
         // 分组显示顺序固定：与成就表里的 cat 取值一一对应
-        let catOrder = [ "新手村", "预设难度", "🪚 硬核", "系列道具", "速通系列", "创造模式", "累计通关", "隐藏" ];
+        let catOrder = [ "新手村", "经典", "🪚 硬核", "🐻 俄罗斯方块", "系列道具", "速通", "创造模式", "累计通关", "隐藏" ];
         let html = "";
         catOrder.forEach(cat => {
             if (!groups[cat]) return;
@@ -1134,7 +1242,7 @@
      *      的存在，成就逻辑全部收敛在本文件，便于单独阅读与维护。
      *   2) 可插拔：每个钩子都先保存原实现再调用，业务行为保持不变，只追加
      *      副作用；不调用 installHooks 即可关闭整套统计而不影响游戏。
-     *   3) 集中埋点：62 个成就的触发点在同一段代码内可见，不必在多个业务
+     *   3) 集中埋点：70 个成就的触发点在同一段代码内可见，不必在多个业务
      *      文件之间搜索分散的统计语句。
      * 安装顺序：必须在首次 newGame 前完成，这样开局就处于统计范围内；
      * 并用 _achHooksInstalled 防止重复安装，否则包装层会叠加导致重复计数。
@@ -1429,7 +1537,7 @@
     /**
      * 返回成就数据表。只返回引用、不做深拷贝，调用方必须按只读使用：
      * 修改数组或其中元素会影响成就判定，以及存档位图的编码顺序。
-     * @returns {Array<Object>} 62 条成就定义
+     * @returns {Array<Object>} 70 条成就定义
      */
     function list() {
         return ACHIEVEMENTS;

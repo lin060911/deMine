@@ -426,7 +426,7 @@
             var tetRecLoss = (ctr === null) ? false : (otr === null || otr > ctr);
             var tetRecGain = (ctr === null && mtr !== null) || (ctr !== null && mtr !== null && mtr < ctr);
             rows.push({
-                k: "🧱 俄罗斯方块·" + (DIFF_LABEL[d] || d),
+                k: "🐻 俄罗斯方块·" + (DIFF_LABEL[d] || d),
                 cur: cell(ctw + " 次", fmt(ctr)),
                 ov: cell(otw + " 次", fmt(otr)),
                 mg: cell(mtw + " 次", fmt(mtr)),
@@ -1153,10 +1153,10 @@
         }
         parts.push("</div>");
 
-        // 🧱 俄罗斯方块成绩：与硬核成绩结构一致；没有通关记录时给一句引导说明
+        // 🐻 俄罗斯方块成绩：与硬核成绩结构一致；没有通关记录时给一句引导说明
         var tet = insp.tetris || { total: 0, records: [] };
         var tetList = tet.records || [];
-        parts.push('<div class="rm-detail-sec"><div class="rm-detail-title">🧱 俄罗斯方块成绩 <small>' +
+        parts.push('<div class="rm-detail-sec"><div class="rm-detail-title">🐻 俄罗斯方块成绩 <small>' +
             (tet.total ? "累计 " + esc(tet.total + " 次") : "暂无俄罗斯方块通关") + "</small></div>");
         var tetShown = 0;
         for (var ti = 0; ti < tetList.length; ti++) {
@@ -1165,7 +1165,7 @@
             if (!ttr.wins) continue;
             tetShown++;
             var tetLastTxt = (ttr.last === null || ttr.last === undefined) ? "本次 无" : "本次 " + fmt(ttr.last);
-            parts.push(dRow("🧱 俄罗斯方块" + (DIFF_LABEL[ttr.key] || ttr.key),
+            parts.push(dRow("🐻 俄罗斯方块" + (DIFF_LABEL[ttr.key] || ttr.key),
                 "最快 " + fmt(ttr.best) + " · 通关 " + (ttr.wins || 0) + " 次（" + tetLastTxt + "）"));
         }
         if (!tetShown) {

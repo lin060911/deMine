@@ -9906,4 +9906,325 @@ body:has(.preset-start-card:not([style*="none"])) .hud-meta {
     }
 }
 
+/* ==========================================================================
+   71. V1.5.2 · 俄罗斯方块视觉改版 / 右侧常驻操作提示
+   --------------------------------------------------------------------------
+   71.1 骨牌透明度与锚点辨识度（棋盘覆盖层 + 槽位预览）
+   71.2 桌面端「棋盘 + 右侧 tips」布局，1100px 以下改为上下堆叠
+   71.3 俄罗斯方块代表色：紫 → 红（覆盖 70.x 段的紫色规则）
+   71.4 窄屏适配
+   约束：本段只新增选择器，以及对 70.x 末段组件的覆盖；骨牌自身的 7 种
+   形状配色来自 04-mines.js 的 TETRO[].color，不在此段修改，以免七种骨牌
+   彼此失去区分度。
+   ========================================================================== */
+
+/* ---- 71.1 骨牌透明度 ----
+   棋盘骨牌以 body 级 fixed 覆盖层画在格子之上，透明度越低越容易读题；
+   锚点格（骨牌自身格）保留比影响格更实一档，并加白色内高光作为识别参照。
+   槽位预览卡片背景为白色，因此透明度略高于棋盘侧，保证形状清晰可辨。 */
+body.tetris-mode .tetro-overlay .tetro-cell {
+    opacity: .32;
+}
+
+body.tetris-mode .tetro-overlay .tetro-cell.is-anchor {
+    opacity: .55;
+    box-shadow:
+        inset 0 0 0 2px rgba(255, 255, 255, .78),
+        0 0 0 1px rgba(18, 38, 58, .10);
+}
+
+.mine-item.tetro-item .tetro-shape .ts-cell.on {
+    opacity: .40;
+}
+
+.mine-item.tetro-item .tetro-shape .ts-cell.on.anchor {
+    opacity: .62;
+    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .7);
+}
+
+/* ---- 71.2 棋盘行：棋盘居中 + 右侧 tips ----
+   .board-tray 在布局骨架里是 display:contents（39 段），实际参与排版的是
+   .board-row。棋盘放在 .board-wrap 里由本行居中；桌面端 tips 绝对定位到 wrap
+   右侧、不参与排版，因此 tips 出现时棋盘仍保持在页面正中。
+   tips 默认不占位，仅本局为骨牌局（body.tetris-mode）时显示。 */
+.board-row {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+/* 棋盘自身带 margin: 0 auto；包进居中容器后改为固定外边距，
+   避免 auto 外边距吃掉行内空间、把布局挤向一侧 */
+.board-row .board {
+    margin: 0;
+}
+
+.board-wrap {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    min-width: 0;
+}
+
+.board-tips {
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    width: 220px;
+    padding: 14px 16px;
+    border: 1px solid rgba(229, 72, 77, .18);
+    border-radius: 20px;
+    background: linear-gradient(180deg, #ffffff, #fff7f7);
+    box-shadow:
+        0 12px 30px rgba(18, 38, 58, .10),
+        inset 0 1px 0 rgba(255, 255, 255, .9);
+    color: var(--rm-ink-2);
+    font-size: 12px;
+    line-height: 1.65;
+    text-align: left;
+}
+
+body.tetris-mode .board-tips {
+    display: flex;
+}
+
+/* 桌面端：tips 绝对定位贴在棋盘右侧，不占排版宽度；
+   「创造 / 设置」两个固定悬浮钮还需要约 96px 余量，右侧放不下时由
+   06-render.js#syncBoardTipsPlacement() 给 body 加 tips-stack，
+   改为棋盘在上、tips 在下的堆叠布局（棋盘位置不变） */
+@media (min-width: 1101px) {
+    body.tetris-mode .board-tips {
+        position: absolute;
+        top: 0;
+        left: calc(100% + 18px);
+    }
+
+    body.tetris-mode.tips-stack .board-wrap {
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+    }
+
+    body.tetris-mode.tips-stack .board-tips {
+        position: static;
+        width: min(100%, 520px);
+    }
+}
+
+.board-tips-head {
+    color: #b03030;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: .02em;
+}
+
+.board-tips-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.board-tips-list li {
+    position: relative;
+    padding-left: 12px;
+}
+
+.board-tips-list li::before {
+    content: "";
+    position: absolute;
+    left: 2px;
+    top: .62em;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: rgba(229, 72, 77, .55);
+}
+
+.board-tips-list b {
+    color: var(--rm-ink);
+    font-weight: 700;
+}
+
+.board-tips-note {
+    margin-top: 2px;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(229, 72, 77, .25);
+    color: var(--rm-ink-4);
+    font-size: 11px;
+}
+
+/* ---- 71.3 代表色：紫 → 红 ----
+   只替换「模式级」紫色：开关、提示文字、成绩筛选、成绩子行、待开始卡片与
+   玩法分区底色。紫色 fallback 一并改为红色，避免个别节点缺 --tc 时回退成紫。 */
+#HardcoreSection #tetrisToggle:not(.on) {
+    background: #fdeaea;
+    box-shadow: inset 0 1px 3px rgba(160, 64, 64, .12);
+}
+
+#HardcoreSection #tetrisToggle.on {
+    background: linear-gradient(180deg, #ff8b8b, #e5484d);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, .06), 0 2px 6px rgba(229, 72, 77, .30);
+}
+
+#HardcoreSection #tetrisHint.tetris-on {
+    color: #c0392b;
+}
+
+/* 玩法分区（硬核 + 俄罗斯方块）底色改为中性蓝白，标题用钢蓝；
+   骨牌行不再把整块分区染成紫色，改用开关与卡片上的红色强调 */
+.game-modal-body #HardcoreSection {
+    background: linear-gradient(180deg, #ffffff, #f7fbff);
+    border-color: rgba(74, 134, 200, .16);
+}
+
+.game-modal-body #HardcoreSection .hardcore-title {
+    color: #2c5282;
+}
+
+.record-filter-tab.active[data-mode="tetris"] {
+    background: linear-gradient(180deg, #ff8b8b, #e5484d);
+    box-shadow: 0 2px 8px rgba(229, 72, 77, .28);
+}
+
+/* 成绩卡内的俄罗斯方块子行：由青绿改为与代表色一致的红色 */
+#achRecordList > .record-item .record-tet {
+    border-top-color: rgba(192, 57, 43, .30);
+}
+
+#achRecordList > .record-item .record-tet .record-label {
+    color: #c0392b;
+}
+
+#achRecordList > .record-item .record-tet .record-badge {
+    background: rgba(192, 57, 43, .14);
+    color: #c0392b;
+}
+
+#achRecordList > .record-item:has(.record-tet),
+#achRecordList > .record-item[data-mode="tetris"],
+#recSection.filter-tetris #achRecordList > .record-item {
+    box-shadow: inset 0 0 0 1px rgba(192, 57, 43, .18);
+}
+
+#achRecordList > .record-item:has(.record-tet):hover,
+#achRecordList > .record-item[data-mode="tetris"]:hover,
+#recSection.filter-tetris #achRecordList > .record-item:hover {
+    box-shadow:
+        inset 0 0 0 1px rgba(192, 57, 43, .18),
+        0 4px 14px rgba(18, 38, 58, .06);
+}
+
+/* 待开始卡片：骨牌模式顶部色条与模式胶囊改红 */
+.preset-start-card.mode-tetris::before {
+    background: linear-gradient(90deg, #ff9a9a, #e5484d, #c0392b);
+}
+
+.preset-start-mode.mode-tetris {
+    background: rgba(229, 72, 77, .13);
+    box-shadow: inset 0 0 0 1px rgba(229, 72, 77, .28);
+    color: #b03030;
+}
+
+/* 骨牌组件里遗留的紫色 fallback / hover / 焦点色 */
+.mine-item.tetro-item .tetro-rotate {
+    border-color: var(--tc, rgba(229, 72, 77, .55));
+}
+
+.mine-item.tetro-item .tetro-rotate:hover {
+    background: #fff1f1;
+}
+
+.mine-item.tetro-item .tetro-rotate:focus-visible {
+    outline-color: rgba(229, 72, 77, .5);
+}
+
+.mine-item.tetro-item .tetro-shape .ts-cell.on {
+    background: var(--tc, #e5484d);
+    border-color: var(--tc, #e5484d);
+}
+
+.tetro-overlay .tetro-cell {
+    border-color: var(--tc, #e5484d);
+    background: var(--tc, #e5484d);
+}
+
+/* ---- 71.4 窄屏适配 ----
+   ≤1100px：没有棋盘右侧空间，.board-wrap 退化为 display:contents，
+   棋盘与 tips 变成 .board-row 的两个子项，按列堆叠、棋盘仍居中；
+   ≤700px：tips 与棋盘同宽，字号略收，圆角与底部抽屉语言一致。 */
+@media (max-width: 1100px) {
+    .board-wrap {
+        display: contents;
+    }
+
+    .board-row {
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .board-tips {
+        width: min(100%, 520px);
+        padding: 12px 14px;
+        border-radius: 18px;
+    }
+}
+
+@media (max-width: 700px) {
+    .board-row {
+        gap: 10px;
+    }
+
+    /* 窄屏没有"棋盘右侧"可用空间：tips 改为棋盘下方的一条横向滑动信息条，
+       避免纵向占位把地雷槽挤出首屏 */
+    .board-tips {
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        padding: 9px 12px;
+        border-radius: 16px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .board-tips::-webkit-scrollbar {
+        display: none;
+    }
+
+    .board-tips-head {
+        flex: 0 0 auto;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+
+    .board-tips-list {
+        flex: 0 0 auto;
+        flex-direction: row;
+        gap: 8px;
+    }
+
+    .board-tips-list li {
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: rgba(229, 72, 77, .07);
+        font-size: 11px;
+        line-height: 1.5;
+        white-space: nowrap;
+    }
+
+    .board-tips-list li::before {
+        display: none;
+    }
+
+    .board-tips-note {
+        display: none;
+    }
+}
+
 

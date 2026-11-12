@@ -46,9 +46,14 @@
     /* 容器格式与数据结构号：两者独立演进，一起写进存档便于排查 */
     var FORMAT = 2;
     var SCHEMA = 2;
-    /* 数据结构号：payload 首字节。递增后旧版 payload 会在 decodePayload 被拒绝，
-     * 读取端按"主档 → 备份档 → 默认值"回退，不保留旧结构解码分支。 */
-    var DATA_VERSION = 2;
+    /* 数据结构号：payload 首字节。版本 3 起成就位图按 RM.ACH_IDS 的实际条数
+     * 计算字节数（70 条 → 9 字节）；版本 2 的旧档仍按 62 条（8 字节）解码，
+     * 由 decodePayload 把版本传给 decodeAchievements，实现旧档原地兼容。 */
+    var DATA_VERSION = 3;
+
+    /* 版本 2 存档的成就条数：当时的 RM.ACH_IDS 固定 62 条（位图 8 字节）。
+     * 只用于兼容分支，不随新成就增加而改变。 */
+    var LEGACY_ACH_COUNT_V2 = 62;
 
     /* 容器布局：magic(4) + format(1) + flags(1) + payloadLen(2) + nonce(8)
      * = 16 字节头；尾部固定 32 字节 HMAC-SHA256 */
@@ -943,10 +948,13 @@
 
     /**
      * 解码成就状态；present=0 时不写入 achievementState_v1。
+     * 位图字节数依赖存档版本：版本 2 按当时的 62 条固定 8 字节，版本 3 起
+     * 按当前 RM.ACH_IDS 长度推导，保证旧档可以原样读入。
      * @param {Reader} r 读取器
      * @param {Object} map 目标 rawMap
+     * @param {number} dataVersion payload 的数据结构号
      */
-    function decodeAchievements(r, map) {
+    function decodeAchievements(r, map, dataVersion) {
         if (r.u8() === 0) return;
         var flags = r.u8();
         var catMask = r.u8();
@@ -954,7 +962,8 @@
         var nightWins = r.varint();
         var sharedWins = r.varint();
         var ids = ACH_IDS || [];
-        var nBytes = Math.ceil(ids.length / 8);
+        var bitCount = dataVersion < 3 ? LEGACY_ACH_COUNT_V2 : ids.length;
+        var nBytes = Math.ceil(bitCount / 8);
         var bits = r.bytes(nBytes);
         var unlocked = {}, counters = {}, basicTypesUsed = {};
         var i, idx, ts, prevTs = 0, marker, id;
@@ -1254,7 +1263,9 @@
     function decodePayload(payload) {
         var r = new Reader(payload);
         var dataVersion = r.u8();
-        if (dataVersion !== DATA_VERSION) {
+        /* 版本 2 为旧存档（成就位图 8 字节），版本 3 起位图长度随成就条数变化；
+         * 两个版本都能读入，旧档首次保存后自动写成当前版本。 */
+        if (dataVersion !== DATA_VERSION && dataVersion !== DATA_VERSION - 1) {
             throw new Error("数据结构版本不兼容（v" + dataVersion + "）");
         }
         var schema = r.u8();
@@ -1264,7 +1275,7 @@
         var savedAtSec = r.u32();
         var map = {};
         decodeRecords(r, map);
-        decodeAchievements(r, map);
+        decodeAchievements(r, map, dataVersion);
         decodeChallenges(r, map);
         decodeSeries(r, map);
         decodeSettings(r, map);

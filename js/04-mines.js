@@ -977,8 +977,9 @@ const TETRO = {
 
 /**
  * 取某种骨牌在指定朝向下的四格偏移（相对锚点）。
- * 旋转规则：以锚点为轴顺时针旋转，屏幕坐标下 (dr,dc) -> (dc,-dr)；
- * O 形四格对称，任何朝向都返回初始形状，避免绕角旋转产生位置漂移。
+ * 旋转规则：所有骨牌统一以锚点为轴顺时针旋转，屏幕坐标下 (dr,dc) -> (dc,-dr)；
+ * O 形也按同一规则旋转（锚点固定在某角，旋转后其余三格换到相邻象限），
+ * 这样槽位预览与棋盘上的双击旋转对 O 同样生效。
  * @param {string} type 骨牌 key（I/O/J/L/S/Z/T）
  * @param {number} [rot=0] 朝向 0~3，顺时针递增
  * @returns {number[][]} 四组 [dr,dc]，首项为锚点 [0,0]
@@ -988,7 +989,7 @@ function tetroCells(type, rot) {
     if (!meta) return [];
     const base = meta.cells;
     const n = ((rot | 0) % 4 + 4) % 4;
-    if (type === "O" || n === 0) return base.map(c => [ c[0], c[1] ]);
+    if (n === 0) return base.map(c => [ c[0], c[1] ]);
     let out = base.map(c => [ c[0], c[1] ]);
     for (let i = 0; i < n; i++) {
         out = out.map(c => [ c[1], -c[0] ]);

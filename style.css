@@ -396,29 +396,8 @@ body.brain-golden .bg-mine-ghost {
     100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* 规则条：毛玻璃表面（半透明白 + blur + 提饱和），在渐变背景上保持文字可读 */
-.rule {
-    max-width: min(100%, 560px);
-    margin: 12px auto 0;
-    padding: 9px 18px;
-    border-radius: 16px;
-    background: rgba(255, 255, 255, .62);
-    border: 1px solid rgba(255, 255, 255, .82);
-    box-shadow: 0 1px 2px rgba(18, 38, 58, .03);
-    -webkit-backdrop-filter: blur(16px) saturate(150%);
-    backdrop-filter: blur(16px) saturate(150%);
-    color: var(--rm-ink-2);
-    font-size: 13px;
-    line-height: 1.75;
-    letter-spacing: .01em;
-    animation: titleFadeIn 1.1s var(--rm-spring) .08s both;
-}
-
-.rule b {
-    color: var(--rm-blue-deep);
-    font-weight: 700;
-}
-
+/* 规则条容器与「⚙️切换」链接的通用样式：.rule 容器已随操作 tips 迁到棋盘右侧
+   而移除，只保留仍被 `.board-tips-note` 复用的 .rule-mode-link */
 .rule-mode-link {
     color: var(--rm-blue);
     cursor: pointer;
@@ -4123,14 +4102,6 @@ body.drag-mode .cell.mine-here {
         letter-spacing: -.015em;
     }
 
-    .rule {
-        margin-top: 10px;
-        padding: 8px 12px;
-        border-radius: 14px;
-        font-size: 11.5px;
-        line-height: 1.65;
-    }
-
     .hud {
         padding: 6px;
         border-radius: 22px;
@@ -4715,30 +4686,6 @@ body > footer.sidebar-version {
     line-height: normal;
     text-shadow: 0 2px 4px rgba(0, 0, 0, .08), 0 4px 12px rgba(66, 153, 225, .08);
     animation: titleFadeIn 1.2s cubic-bezier(.34, 1.56, .64, 1) both;
-}
-
-.rule {
-    max-width: none;
-    margin: 0 0 18px;
-    padding: 0;
-    border: 0;
-    border-radius: 0;
-    background: none;
-    box-shadow: none;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-    color: #4a5568;
-    font-size: 16px;
-    font-weight: 400;
-    line-height: normal;
-    letter-spacing: normal;
-    text-align: center;
-    animation: titleFadeIn 1.4s cubic-bezier(.34, 1.56, .64, 1) .2s both;
-}
-
-.rule b {
-    color: inherit;
-    font-weight: 700;
 }
 
 .rule-mode-link {
@@ -6043,13 +5990,6 @@ body > footer.sidebar-version {
         margin: 8px 0 6px;
         font-size: 34px;
         letter-spacing: 1px;
-    }
-
-    .rule {
-        margin-bottom: 10px;
-        padding: 0 4px;
-        font-size: 12px;
-        line-height: 1.7;
     }
 
     .panel {
@@ -9942,11 +9882,16 @@ body.tetris-mode .tetro-overlay .tetro-cell.is-anchor {
     box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .7);
 }
 
-/* ---- 71.2 棋盘行：棋盘居中 + 右侧 tips ----
+/* ---- 71.2 棋盘行：棋盘居中 + 右侧常驻 tips ----
    .board-tray 在布局骨架里是 display:contents（39 段），实际参与排版的是
-   .board-row。棋盘放在 .board-wrap 里由本行居中；桌面端 tips 绝对定位到 wrap
-   右侧、不参与排版，因此 tips 出现时棋盘仍保持在页面正中。
-   tips 默认不占位，仅本局为骨牌局（body.tetris-mode）时显示。 */
+   .board-row。棋盘放在 .board-wrap 里由本行居中；桌面端 tips 列绝对定位到
+   wrap 右侧、不参与排版，因此 tips 出现时棋盘仍保持在页面正中。
+   tips 列同一时间只显示一张卡：经典 / 硬核 / 自由等模式显示蓝色「操作 tips」；
+   骨牌局（body.tetris-mode）改为显示红色「俄罗斯方块模式tips」并隐藏操作 tips
+   （两张卡不叠加，避免纵向两张卡把右侧空间挤得过满）。
+   极小棋盘的骨牌局里单张骨牌卡仍可能纵向伸到地雷槽范围，横向间距由
+   06-render.js#syncBoardTipsPlacement() 按地雷槽右缘动态让开，避免被槽位面板遮挡。
+   tips 列只在主棋盘托盘可见时出现（创造 / 待开局 / 加载中随托盘一起隐藏）。 */
 .board-row {
     display: flex;
     justify-content: center;
@@ -9967,8 +9912,16 @@ body.tetris-mode .tetro-overlay .tetro-cell.is-anchor {
     min-width: 0;
 }
 
+/* 右侧 tips 列：始终上下排列、列宽与单张卡一致；桌面端绝对定位到棋盘右侧 */
+.board-tips-col {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 220px;
+}
+
 .board-tips {
-    display: none;
+    display: flex;
     flex-direction: column;
     gap: 8px;
     width: 220px;
@@ -9985,30 +9938,45 @@ body.tetris-mode .tetro-overlay .tetro-cell.is-anchor {
     text-align: left;
 }
 
-body.tetris-mode .board-tips {
+/* 骨牌 tips 只在骨牌局显示；操作 tips 默认常驻，但骨牌局改为隐藏（不叠加两张卡） */
+.tetris-tips {
+    display: none;
+}
+
+body.tetris-mode .tetris-tips {
     display: flex;
 }
 
-/* 桌面端：tips 绝对定位贴在棋盘右侧，不占排版宽度；
-   「创造 / 设置」两个固定悬浮钮还需要约 96px 余量，右侧放不下时由
-   06-render.js#syncBoardTipsPlacement() 给 body 加 tips-stack，
-   改为棋盘在上、tips 在下的堆叠布局（棋盘位置不变） */
+body.tetris-mode .ops-tips {
+    display: none;
+}
+
+/* 桌面端：tips 列绝对定位贴在棋盘右侧（列宽固定 220），不占排版宽度；
+   `--tips-gap` 由 06-render.js#syncBoardTipsPlacement() 按地雷槽右缘动态写入
+   （仅极小棋盘的单张骨牌卡与槽位纵向相交时右移让开，常规对局保持 18px）。
+   「创造 / 设置」两个固定悬浮钮（共约 62px）会占住最右侧，右侧放不下时由
+   syncBoardTipsPlacement() 给 body 加 tips-stack，改为棋盘在上、tips 在下的
+   堆叠布局（棋盘位置不变） */
 @media (min-width: 1101px) {
-    body.tetris-mode .board-tips {
+    .board-tips-col {
         position: absolute;
         top: 0;
-        left: calc(100% + 18px);
+        left: calc(100% + var(--tips-gap, 18px));
     }
 
-    body.tetris-mode.tips-stack .board-wrap {
+    body.tips-stack .board-wrap {
         flex-direction: column;
         align-items: center;
         gap: 12px;
     }
 
-    body.tetris-mode.tips-stack .board-tips {
+    body.tips-stack .board-tips-col {
         position: static;
         width: min(100%, 520px);
+    }
+
+    body.tips-stack .board-tips {
+        width: 100%;
     }
 }
 
@@ -10055,6 +10023,29 @@ body.tetris-mode .board-tips {
     border-top: 1px dashed rgba(229, 72, 77, .25);
     color: var(--rm-ink-4);
     font-size: 11px;
+}
+
+/* 操作 tips：蓝色版面，与骨牌 tips 的红色系区分。
+   只覆盖颜色相关属性，尺寸 / 排版沿用 .board-tips 与 71.4 的窄屏规则 */
+.ops-tips {
+    border-color: rgba(47, 127, 235, .24);
+    background: linear-gradient(180deg, #ffffff, #f3f8ff);
+    box-shadow:
+        0 12px 30px rgba(18, 38, 58, .10),
+        inset 0 1px 0 rgba(255, 255, 255, .9);
+}
+
+.ops-tips .board-tips-head {
+    color: var(--rm-blue-deep);
+}
+
+.ops-tips .board-tips-list li::before {
+    background: rgba(47, 127, 235, .6);
+}
+
+.ops-tips .board-tips-note {
+    border-top-color: rgba(47, 127, 235, .3);
+    color: #5c7591;
 }
 
 /* ---- 71.3 代表色：紫 → 红 ----
@@ -10154,7 +10145,8 @@ body.tetris-mode .board-tips {
 
 /* ---- 71.4 窄屏适配 ----
    ≤1100px：没有棋盘右侧空间，.board-wrap 退化为 display:contents，
-   棋盘与 tips 变成 .board-row 的两个子项，按列堆叠、棋盘仍居中；
+   棋盘与 tips 列变成 .board-row 的两个子项，按列堆叠、棋盘仍居中；
+   两张 tips 卡在同列内继续上下排列，各占满列宽；
    ≤700px：tips 与棋盘同宽，字号略收，圆角与底部抽屉语言一致。 */
 @media (max-width: 1100px) {
     .board-wrap {
@@ -10167,8 +10159,12 @@ body.tetris-mode .board-tips {
         gap: 12px;
     }
 
-    .board-tips {
+    .board-tips-col {
         width: min(100%, 520px);
+    }
+
+    .board-tips {
+        width: 100%;
         padding: 12px 14px;
         border-radius: 18px;
     }
@@ -10177,6 +10173,10 @@ body.tetris-mode .board-tips {
 @media (max-width: 700px) {
     .board-row {
         gap: 10px;
+    }
+
+    .board-tips-col {
+        gap: 8px;
     }
 
     /* 窄屏没有"棋盘右侧"可用空间：tips 改为棋盘下方的一条横向滑动信息条，
@@ -10802,5 +10802,640 @@ body.tetris-mode .board-tips {
         animation: none !important;
     }
 }
+
+/* ==========================================================================
+ * 73. 移动端右上角胶囊按钮尺寸统一（V1.5.4）
+ *   73.1 ≤700px：全屏 / 音乐两个按钮统一为 64×32
+ * 约束：只覆盖 59.1（.rm-fullscreen-btn）与 72.1（.bili-stage）在窄屏下的
+ *       尺寸与间距；桌面端 72×36 与展开态面板尺寸不变，图标 + 文字水平居中。
+ *       音乐按钮始终位于全屏按钮正下方、右边缘对齐，两按钮间距 8px。
+ * ========================================================================== */
+
+@media (max-width: 700px) {
+    .rm-fullscreen-btn,
+    .bili-stage {
+        width: 64px;
+        height: 32px;
+    }
+
+    /* 固定宽度后去掉左右内边距并居中内容，避免图标贴边 */
+    .rm-fullscreen-btn {
+        justify-content: center;
+        padding: 0;
+    }
+
+    /* 全屏按钮高 32、top 8 → 下边缘 40，音乐按钮留 8px 间距 */
+    .bili-stage {
+        top: max(48px, calc(env(safe-area-inset-top, 0px) + 48px));
+        right: max(8px, env(safe-area-inset-right, 0px));
+    }
+
+    /* 与「全屏」按钮同字号与图标间距；64×32 放得下「图标 + 两字文案」 */
+    .bili-launcher {
+        gap: 6px;
+        font-size: 11px;
+    }
+}
+
+
+/* ==========================================================================
+ * 74. 启动界面 / 标题转场 / 游玩布局对齐
+ * --------------------------------------------------------------------------
+ * 74.1 启动层与欢迎文案：首帧隐藏游玩 UI，居中大标题 + 闪烁开始提示
+ * 74.2 标题转场动效：💣 飞行爆炸烟雾 / 😎 墨镜接回（节点由 18-splash.js 生成）
+ * 74.3 游玩态布局：标题固定左上角；主按钮条 + 棋盘 + 地雷槽整块竖直居中
+ * 74.4 手机端简化（≤700px）
+ * 74.5 动效偏好 prefers-reduced-motion 覆盖
+ * 约束：规则统一以 body.startup / body.playing / body.transitioning / body.play-in
+ *       为前缀，只覆盖不删除既有规则，老版本样式可直接回退；转场临时节点全部
+ *       位于 #splashFx（fixed + pointer-events:none），不影响真实布局。
+ * ========================================================================== */
+
+/* ---- 74.1 启动层与欢迎文案 ---- */
+
+/* 启动层：固定铺满视口，层级低于侧栏（997）/ 抽屉（998）/ 弹窗（≥999），
+   高于正文与背景层；背景为半透明柔光，转场中仍能看到页面底色过渡 */
+.splash {
+    position: fixed;
+    inset: 0;
+    z-index: 900;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    padding: max(24px, env(safe-area-inset-top, 0px)) 24px max(24px, env(safe-area-inset-bottom, 0px));
+    overflow: hidden;
+    background:
+        radial-gradient(circle at 50% 36%,
+            rgba(255, 255, 255, .97) 0%,
+            rgba(255, 255, 255, .82) 32%,
+            rgba(233, 246, 238, .66) 60%,
+            rgba(214, 238, 246, .46) 100%);
+    transition: opacity .22s ease;
+}
+
+/* 背景光斑：缓慢呼吸，给大标题垫一层柔光 */
+.splash-glow {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: min(1280px, 120vw);
+    height: min(780px, 96vh);
+    border-radius: 50%;
+    background:
+        radial-gradient(closest-side,
+            rgba(255, 255, 255, .95),
+            rgba(190, 236, 176, .42) 46%,
+            rgba(120, 200, 236, .16) 72%,
+            transparent 100%);
+    filter: blur(18px);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    animation: splashGlowPulse 4.6s ease-in-out infinite alternate;
+}
+
+@keyframes splashGlowPulse {
+    0%   { opacity: .72; transform: translate(-50%, -50%) scale(.94); }
+    100% { opacity: 1;   transform: translate(-50%, -50%) scale(1.06); }
+}
+
+/* 大标题：三段式「反向 / 💣 / 扫雷」横向排满视口中部 */
+.splash-title {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    color: #1b2a33;
+    font-size: clamp(64px, 9.2vw, 128px);
+    font-weight: 900;
+    letter-spacing: clamp(2px, .3vw, 6px);
+    line-height: 1.05;
+    white-space: nowrap;
+    text-shadow: 0 2px 0 rgba(255, 255, 255, .8), 0 18px 52px rgba(18, 38, 58, .16);
+    animation: splashTitleIn .8s cubic-bezier(.34, 1.56, .64, 1) both;
+}
+
+.splash-word {
+    display: inline-block;
+}
+
+/* 标题里的地雷 / 墨镜：轻微上下晃动，是启动层唯一的持续动效主体 */
+.splash-emoji {
+    display: inline-block;
+    margin: 0 .04em;
+    font-size: .92em;
+    line-height: 1;
+    filter: drop-shadow(0 14px 26px rgba(18, 38, 58, .18));
+    animation: splashEmojiBob 2.6s ease-in-out infinite;
+}
+
+@keyframes splashEmojiBob {
+    0%, 100% { transform: translateY(0) rotate(-3deg); }
+    50%      { transform: translateY(-8px) rotate(3deg); }
+}
+
+@keyframes splashTitleIn {
+    0%   { opacity: 0; transform: translateY(16px) scale(.96); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* 欢迎文案：玻璃胶囊；首次访问与回访两套文案由 18-splash.js 写入纯文本 */
+.splash-welcome {
+    position: relative;
+    z-index: 1;
+    max-width: min(660px, 88vw);
+    margin: 0;
+    padding: 10px 22px;
+    border: 1px solid rgba(255, 255, 255, .82);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .64);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    backdrop-filter: blur(14px) saturate(160%);
+    box-shadow: 0 8px 26px rgba(18, 38, 58, .10), inset 0 1px 0 rgba(255, 255, 255, .7);
+    color: var(--rm-ink-2);
+    font-size: clamp(13px, 1.3vw, 17px);
+    font-weight: 600;
+    letter-spacing: .02em;
+    line-height: 1.6;
+    text-align: center;
+    animation: splashTitleIn .8s .12s cubic-bezier(.34, 1.56, .64, 1) both;
+}
+
+/* 开始提示：闪烁动画是启动层唯一的"可点"暗示（点击任意处均可开始） */
+.splash-cta {
+    position: relative;
+    z-index: 1;
+    margin-top: 6px;
+    padding: 10px 22px;
+    border-radius: 999px;
+    color: var(--rm-blue-deep);
+    font-size: clamp(14px, 1.2vw, 16px);
+    font-weight: 800;
+    letter-spacing: .12em;
+    animation: splashCtaBlink 1.6s ease-in-out infinite;
+}
+
+@keyframes splashCtaBlink {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: .28; }
+}
+
+/* 转场动效层：只承载 18-splash.js 创建的临时节点，隐藏时 display:none，
+   显示时固定铺满且不拦截任何指针事件（转场中面板 / 按钮仍可点） */
+.splash-fx {
+    position: fixed;
+    inset: 0;
+    z-index: 950;
+    display: none;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+/* 启动态：隐藏全部游玩 UI，只保留四侧栏按钮 / 全屏按钮 / 音乐入口 / 背景层。
+   各模块会在运行时写内联 display，因此这里必须用 !important 才能压住 */
+body.startup .hud,
+body.startup .hud-meta,
+body.startup .board-tray,
+body.startup #slot,
+body.startup .board-tips-col,
+body.startup #tutorialProgressBar,
+body.startup .teach-exit-bar,
+body.startup #boardLoading,
+body.startup .preset-start-card,
+body.startup .win,
+body.startup .game-title,
+body.startup footer.sidebar-version {
+    display: none !important;
+}
+
+/* ---- 74.2 标题转场动效 ---- */
+
+/* 临时节点公共观感：位置 / 字号由 18-splash.js 内联下发，
+   这里只统一不换行、不拦截指针、按 transform 与 opacity 做动画 */
+.splash-fx .fx {
+    position: fixed;
+    top: 0;
+    left: 0;
+    margin: 0;
+    padding: 0;
+    line-height: 1;
+    white-space: nowrap;
+    pointer-events: none;
+    will-change: transform, opacity;
+}
+
+/* 标题分片容器：定宽定高包住文字，文字在框内居中，
+   飞行时只动外框，途中换 emoji 不会引起布局回流 */
+.splash-fx .fx-part {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform-origin: 50% 50%;
+}
+
+.splash-fx .fx-part-inner {
+    display: block;
+    width: 100%;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* 爆炸：到位瞬间的 💥 冲击波，放大 + 淡出 */
+.splash-fx .fx-burst {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 140px;
+    line-height: 1;
+    filter: drop-shadow(0 0 30px rgba(255, 166, 64, .85));
+    animation: splashBurst .36s cubic-bezier(.2, .9, .25, 1.35) both;
+}
+
+@keyframes splashBurst {
+    0%   { opacity: 0; transform: scale(.25); }
+    45%  { opacity: 1; transform: scale(1.5); }
+    100% { opacity: 0; transform: scale(2.3); }
+}
+
+/* 烟雾粒子：灰白径向渐变 + 模糊，向外扩散并上飘、逐渐淡出。
+   扩散向量与延迟由 18-splash.js 用 --fx-dx / --fx-dy / --fx-delay 下发 */
+.splash-fx .fx-particle {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 42% 38%,
+        rgba(104, 116, 128, .9),
+        rgba(126, 138, 150, .52) 52%,
+        rgba(150, 160, 170, 0) 76%);
+    filter: blur(2.5px);
+    opacity: 0;
+    animation: splashSmoke .88s cubic-bezier(.18, .7, .3, 1) both;
+    animation-delay: var(--fx-delay, 0s);
+}
+
+@keyframes splashSmoke {
+    0% {
+        opacity: .85;
+        transform: translate(0, 0) scale(.9);
+    }
+    70% {
+        opacity: .38;
+    }
+    100% {
+        opacity: 0;
+        transform: translate(var(--fx-dx, 0px), var(--fx-dy, -60px)) scale(var(--fx-scale, 1.8));
+    }
+}
+
+/* 墨镜 / 手：转场里单独出现在 fx 层的 emoji 节点，动画由 WAAPI 驱动 */
+.splash-fx .fx-emoji {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    filter: drop-shadow(0 10px 22px rgba(18, 38, 58, .22));
+}
+
+/* ---- 74.3 游玩态布局 ---- */
+
+/* 游玩态大标题：固定在左上角小字号，不参与正文排版与竖直居中计算 */
+body.playing .game-title {
+    position: fixed;
+    top: max(10px, env(safe-area-inset-top, 0px));
+    left: max(16px, env(safe-area-inset-left, 0px));
+    z-index: 990;
+    margin: 0;
+    padding: 2px 4px;
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    line-height: 1.2;
+    pointer-events: none;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, .7), 0 6px 18px rgba(18, 38, 58, .10);
+    animation: none;
+}
+
+/* 竖直居中：body 是 flex 列容器，用 auto 外边距把剩余空间分给首尾两端。
+   内容超高时 auto 外边距退化为 0，不会被裁切（比绝对定位安全）。
+   块 = 主按钮条 + 状态行 + 棋盘 + 地雷槽；三行分别覆盖普通 / 教学两种形态 */
+body.playing:not(.startup) .panel {
+    margin-top: auto;
+}
+
+body.playing:not(.startup):not(.teach-mode) #slot {
+    margin-bottom: auto;
+}
+
+body.playing.teach-mode .teach-exit-bar {
+    margin-bottom: auto;
+}
+
+/* 教学态首块是两条进度条之一（主按钮条已隐藏），同样从顶部开始吃掉剩余空间 */
+body.playing:not(.startup).teach-mode #teachProgressBar,
+body.playing:not(.startup).teach-mode #tutorialProgressBar {
+    margin-top: auto;
+}
+
+/* 创造模式有自己的整页编辑布局，取消强制居中 */
+body:has(.create-mode-panel.visible) .panel {
+    margin-top: 0;
+}
+
+body:has(.create-mode-panel.visible) #slot {
+    margin-bottom: 0;
+}
+
+/* 页脚：固定在视口底部居中，不参与竖直居中计算（原先是 body 流内最后一块） */
+body.playing footer.sidebar-version {
+    position: fixed;
+    left: 50%;
+    bottom: max(8px, env(safe-area-inset-bottom, 0px));
+    z-index: 2;
+    width: max-content;
+    max-width: calc(100vw - 24px);
+    margin: 0;
+    padding: 6px 16px;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .5);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 14px rgba(18, 38, 58, .10);
+    color: var(--rm-ink-3);
+    font-size: 11.5px;
+    line-height: 1.45;
+    text-align: center;
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+/* 转场结束后的游玩 UI 入场：启动层淡出期间让棋盘轻轻上浮。
+   只给流内的 #board 做 transform 入场；fixed 元素（.panel / .hud-stats / 页脚）
+   不参与该动画，避免动画 transform 顶掉它们用于居中的 translateX(-50%) */
+body.play-in #board {
+    animation: playUiIn .32s cubic-bezier(.22, .8, .28, 1) both;
+}
+
+@keyframes playUiIn {
+    0%   { opacity: 0; transform: translateY(8px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+/* ---- 74.4 手机端简化（≤700px） ---- */
+
+@media (max-width: 700px) {
+    /* 启动层：只保留大标题 + 欢迎文案 + 闪烁提示，留出侧栏与右上角按钮的空间 */
+    .splash {
+        gap: 14px;
+        padding: max(20px, env(safe-area-inset-top, 0px)) 12px max(20px, env(safe-area-inset-bottom, 0px));
+    }
+
+    .splash-title {
+        font-size: clamp(40px, 13.4vw, 64px);
+        letter-spacing: 2px;
+    }
+
+    /* 手机端不做 emoji 晃动，转场也只做淡入淡出 */
+    .splash-emoji {
+        animation: none;
+    }
+
+    .splash-glow {
+        filter: blur(12px);
+    }
+
+    .splash-welcome {
+        max-width: 92vw;
+        padding: 9px 14px;
+        border-radius: 18px;
+        font-size: 13px;
+        line-height: 1.55;
+    }
+
+    .splash-cta {
+        padding: 8px 16px;
+        font-size: 13px;
+        letter-spacing: .08em;
+    }
+
+    /* 手机端游玩态：底部工具栏预留的内边距（96px）会让竖直居中整体上移，
+       居中块所在状态改为上下近似等距的内边距，保证整块落在视口中线；
+       教学 / 创造模式沿用原内边距，避免内容被底部工具栏挡住 */
+    body.playing:not(.startup):not(.teach-mode):not(:has(.create-mode-panel.visible)) {
+        padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+    }
+
+    /* 手机端底部由侧栏工具栏占据，页脚不再单独显示，避免与按钮重叠 */
+    body.playing footer.sidebar-version {
+        display: none;
+    }
+
+    /* 游玩态：手机端直接放弃左上角标题，把顶部整行让给主按钮条 */
+    body.playing .game-title {
+        display: none;
+    }
+
+}
+
+/* ---- 74.5 动效偏好 prefers-reduced-motion 覆盖 ---- */
+
+@media (prefers-reduced-motion: reduce) {
+    .splash,
+    .splash-fx .fx,
+    .splash-fx .fx-burst,
+    .splash-fx .fx-particle {
+        animation: none !important;
+        transition: none !important;
+    }
+
+    .splash-title,
+    .splash-welcome,
+    .splash-emoji,
+    .splash-glow,
+    .splash-cta,
+    body.play-in #board {
+        animation: none !important;
+    }
+}
+
+
+/* ==========================================================================
+ * 74.6 补充：主按钮固定顶部 / 半高范围 / 页脚纯文字 / 状态行出流
+ * --------------------------------------------------------------------------
+ * 覆盖 74.3 的游玩态布局（只追加覆盖规则，不删除 74.3 既有规则）：
+ *   1) 主按钮条 fixed 顶部居中（桌面 top 8；≤700px top 84 让开右上角与标题）；
+ *   2) body 用 justify-content: safe center 让流内的「进度条框 + 棋盘 + 地雷槽
+ *      （+ 教学退出条）」整块对准视口中线，内容超高时退化为顶部对齐不裁切；
+ *   3) 已放置雷数 .hud-stats 留在流内，与棋盘 / 地雷槽一起竖直居中；
+ *   4) 页脚去掉胶囊外观，只保留纯文字（≤700px 仍隐藏，底部让给侧栏工具栏）；
+ *   5) 旧的 auto margin 方案在此统一归零；创造模式恢复 flex-start 原布局。
+ * ========================================================================== */
+
+/* ---- 74.6.1 半高范围：流内只剩进度条 + 棋盘 + 地雷槽（+ 教学退出条） ---- */
+
+body.playing:not(.startup) {
+    justify-content: safe center;
+}
+
+/* 创造模式维持自上而下的编辑布局，不参与竖直居中 */
+body.playing:has(.create-mode-panel.visible) {
+    justify-content: flex-start;
+}
+
+/* 旧 auto margin 方案归零：面板 / 状态行已 fixed，地雷槽只保留顶间距 */
+body.playing:not(.startup):not(.teach-mode) #slot {
+    margin-bottom: 0;
+}
+
+body.playing.teach-mode .teach-exit-bar {
+    margin-bottom: 0;
+}
+
+body.playing:not(.startup).teach-mode #teachProgressBar,
+body.playing:not(.startup).teach-mode #tutorialProgressBar {
+    margin-top: 0;
+}
+
+/* ---- 74.6.2 主按钮条：固定顶部居中 ---- */
+
+body.playing:not(.startup) .panel {
+    position: fixed;
+    top: max(11px, env(safe-area-inset-top, 0px));
+    left: 50%;
+    z-index: 960;
+    width: max-content;
+    max-width: calc(100vw - 24px);
+    margin: 0;
+    transform: translateX(-50%);
+    animation: none;
+}
+
+/* 创造模式恢复主按钮条在流内，保持原有自上而下布局 */
+body.playing:has(.create-mode-panel.visible) .panel {
+    position: static;
+    top: auto;
+    left: auto;
+    z-index: auto;
+    width: auto;
+    max-width: none;
+    margin: 0 0 15px;
+    transform: none;
+}
+
+/* ---- 74.6.3 状态行：留在正常流内，与棋盘 / 地雷槽一起竖直居中 ---- */
+
+/* 已放置雷数（含硬核准确数、计时器）不再 fixed 到顶部：作为居中块的第一个
+   流内组件，与棋盘、地雷槽（以及教学进度条 / 退出条）整块对准视口中线 */
+body.playing:not(.startup) .hud-stats {
+    position: static;
+    top: auto;
+    left: auto;
+    z-index: auto;
+    width: max-content;
+    max-width: 100%;
+    /* 上外边距归零：让状态行可见顶边即居中块顶边，整块中点精确落在视口中线 */
+    margin: 0 auto 8px;
+    transform: none;
+    animation: none;
+}
+
+/* ---- 74.6.4 页脚：去掉胶囊，只保留浅灰纯文字 ---- */
+
+body.playing footer.sidebar-version {
+    left: 50%;
+    bottom: max(8px, env(safe-area-inset-bottom, 0px));
+    z-index: 0;
+    width: max-content;
+    max-width: calc(100vw - 24px);
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: none;
+    color: var(--rm-ink-3);
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: center;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, .6);
+    transform: translateX(-50%);
+    pointer-events: none;
+    animation: none;
+}
+
+/* ---- 74.6.5 转场「🕶️🤏」组合节点 ----
+   容器字号 = 当前 😵‍💫 的 rect 高度；🕶️ 盒子 1em×1em 居中，
+   容器左上角按半个字形回退，因此 🕶️ 字形中心与 😵‍💫 中心重合；
+   🤏 绝对定位在墨镜右下角，与 🕶️ 一起出现。 */
+
+.splash-fx .fx-glasses-hand {
+    position: fixed;
+    display: block;
+    margin: 0;
+    padding: 0;
+    line-height: 1;
+    pointer-events: none;
+    will-change: transform, opacity;
+}
+
+.splash-fx .fx-glasses-hand .fx-gh-glass,
+.splash-fx .fx-glasses-hand .fx-gh-hand {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.splash-fx .fx-glasses-hand .fx-gh-glass {
+    left: 0;
+    top: 0;
+    width: 1em;
+    height: 1em;
+    font-size: 1em;
+    filter: drop-shadow(0 8px 18px rgba(18, 38, 58, .22));
+}
+
+.splash-fx .fx-glasses-hand .fx-gh-hand {
+    left: .52em;
+    top: .2em;
+    font-size: .82em;
+    filter: drop-shadow(0 6px 14px rgba(18, 38, 58, .2));
+}
+
+/* ---- 74.6.6 ≤700px 适配 ---- */
+
+@media (max-width: 700px) {
+    /* 手机端游玩态不放标题：主按钮条直接贴顶部（高约 41 → 下边缘约 49） */
+    body.playing:not(.startup) .panel {
+        top: max(8px, env(safe-area-inset-top, 0px));
+        max-width: calc(100vw - 12px);
+    }
+
+    /* 全屏 / 音乐移到主按钮条下方、靠右：全屏 top 57（8+41+8），
+       音乐 top 97（57+32+8）；两者右边缘与按钮条右缘留 8px */
+    body.playing:not(.startup) .rm-fullscreen-btn {
+        top: max(57px, calc(env(safe-area-inset-top, 0px) + 57px));
+        right: max(8px, env(safe-area-inset-right, 0px));
+    }
+
+    body.playing:not(.startup) .bili-stage {
+        top: max(97px, calc(env(safe-area-inset-top, 0px) + 97px));
+        right: max(8px, env(safe-area-inset-right, 0px));
+    }
+
+    /* 页脚在 74.4 中已对 ≤700px 隐藏（底部让给侧栏工具栏），此处不再显示 */
+}
+
+
+
+
 
 

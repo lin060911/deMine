@@ -6,6 +6,7 @@
  *       接管游戏背景音乐。
  * 依赖：Store（01-storage）持久化开关 / 上次曲目；
  *       window.BgmDuck（12-settings）把背景音乐总线压到 0 或在关闭后恢复；
+ *       window.guideRefresh（16-guide，开启后请求引导刷新，按存在性判断调用）；
  *       RM.toast / AudioFX（00-core / 02-audio）做操作反馈；
  *       index.html 中预先写好的静态 DOM（#biliStage / #biliPanel 等）。
  * 对外：window.toggleBiliPlayer（设置栏开关的 onclick 入口）；
@@ -333,13 +334,18 @@
 
     /**
      * 点按 / 点击固定展开：触屏由悬浮钮切换，桌面也可把面板钉住不随鼠标移出收起。
-     * @sideeffect 切换 #biliStage 的 is-open 与无障碍状态
+     * 玩家已经找到并点开「音乐」按钮，开启引导到此结束。
+     * @sideeffect 切换 #biliStage 的 is-open 与无障碍状态；清除并收起音乐开启引导
      */
     function openPanel() {
         if (!enabled || !stage) return;
         isOpen = true;
         stage.classList.add("is-open");
         expandVisual();
+        if (window._guideBiliHint) {
+            window._guideBiliHint = false;
+            if (typeof guideRefresh === "function") guideRefresh();
+        }
     }
 
     /**
@@ -384,7 +390,9 @@
 
     /**
      * 设置栏开关入口：开启则静音 BGM 并显示悬浮钮，关闭则恢复 BGM 并停止播放。
-     * @sideeffect 写 rmBiliOn、改写界面、可能停止播放并恢复背景音乐
+     * 开启动作发生在设置侧栏里，而音乐按钮在右上角、会被侧栏完全盖住，因此
+     * 开启后立刻收起设置侧栏，让按钮与随后出现的开启引导不被遮挡。
+     * @sideeffect 写 rmBiliOn、改写界面、收起设置侧栏、可能停止播放并恢复背景音乐
      */
     function setEnabled(on) {
         const next = !!on;
@@ -393,7 +401,17 @@
         if (!next) {
             closePanel();
             stopPlayback();
+        } else {
+            // 立刻收起设置侧栏：开关就在侧栏里，收起后右上角「音乐」按钮才能
+            // 被玩家看到，引导高亮也不会画在被遮挡的位置上
+            var setSb = document.getElementById("settingSidebar");
+            if (setSb && setSb.classList.contains("open")) setSb.classList.remove("open");
         }
+        // 引导标记只反映玩家当次的开关动作：16-guide 据此把高亮环与手势指到
+        // 右上角「音乐」按钮；关闭时一并清掉，避免侧栏收起后又冒出来。
+        // 初始化恢复上次开关状态走 applyEnabledUI，不经过这里，因此不触发引导。
+        window._guideBiliHint = next;
+        if (next && typeof guideRefresh === "function") guideRefresh();
         try {
             Store.set(STORE_ON, next ? "true" : "false");
         } catch (e) {}

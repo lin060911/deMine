@@ -219,7 +219,8 @@ window.closeConfirmModal = closeConfirmModal;
 
 /**
  * 一次性关闭所有弹层与遮罩：从弹窗跳转到信息栏、开始挑战等场景前必须调用。
- * @sideeffect 隐藏 #overlay、全部 .auto-modal、难度弹窗、通关框与胜利框
+ * @sideeffect 隐藏 #overlay、全部 .auto-modal、难度弹窗、通关框与胜利框；
+ *             教学完成框只摘 .visible，不写内联 display
  */
 function closeAllModals() {
     try {
@@ -233,13 +234,18 @@ function closeAllModals() {
         // 难度弹窗（独立容器，不属于 .auto-modal）
         var cm = document.getElementById("difficultyModal");
         if (cm) cm.style.display = "none";
-        // 挑战弹窗 / 脑王通关框 / 教学完成框 / 胜利框
-        [ "challengeModal", "brainWinModal", "teachCompleteModal", "win" ].forEach(function(id) {
+        // 挑战弹窗 / 脑王通关框 / 胜利框：显隐由内联 display 与 .visible 共同决定
+        [ "challengeModal", "brainWinModal", "win" ].forEach(function(id) {
             var el = document.getElementById(id);
             if (!el) return;
             el.style.display = "none";
             el.classList.remove("visible");
         });
+        // 教学完成框的显隐完全由 .visible 类控制（.teach-complete-modal.visible 才 display:block）：
+        // 这里只摘类、不写内联 display，避免内联 none 永久压住 .visible，
+        // 导致下一关完成时 teachLevelComplete() 加上 .visible 也显示不出来
+        var tcm = document.getElementById("teachCompleteModal");
+        if (tcm) tcm.classList.remove("visible");
     } catch (e) {
         if (window.RM) RM.warn("closeAllModals", e);
     }

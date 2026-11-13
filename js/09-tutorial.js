@@ -376,9 +376,9 @@ const TEACH_LEVELS = [ {
     icon: "💣",
     mineType: "normal",
     mineEmoji: "💣",
-    boardRows: 3,
-    boardCols: 3,
-    targetBoard: [ [1, 1, 1], [1, 1, 1], [1, 1, 1]],
+    boardRows: 5,
+    boardCols: 5,
+    targetBoard: [ [ 0, 0, 0, 0, 0 ], [ 0, 1, 1, 1, 0 ], [ 0, 1, 1, 1, 0 ], [ 0, 1, 1, 1, 0 ], [ 0, 0, 0, 0, 0 ] ],
     steps: [ {
         rule: {
             icon: "🎯",
@@ -390,9 +390,9 @@ const TEACH_LEVELS = [ {
         text: "拖动/点选放置一颗💣到九宫格的中心",
         hint: "普通雷 3×3 范围 +1"
     }, {
-        text: "提示：放到第2行第2列，它的 3×3 范围能覆盖全部「1」",
+        text: "提示：放到第3行第3列，它的 3×3 范围能覆盖全部「1」",
         hint: "右键点击已放置的地雷可删除🚫",
-        targetCell: [ 1, 1 ]
+        targetCell: [ 2, 2 ]
     } ]
 },{
     title: "2.地块颜色",

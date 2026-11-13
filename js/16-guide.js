@@ -20,6 +20,11 @@
  *      的介绍类引导按按钮逐条推进，不点按钮就不会消失。
  *   5) 只有一个可见按钮的弹窗不套高亮环，只保留气泡与小手，避免重复强调
  *      唯一可点的目标。
+ *   6) 17-bili 在玩家开启外链音乐播放器时置位 window._guideBiliHint，引导据此
+ *      指到右上角「音乐」按钮；设置侧栏或弹窗盖住按钮时只保留标记、不返回候选，
+ *      等遮挡结束后下一次判定再出现；单步两轮即结束，不写已读。
+ *   7) 启动界面态（body.startup）一律不返回候选，小手只在游玩态出现；
+ *      首次访问在进入游玩后先指向主按钮「🧐教学」，点开教学即写入已读标记。
  * ========================================================================== */
 
 (function() {
@@ -594,19 +599,59 @@
     }
 
     /**
+     * 开启外链音乐播放器后的指引：指到右上角「音乐」按钮，提示可展开播放面板。
+     * 17-bili 在开启开关时会先收起设置侧栏，因此按钮通常立即可见；其它侧栏或
+     * 难度 / 挑战弹窗仍盖在右上角之上时保留标记但不返回候选，等收起后的判定
+     * 自然接上。引导带「知道啦」按钮并保持高亮环 / 小手持续显示，由玩家手动
+     * 结束（点开「音乐」按钮或关闭开关时也会提前收起）；开关关闭后标记由
+     * 17-bili 清掉，这里也兜底处理按钮已隐藏的情况。
+     * @returns {Object|null} 引导候选
+     */
+    function biliHintCandidate() {
+        if (!window._guideBiliHint) return null;
+        var stage = $("biliStage");
+        // 开关关闭后 #biliStage 失去 is-enabled 被 display:none 隐藏：
+        // 标记来自更早的开启动作，已没有可指的目标
+        if (!stage || !stage.classList.contains("is-enabled")) {
+            window._guideBiliHint = false;
+            return null;
+        }
+        if (sidebarOpen("settingSidebar") || sidebarOpen("createSidebar") || sidebarOpen("achSidebar") || sidebarOpen("infoSidebar")) return null;
+        // 难度 / 挑战弹窗是全屏蒙层，层级高于右上角按钮：弹出时不把高亮画到蒙层下面
+        if (modalOpen("challengeModal") || modalOpen("difficultyModal")) return null;
+        // 收起态的可点目标是悬浮钮本身；拿不到时退回整个舞台容器
+        var btn = $("biliLauncher") || stage;
+        if (!visible(btn)) return null;
+        return tapStep({
+            key: "bili:hint",
+            text: "点右上角「音乐」按钮，打开播放器听歌",
+            target: btn,
+            active: true,
+            // 持续显示：不自动播放两轮后消失，等玩家点「知道啦」或打开播放器
+            hold: true,
+            nextLabel: "知道啦 ✅",
+            onDone: function() {
+                window._guideBiliHint = false;
+            }
+        });
+    }
+
+    /**
      * 判断当前应该播放哪条引导；不满足条件时返回 null。
      * @returns {Object|null} 引导候选
      */
     function resolveCandidate() {
-        // ① 首次欢迎弹窗：先教玩家点"开始教学"
-        var prompt = $("tutorialPrompt");
-        if (prompt && prompt.style.display === "block") {
-            var startBtn = $("tutorialConfirmBtn");
-            if (startBtn && !startBtn.disabled && visible(startBtn)) {
+        // ⓪ 启动界面期间不出现引导：小手只指向游玩态的控件
+        if (document.body && document.body.classList.contains("startup")) return null;
+        // ① 首次访问：进入游玩后先把玩家引到主按钮「🧐教学」；
+        //    引导结束时 persist 会写入 welcome-start，之后不再出现
+        if (window.RM_FIRST_VISIT && !hasSeen("welcome-start")) {
+            var tutorialBtn = $("tutorialBtn");
+            if (tutorialBtn && visible(tutorialBtn)) {
                 return tapStep({
                     key: "welcome-start",
-                    text: "点这里开始新手教学",
-                    target: startBtn,
+                    text: "第一次来？先点这里玩教学",
+                    target: tutorialBtn,
                     active: true,
                     persist: "welcome-start"
                 });
@@ -627,7 +672,14 @@
         if (window._guideRecordScores) return recordScoresCandidate();
         // ④.2 从系列开关板块点了「详细信息请到信息栏查看」：指向炸弹信息
         if (window._guideMineInfo) return mineInfoCandidate();
-        // ④.3 「🎯挑战」弹窗打开且基础挑战未完成：指基础挑战行右侧的入口
+        // ④.3 刚开启外链音乐播放器：指向右上角「音乐」按钮
+        //      本轮不出现的时机（侧栏 / 弹窗遮挡、按钮未显示）返回 null 后继续
+        //      走后面的候选，等时机合适的下一次判定再出现
+        if (window._guideBiliHint) {
+            var biliHint = biliHintCandidate();
+            if (biliHint) return biliHint;
+        }
+        // ④.4 「🎯挑战」弹窗打开且基础挑战未完成：指基础挑战行右侧的入口
         if (modalOpen("challengeModal")) {
             if (!isBasicChallengeDone()) return basicChallengeCandidate();
             return null;
@@ -957,6 +1009,14 @@
 
     function onClickCapture(e) {
         noteActivity();
+        // 首次访问引导指向主按钮「🧐教学」：玩家点开教学即算已读，
+        // 立即收起小手并重新判定后续引导；其它候选的点击不改变已读状态
+        var cand = state.cand;
+        var t = e && e.target;
+        if (cand && cand.key === "welcome-start" && t && t.closest && t.closest("#tutorialBtn")) {
+            markSeen("welcome-start");
+            guideRefresh();
+        }
     }
 
     function bindEvents() {
@@ -983,6 +1043,11 @@
         }, { passive: true });
         document.addEventListener("click", onClickCapture, true);
         window.addEventListener("resize", function() {
+            guideRefresh();
+        });
+        // 启动界面转场结束（rm:playstarted）后重新判定：启动态期间不出现引导，
+        // 进入游玩后按最新状态恢复首次访问 / 挑战 / 教学等候选
+        document.addEventListener("rm:playstarted", function() {
             guideRefresh();
         });
     }

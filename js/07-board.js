@@ -51,9 +51,10 @@ function calcCellSize(rows, cols) {
     if (!vw && document.documentElement) vw = document.documentElement.clientWidth || 0;
     if (!vw && document.body) vw = document.body.clientWidth || 0;
     if (!vw) return MAX;
-    // 桌面端骨牌局会在棋盘右侧常驻一块操作提示（样式表断点同为 1100px）：
-    // 此时棋盘可用宽度要扣掉提示面板与间距，避免整行溢出视口
-    const tipsSide = vw > 1100 && (typeof gameTetris !== "undefined" && gameTetris);
+    // 桌面端主棋盘 / 教学棋盘右侧常驻操作 tips（样式表断点同为 1100px）：
+    // tips 列固定 220 宽、与棋盘间距 18，此时棋盘可用宽度要扣掉列宽与间距，
+    // 避免整行溢出视口；创造模式棋盘不挂在主棋盘托盘里、没有 tips 列，保持原尺寸
+    const tipsSide = vw > 1100 && !(typeof createModeActive !== "undefined" && createModeActive);
     if (vw > 700) {
         if (!tipsSide) return MAX;
         const byTips = Math.floor((vw - 48 - 220 - 18 - PAD - GAP * (cols - 1)) / cols);

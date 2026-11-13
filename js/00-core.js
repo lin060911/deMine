@@ -22,7 +22,7 @@ var RM = window.RM || {};
 window.RM = RM;
 
 /* 程序标识串：仅随日志输出，用于问题定位，不参与任何游戏逻辑 */
-RM.VERSION = "1.5.3";
+RM.VERSION = "1.6.0";
 
 /* 程序英文名：页脚署名、存档导出与导入校验统一使用这一写法 */
 RM.APP_NAME = "ReverseMinesweeper";

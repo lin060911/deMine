@@ -2,7 +2,7 @@
  * 模块 10 · 对局流程与页面事件接线（js/10-game.js）
  *
  * 职责：统一管理一局游戏的开始、重置与模式切换，并把页面级入口
- *       （新游戏、清空放置、首次访问引导、每日欢迎弹窗）接到具体函数。
+ *       （新游戏、清空放置、访问记忆）接到具体函数。
  * 依赖：全局状态 diff / G / SR / SC / S（00-core）、ts 与 resetTi / startTi
  *       （03-timer）、genGame / genTetrisGame 与 resetP（05-generator）、render（06-render）、
  *       applyGameHardcore / applyGameTetris / syncTetrisUI（06-render）、
@@ -204,7 +204,7 @@ document.getElementById("slotClearBtn").onclick = clearAll;
 
 /**
  * 首屏启动：渲染记录表、雷种信息与系列开关，发放脑王解锁提示，
- * 然后自动开第一局；欢迎 / 引导弹窗由下方 load 监听器按访问记录决定。
+ * 然后自动开第一局；访问记忆不再在首屏弹窗，改由玩家开始游玩后写入。
  * @sideeffect 读写 Store 中的脑王提示标记，并触发第一局游戏。
  */
 window.onload = () => {
@@ -243,44 +243,32 @@ document.addEventListener("dragstart", function(e) {
 }, false);
 
 /**
- * 首次访问与每日欢迎：首次访问展示教学提示（3 秒倒计时后才允许确认），
- * 否则在当天首次访问时展示每日欢迎弹窗。
- * @sideeffect 读写 hasVisitedBefore / tutorialStep / welcomeLastShown 三个持久化键。
+ * 访问记忆：hasVisitedBefore 表示「进来玩过」，welcomeLastShown 记录最近一次
+ * 进入游玩的本地日期。两者都只在玩家真正开始游玩后写入，不再由弹窗维护。
+ * @sideeffect 读写 hasVisitedBefore / welcomeLastShown 两个持久化键
  */
-window.addEventListener("load", function() {
-    // 用本地日期字符串作为"今天"的判据，跨天后可再次弹出欢迎层
+let _visitMarked = false;
+
+function markVisited() {
+    // 同一页面内只落盘一次：事件重复派发 / 兜底与事件同时触发都不会多写
+    if (_visitMarked) return;
+    _visitMarked = true;
     let today = (new Date).toDateString();
-    let lastShown = Store.get("welcomeLastShown");
-    let isFirstTime = !Store.get("hasVisitedBefore");
-    if (isFirstTime) {
-        // 稍作延迟再弹，等首屏棋盘绘制完成，避免弹窗与首帧渲染互相干扰
-        setTimeout(() => {
-            document.getElementById("overlay").style.display = "block";
-            document.getElementById("tutorialPrompt").style.display = "block";
-            AudioFX.modalOpen();
-            let btn = document.getElementById("tutorialConfirmBtn");
-            btn.disabled = true;
-            let cd = 3;
-            let cdEl = document.getElementById("tutorialCountdown");
-            // 3 秒倒计时期间禁用确认按钮，保证玩家至少浏览一次引导说明
-            let iv = setInterval(() => {
-                cd--;
-                if (cd > 0) cdEl.textContent = "按钮将在" + cd + "秒后可用..."; else {
-                    cdEl.textContent = "";
-                    btn.disabled = false;
-                    clearInterval(iv);
-                }
-            }, 1e3);
-        }, 800);
-        Store.set("hasVisitedBefore", "true");
-        if (!Store.get("tutorialStep")) Store.set("tutorialStep", "0");
-    } else if (lastShown !== today) {
-        // 非首次访问：同一自然日只弹一次欢迎层，减少对局开始时的打扰
-        setTimeout(() => {
-            document.getElementById("overlay").style.display = "block";
-            document.getElementById("welcomeModal").style.display = "block";
-            AudioFX.modalOpen();
-        }, 500);
-        Store.set("welcomeLastShown", today);
+    // 逐键比较当前值，已是最新状态时不产生多余写盘
+    if (Store.get("hasVisitedBefore") !== "true") Store.set("hasVisitedBefore", "true");
+    if (Store.get("welcomeLastShown") !== today) Store.set("welcomeLastShown", today);
+}
+
+// 启动界面转场结束会派发 rm:playstarted：此刻玩家才真正进入游玩，
+// 在事件里补写访问记忆；页面内只写一次，重复派发不会重复落盘
+document.addEventListener("rm:playstarted", markVisited);
+
+window.addEventListener("load", function() {
+    // 首次访问标记供引导层判定：启动界面脚本会自行设置，缺失时这里补上
+    if (typeof window.RM_FIRST_VISIT === "undefined") {
+        window.RM_FIRST_VISIT = !Store.get("hasVisitedBefore");
     }
+    // 没有启动界面（18-splash 未加载）就不会派发 rm:playstarted，
+    // 退化为直接写入访问记忆，保证与旧版一致的存档语义
+    if (!window.RMSplash) markVisited();
 });

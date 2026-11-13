@@ -1393,7 +1393,8 @@
     /**
      * 启动收尾：执行自检、绑定存档界面、补一次侧栏按钮初始化。
      * 自检结果只用于提示、不阻断启动：缺模块时能用的功能仍然可用。
-     * @sideeffect 绑定 DOM 事件、写入 RM.missingModules，必要时弹出提示
+     * @sideeffect 绑定 DOM 事件、写入 RM.missingModules，必要时弹出提示；
+     *             启动界面脚本缺失时把 body 补成 startup 兜底态
      */
     function boot() {
         var missing = selfCheck();
@@ -1413,6 +1414,13 @@
             } else if (Store && Store.tampered) {
                 var why = Store.integrity === "corrupt" ? "已重置为初始存档" : "已自动回退到备份";
                 RM.toast("检测到存档异常（" + why + "），建议导出存档并检查", 6000);
+            }
+        } catch (e) {}
+        // 启动态兜底：18-splash.js 存在时由它自己接管启动界面与转场；
+        // 缺失时把 body 补成 startup，让启动态标记与 index.html 的静态初始态一致
+        try {
+            if (!window.RMSplash && document.body && !document.body.classList.contains("startup")) {
+                document.body.classList.add("startup");
             }
         } catch (e) {}
     }

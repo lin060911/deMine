@@ -417,29 +417,69 @@ function syncTetrisUI() {
 }
 
 /**
- * 同步右侧 tips 的摆放方式：桌面端默认绝对定位在棋盘右侧（不占排版宽度，
- * 棋盘保持页面居中）；右侧可用空间不足以同时容纳 tips（220+18）与
- * 「创造 / 设置」两个固定悬浮钮（约 96）时，给 body 加 tips-stack，
- * 改为棋盘在上、tips 在下的堆叠布局。
- * @sideeffect 切换 body 的 tips-stack 类；非骨牌局或窄屏（≤1100px）时移除
+ * 同步右侧常驻 tips 列的摆放方式：桌面端默认绝对定位在棋盘右侧（不占排版
+ * 宽度，棋盘保持页面居中）。同一时间只显示一张卡：经典等模式显示操作 tips
+ * （蓝色），骨牌局改为显示骨牌 tips（红色），因此列宽固定 220，常规对局与
+ * 棋盘间距 18px。
+ * 仅在极小棋盘的骨牌局里，单张骨牌卡仍可能纵向伸到地雷槽面板范围；此时按
+ * 槽位右缘 + 12px 余量动态计算横向间距让整列右移避开槽位（间距需求过大时
+ * 改为 tips-stack 堆叠）。右侧还要给「创造 / 设置」两个固定悬浮钮留出约
+ * 62px，放不下时同样用 tips-stack 改为棋盘在上、tips 在下的布局。
+ * 创造模式（主棋盘托盘隐藏）或棋盘未显示时移除 tips-stack 与动态间距。
+ * @sideeffect 切换 body 的 tips-stack 类，必要时写入 tips 列的 `--tips-gap`
  */
 function syncBoardTipsPlacement() {
     if (!document.body) return;
-    let on = (typeof gameTetris !== "undefined") && gameTetris;
     // 用布局视口宽度（不含竖向滚动条）判断，和 body 的实际内容宽度一致
     let vw = (document.documentElement && document.documentElement.clientWidth) || window.innerWidth || 0;
-    if (!on || vw <= 1100) {
+    let creating = (typeof createModeActive !== "undefined") && createModeActive;
+    let host = document.getElementById("board");
+    let col = document.getElementById("boardTipsCol");
+    let boardHidden = !host || host.style.display === "none";
+    if (creating || boardHidden || vw <= 1100) {
         document.body.classList.remove("tips-stack");
+        if (col) col.style.removeProperty("--tips-gap");
         return;
     }
-    let host = document.getElementById("board");
-    if (!host || host.style.display === "none") return;
     let w = host.getBoundingClientRect().width;
-    if (!w) return;
+    if (!w) {
+        document.body.classList.remove("tips-stack");
+        if (col) col.style.removeProperty("--tips-gap");
+        return;
+    }
+    // 单卡列宽固定 220，先按常规 18px 间距判定侧边布局是否放得下
+    let colW = 220;
+    let gap = 18;
     // 页面左右各 24px 内边距，棋盘居中后单侧可用空间 = (视口 - 内边距 - 棋盘宽) / 2
     let space = (vw - 48 - w) / 2;
-    let need = 220 + 18 + 96;
-    document.body.classList.toggle("tips-stack", space < need);
+    // 右侧两个固定悬浮钮 46 宽 + 右边缘 14 内距 + 2 余量，tips 不能压到它们
+    let need = gap + colW + 62;
+    if (space < need) {
+        document.body.classList.add("tips-stack");
+        if (col) col.style.removeProperty("--tips-gap");
+        return;
+    }
+    // 空间足够：若此前处于堆叠态，先恢复侧边布局再测量（绝对定位后 rect 才是最终位置）
+    if (document.body.classList.contains("tips-stack")) document.body.classList.remove("tips-stack");
+    if (col) col.style.setProperty("--tips-gap", gap + "px");
+    // 极小棋盘的骨牌局：单张骨牌卡可能纵向伸到地雷槽范围。用 2D 相交判断，
+    // 只有真的会重叠时才把整列右移让开槽位；间距需求过大则改走下方堆叠。
+    let slot = document.getElementById("slot");
+    if (!col || !slot || slot.style.display === "none") return;
+    let cr = col.getBoundingClientRect();
+    let sr = slot.getBoundingClientRect();
+    let pad = 12;
+    let overlap = cr.left < sr.right + pad && cr.right > sr.left - pad &&
+        cr.top < sr.bottom + pad && cr.bottom > sr.top - pad;
+    if (!overlap) return;
+    let boardRight = host.getBoundingClientRect().right;
+    let avoid = Math.max(18, Math.ceil(sr.right + pad - boardRight));
+    if (avoid > 96 || space < avoid + colW + 62) {
+        document.body.classList.add("tips-stack");
+        if (col) col.style.removeProperty("--tips-gap");
+        return;
+    }
+    if (col) col.style.setProperty("--tips-gap", avoid + "px");
 }
 window.syncBoardTipsPlacement = syncBoardTipsPlacement;
 
@@ -1576,7 +1616,8 @@ function renderTetroOverlay() {
     // 非骨牌局：覆盖层不参与显示
     if (!gameTetris) {
         hideTetroOverlay();
-        // tips 只属于骨牌局：离开骨牌局时收起堆叠标记，避免影响下一局布局
+        // tips 列的摆放方式与骨牌覆盖层无关，但棋盘尺寸 / 位置可能刚变化，
+        // 这里顺带复算一次；棋盘隐藏时函数内部会自己移除堆叠标记
         if (typeof syncBoardTipsPlacement === "function") syncBoardTipsPlacement();
         return;
     }
@@ -1674,10 +1715,14 @@ function syncBoardVisibility() {
         s.style.display = "none";
         // 棋盘被隐藏时同步收起骨牌覆盖层，避免跨局残留
         if (typeof hideTetroOverlay === "function") hideTetroOverlay();
+        // 托盘随棋盘一起隐藏，tips 列不再需要侧边 / 堆叠判定
+        if (typeof syncBoardTipsPlacement === "function") syncBoardTipsPlacement();
         return;
     }
     if (b.style.display === "none") b.style.display = "";
     if (s.style.display === "none") s.style.display = "";
+    // 棋盘由隐藏恢复显示后，右侧 tips 列的摆放方式要按新棋盘宽度复算
+    if (typeof syncBoardTipsPlacement === "function") syncBoardTipsPlacement();
 }
 window.syncBoardVisibility = syncBoardVisibility;
 
@@ -1695,6 +1740,8 @@ function showBoardLoading() {
     // 棋盘被占位层遮住时，骨牌覆盖层（body 级 fixed）必须同步收起，
     // 否则上一局的骨牌色块会悬浮在占位层之上
     if (typeof hideTetroOverlay === "function") hideTetroOverlay();
+    // 棋盘隐藏期间 tips 列跟随托盘隐藏，顺带清掉上一局的堆叠标记
+    if (typeof syncBoardTipsPlacement === "function") syncBoardTipsPlacement();
 }
 
 /**

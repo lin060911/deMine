@@ -9,7 +9,22 @@
     <link rel="stylesheet" href="style.css">
     <base target="_blank">
 </head>
-<body>
+<body class="startup">
+
+    <!-- 区块：启动界面（18-splash.js 控制）
+         每次刷新都显示，首帧即隐藏游玩 UI（body.startup）：
+         大标题「反向 / 💣 或 😎 / 扫雷」+ 欢迎文案 + 闪烁开始提示，
+         点击任意处或按 Enter / Space 开始，转场结束后 body 切到 playing。
+         #splashFx 是标题转场动效层（临时节点，pointer-events:none） -->
+    <div class="splash" id="splash" role="dialog" aria-label="启动界面">
+        <div class="splash-glow" aria-hidden="true"></div>
+        <h1 class="splash-title" id="splashTitle" aria-label="反向扫雷">
+            <span class="splash-word" id="splashWordLeft">反向</span><span class="splash-emoji" id="splashEmoji">💣</span><span class="splash-word" id="splashWordRight">扫雷</span>
+        </h1>
+        <p class="splash-welcome" id="splashWelcome">欢迎回来！今天也来把雷埋回去吧 o(*^▽^*)┛</p>
+        <div class="splash-cta" id="splashCta">点击任意处开始游玩</div>
+    </div>
+    <div class="splash-fx" id="splashFx" aria-hidden="true"></div>
 
     <!-- 区块：全屏切换按钮
          固定在页面右上角，点击在「全屏 / 退出全屏」之间切换；
@@ -70,10 +85,11 @@
 
          职责：定义游戏的全部静态 DOM 结构、样式表与脚本入口。
          页面结构总览（body 内自上而下的区块顺序）：
+           0) 启动界面 #splash 与标题转场层 #splashFx（18-splash.js 控制）
            1) 全局遮罩层与游戏选择弹窗（难度 / 挑战）
            2) 背景特效层：#fallingContainer 下落表情、#bgEffects 漂浮幽灵
            3) 欢迎 / 新手引导 / 教学 / 难度解锁等各类弹窗
-           4) 标题区 header.hero：游戏名、操作提示、操作方式徽章
+           4) 标题区 header.hero：仅游戏名（操作 tips 与操作方式徽章在棋盘右侧常驻卡里）
            5) 教学总进度条 #tutorialProgressBar
            6) 主按钮条 section.hud：新游戏 / 🎯挑战 / 教学 / 难度
            7) 计时与放置数 .hud-meta
@@ -85,9 +101,9 @@
           13) 右侧栏开关、记录侧栏（成绩 / 成就）与成就解锁弹层
           14) 创造侧栏、设置侧栏（存档管理 + 关于）
           15) 页脚：署名与联系方式
-          16) 脚本加载区：js/ 共 18 个模块文件（00 ~ 17），本页按序全部加载
+          16) 脚本加载区：js/ 共 19 个模块文件（00 ~ 18），本页按序全部加载
 
-         阅读提示：本文件只负责结构与文案，交互全部由底部 00 ~ 16 号脚本
+         阅读提示：本文件只负责结构与文案，交互全部由底部 00 ~ 18 号脚本
          接管；每个区块前的「区块：xxx」注释会说明该区块由谁操作。
          ================================================================== -->
     <!-- 区块：全局遮罩层
@@ -270,21 +286,20 @@
         <div class="bg-scan-line"></div>
     </div>
 
-    <!-- 区块：每日欢迎弹窗
-         同一自然日只弹一次，文案为静态内容；由 10-game.js 在页面 load 后
-         依据 hasVisitedBefore / welcomeLastShown 两个存档键决定是否显示，
-         关闭时调用 08-ui.js 的 closeWelcomeModal() -->
-    <div class="auto-modal" id="welcomeModal">
+    <!-- 区块：每日欢迎弹窗（保留 DOM 但永久隐藏）
+         文案已并入启动界面（18-splash.js 的欢迎文案），不再由 10-game.js
+         决定是否显示；DOM 与 closeWelcomeModal 保留，避免其它模块引用报错 -->
+    <div class="auto-modal" id="welcomeModal" style="display:none;" aria-hidden="true">
         <div class="icon">👋</div>
         <h2>欢迎回来!</h2>
         <p>欢迎回到<span>『反向💣扫雷』</span><br>如果忘了咋玩，可以点击左侧的规则哦( ´◡‿ゝ◡`)</p>
         <button onclick="closeWelcomeModal()">(≧∇≦)ﾉ了解</button>
     </div>
 
-    <!-- 区块：新手引导弹窗
-         首次进入时建议先玩教学；确认按钮带 3 秒倒计时，倒计时结束前保持 disabled，
-         由 10-game.js 控制显示与倒计时，点击后进入 09-tutorial.js 的 openTeachMode() -->
-    <div class="auto-modal" id="tutorialPrompt" style="display:none;">
+    <!-- 区块：新手引导弹窗（保留 DOM 但永久隐藏）
+         首次访问的教学建议已并入启动界面文案；DOM、倒计时按钮与
+         openTeachMode 入口保留，避免其它模块引用报错，不再弹出 -->
+    <div class="auto-modal" id="tutorialPrompt" style="display:none;" aria-hidden="true">
         <div class="icon">🤗</div>
         <h2>你好!</h2>
         <p>这是你第一次游玩<span>『反向💣扫雷』</span><br>先来试试<span>教学</span>模式吧！</p>
@@ -358,12 +373,12 @@
     </div>
 
     <!-- 区块：标题区
-         游戏名、操作提示与当前操作方式徽章；徽章文本由 07-board.js 的
+         只保留游戏名；操作提示与当前操作方式徽章整块迁到棋盘右侧的常驻
+         操作 tips 卡（见下方 .board-tray）。徽章文本仍由 07-board.js 的
          setPlaceMode() 随操作方式切换更新，「切换」链接调用同文件的
          openSettingSidebar() 展开右侧设置栏 -->
     <header class="hero">
-        <h1 class="game-title">反向💣扫雷</h1>
-        <div class="rule">ℹ️操作tips:拖拽/点选✅放置地雷 | 🚫右键(手机长按/双击)删除<br> 当前操作方式:<b id="modeBadge">拖拽</b> <span class="rule-mode-link" onclick="openSettingSidebar()">⚙️切换</span></div>
+        <h1 class="game-title" id="gameTitle">反向💣扫雷</h1>
     </header>
 
     <!-- 区块：教学总进度条
@@ -426,26 +441,39 @@
          初始先隐藏，第一局生成完成后再由 06-render.js 的
          hideBoardLoading() 显示，期间用下方的 #boardLoading 占位遮丑 -->
     <div class="board-tray">
-        <!-- 棋盘行：桌面端「棋盘 + 右侧常驻 tips」并排；窄屏改为上下堆叠。
+        <!-- 棋盘行：桌面端「棋盘 + 右侧常驻 tips 列」并排；窄屏改为上下堆叠。
              托盘在布局骨架里是 display:contents，实际参与排版的是本行。
-             tips 在桌面端绝对定位、不参与排版，因此棋盘始终位于页面中间；
+             tips 列在桌面端绝对定位、不参与排版，因此棋盘始终位于页面中间；
              右侧空间不足时 06-render 的 syncBoardTipsPlacement() 给 body 加
              tips-stack 类，改为棋盘在上、tips 在下的堆叠布局 -->
         <div class="board-row" id="boardRow">
             <div class="board-wrap" id="boardWrap">
                 <div id="board" class="board" style="display:none;"></div>
-                <!-- 俄罗斯方块模式的操作提示：仅本局为骨牌局时由 06-render.js
-                     的 syncTetrisUI() 通过 body.tetris-mode 显示，位置常驻棋盘右侧 -->
-                <aside class="board-tips" id="boardTips" aria-label="俄罗斯方块操作提示">
-                    <div class="board-tips-head">🐻 俄罗斯方块模式tips</div>
-                    <ul class="board-tips-list">
-                        <li><b>旋转</b>：悬停骨牌卡点右上角 ↻；<br>已放骨牌双击可绕锚点旋转</li>
-                        <li><b>贴边</b>：骨牌超出棋盘的部分不产生任何影响</li>
-                        <li><b>技巧</b>：先拼出远离边界的部分，再把边界上的搞定</li>
-                        <li><b>???</b>：传统俄罗斯方块游戏的游戏区域是10列20行哦</li>
-                    </ul>
-                    <div class="board-tips-note">骨牌局成绩与成就单独统计</div>
-                </aside>
+                <!-- 棋盘右侧 tips 列：同一时间只显示一张卡——经典 / 硬核 / 自由等
+                     模式显示操作 tips（蓝色版面）；骨牌局（body.tetris-mode）改为
+                     显示俄罗斯方块模式 tips（红色版面）并隐藏操作 tips，两张卡不叠加。
+                     显示 / 隐藏与左右摆放 / 堆叠判定由样式表 71.2 / 71.4 与
+                     06-render.js#syncBoardTipsPlacement() 共同维护；
+                     「当前操作方式」徽章文本由 07-board.js#setPlaceMode() 更新 -->
+                <div class="board-tips-col" id="boardTipsCol">
+                    <aside class="board-tips ops-tips" id="boardTips" aria-label="操作提示">
+                        <div class="board-tips-head">ℹ️ 操作tips</div>
+                        <ul class="board-tips-list">
+                            <li><b>放置</b>：拖拽地雷到棋盘松手，或先点选再点格子</li>
+                            <li><b>删除</b>：右键已放地雷；手机长按 / 双击</li>
+                        </ul>
+                        <div class="board-tips-note ops-tips-mode">当前操作方式：<b id="modeBadge">拖拽</b> <span class="rule-mode-link" onclick="openSettingSidebar()">⚙️切换</span></div>
+                    </aside>
+                    <aside class="board-tips tetris-tips" id="tetrisTips" aria-label="俄罗斯方块操作提示">
+                        <div class="board-tips-head">🐻 俄罗斯方块模式tips</div>
+                        <ul class="board-tips-list">
+                            <li><b>旋转</b>：悬停骨牌卡点右上角 ↻；<br>已放骨牌双击可绕锚点旋转</li>
+                            <li><b>贴边</b>：骨牌超出棋盘的部分不产生任何影响</li>
+                            <li><b>技巧</b>：先拼出远离边界的部分，再把边界上的搞定</li>
+                            <li><b>???</b>：传统俄罗斯方块游戏的游戏区域是10列20行哦</li>
+                        </ul>
+                    </aside>
+                </div>
             </div>
         </div>
     </div>
@@ -844,15 +872,15 @@
              更新公告为静态摘要，避免多处版本号不一致 -->
         <div class="sidebar-section" id="AboutSection">
             <div class="sidebar-title about-title">ℹ️ 关于</div>
-            <div class="about-version">🔧 版本号 <strong id="aboutVersion">v1.5.3</strong></div>
+            <div class="about-version">🔧 版本号 <strong id="aboutVersion">v1.6.0</strong></div>
             <div class="about-announce">
                 <div class="about-announce-title">📣 更新公告</div>
                 <ul class="about-announce-list">
-                    <li><b>V1.5.3</b>：设置栏「🔊 音量设置」新增「🎧 外链音乐播放器」开关。开启后关闭游戏背景音乐（滑块数值保留）、右上角出现 🎵 悬浮钮，可播放 B 站外链歌单（14 首固定 + 自定义 BV）；关闭后恢复背景音乐并停止播放器。</li>
+                    <li><b>V1.6.0</b>：新增启动界面与标题转场（💣 飞行爆炸烟雾 / 😎 墨镜接回），点击任意处或按 Enter 开始；游玩态大标题固定左上角，主按钮条 + 棋盘 + 地雷槽整块竖直居中；欢迎 / 新手引导弹窗改为启动界面文案，不再弹出。</li>
+                    <li><b>V1.5.4</b>：移动端「全屏 / 音乐」两个按钮统一为 64×32 胶囊（图标 + 文字）；页面标题下方的操作 tips 整块迁到棋盘右侧——经典等模式显示蓝色「操作 tips」，俄罗斯方块局改为显示红色「骨牌 tips」（操作 tips 隐藏、不叠加）；开启「🎧 外链音乐播放器」时立刻收起设置栏，并弹出持续显示的高光框 + 小手指向「音乐」按钮。</li>
+                    <li><b>V1.5.3</b>：设置栏「🔊 音量设置」新增「🎧 外链音乐播放器」开关。开启后关闭游戏背景音乐（滑块数值保留）、右上角出现 🎵 悬浮钮，可播放 B 站外链歌单（14 首固定）；关闭后恢复背景音乐并停止播放器。</li>
                     <li><b>V1.5.2</b>：俄罗斯方块模式图标改为🐻、代表色改为红色；骨牌颜色透明度提高（锚点格更明显）；棋盘右侧新增常驻操作 tips；「准备好了吗？」面板随玩法切换实时刷新；新增「🐻 俄罗斯方块」成就分组 8 个成就；「预设难度 / 速通系列」更名为「经典 / 速通」，且只判定经典玩法。</li>
                     <li><b>V1.5.1</b>：修复骨牌图形全部画在首格的问题；预设难度骨牌数降为约 2/3（自由模式不变）；双击已放置骨牌可绕锚点旋转（触屏长按仍删除）。</li>
-                    <li><b>V1.5.0</b>：成绩栏新增「全部 / 经典 / 硬核 / 俄罗斯方块」四档筛选；新增🐻俄罗斯方块玩法（地雷槽换成七种四格骨牌，可旋转、影响值叠加）；修复基础挑战入口问题。</li>
-                    <li><b>V1.4.1</b>：关于板块新增「🔬 测试者工具」，可一键下载全系列解锁、所有预设难度可玩的测试存档；隐藏成就「火药沙拉」的判定改为自由模式参与地雷种类数超过 20；17 个新成就补全正式名称与彩蛋文案。</li>
                 </ul>
             </div>
             <!-- 测试者工具：只构造并下载测试存档，不读写当前存档；具体数据由
@@ -874,10 +902,10 @@
 
     <!-- 区块：页脚
          署名与联系方式，纯静态文本，脚本不依赖 -->
-    <footer class="sidebar-version">ReverseMinesweeper v1.5.3<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
+    <footer class="sidebar-version">ReverseMinesweeper v1.6.0<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
 
     <!-- 区块：脚本加载区（顺序即依赖）
-         18 个外部脚本按 00 → 17 的书写顺序同步执行，共享同一个全局作用域：
+         19 个外部脚本按 00 → 18 的书写顺序同步执行，共享同一个全局作用域：
          前一个模块用 function 声明或全局变量暴露的能力，后一个模块直接使用，
          因此顺序即依赖，不能调换。各模块职责如下：
            00-core          RM 命名空间、常量、全局状态与错误兜底
@@ -898,6 +926,7 @@
            15-boot          启动自检与存档管理，排在 14 之后、16 之前
            16-guide         新手引导层（小手动画 / 高亮 / 提示气泡）
            17-bili          B 站外链音乐播放器（设置开关 / 悬浮面板 / 歌单）
+           18-splash        启动界面与标题转场（body.startup / playing 状态机）
 
          举例：06-render.js 在顶层就调用 Store.get 读取提示开关，如果它排在
          01-storage.js 前面，加载阶段就会因 Store 未定义而报错。 -->
@@ -919,5 +948,7 @@
     <script src="js/15-boot.js"></script>
     <script src="js/16-guide.js"></script>
     <script src="js/17-bili.js"></script>
+    <!-- 启动界面与标题转场：排在全部业务模块之后，只依赖 DOM 与已有的全局函数 -->
+    <script src="js/18-splash.js"></script>
 </body>
 </html>

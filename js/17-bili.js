@@ -24,6 +24,11 @@
  *      收起面板不停止播放，方便边玩边听（关闭开关才真正停止）。
  *   5) 歌单固定为 bilibili2.html 的 14 首内置曲目，不提供自定义 BV 输入；
  *      曲目信息全部内置，不请求任何 B 站接口。
+ *   6) inert 与悬停严格互斥：指针停留在浮层上时不写收起态（collapseVisual
+ *      先判 pointerInside）。inert 一旦落在被 :hover 撑开的面板上，面板内
+ *      命中测试会全部失效（hover 丢失 / 按钮与内嵌播放器点不动），只能移出
+ *      再移入才恢复；focusout 用 relatedTarget 判断焦点是否仍在浮层内
+ *      （跨文档进入内嵌画面时该值为 null，属既有边缘路径，不在本修复范围）。
  * ========================================================================== */
 
 (function() {
@@ -84,6 +89,9 @@
     let lastBvid = "";
     // 展开动画结束后复算一次画面尺寸（过渡期间 clientWidth 不稳定）
     let layoutTimer = 0;
+    // 指针是否停在浮层范围内：mouseenter / mouseleave 维护。inert 生效后浏览器
+    // 会摘掉面板内的 :hover，只看 :hover 判断不出指针位置，必须单独记状态
+    let pointerIn = false;
 
     /* ---------- 4. 存储读写与小工具 ---------- */
 
@@ -318,16 +326,29 @@
     }
 
     /**
-     * 收起态的无障碍同步；已点击固定（is-open）时不收起。
-     * @sideeffect 恢复 aria-hidden 与 inert
+     * 指针是否仍停在浮层范围内：mouseenter / mouseleave 的显式状态优先，
+     * 再兜底查一次 :hover（部分情况下 :hover 会短暂失真）。
+     * @returns {boolean} true 表示指针在浮层里
+     */
+    function pointerInside() {
+        if (pointerIn) return true;
+        return !!(CAN_HOVER && stage && stage.matches(":hover"));
+    }
+
+    /**
+     * 收起态的无障碍同步；已点击固定（is-open）或指针仍在浮层上时不收起。
+     * 收起态只能写在"确实不在展开"的时候：指针停留时 CSS 的 :hover 会继续把
+     * 面板撑开，若此时写 inert，面板内所有命中测试会立刻失效（hover 丢失、
+     * 按钮与内嵌播放器点不动），且必须移出再移入才能恢复。
+     * @sideeffect 先写 inert：它会主动清掉面板内的焦点，避免 aria-hidden 因
+     *             仍有后代焦点被浏览器忽略；随后补 aria-hidden 与展开标记
      */
     function collapseVisual() {
         if (isOpen) return;
-        // 键盘焦点仍在浮层内时保持展开，等 focusout / mouseleave 再次触发收敛
-        if (stage && stage.contains(document.activeElement)) return;
+        if (pointerInside()) return;
         if (panel) {
+            if (!panel.hasAttribute("inert")) panel.setAttribute("inert", "");
             panel.setAttribute("aria-hidden", "true");
-            panel.setAttribute("inert", "");
         }
         if (launcher) launcher.setAttribute("aria-expanded", "false");
     }
@@ -379,6 +400,8 @@
      */
     function applyEnabledUI(on) {
         enabled = !!on;
+        // 关闭后悬浮层整体 display:none，mouseleave 不会再补发，这里显式复位
+        if (!enabled) pointerIn = false;
         if (stage) stage.classList.toggle("is-enabled", enabled);
         if (switchEl) switchEl.classList.toggle("on", enabled);
         if (enabled) {
@@ -444,18 +467,25 @@
     // 桌面悬停 / 键盘聚焦展开：与 bilibili2.html 的 .stage:hover / :focus-within 对齐
     if (stage) {
         stage.addEventListener("mouseenter", function() {
+            pointerIn = true;
             if (!enabled) return;
             expandVisual();
         });
         stage.addEventListener("mouseleave", function() {
+            pointerIn = false;
             collapseVisual();
         });
         stage.addEventListener("focusin", function() {
             if (!enabled) return;
             expandVisual();
         });
-        stage.addEventListener("focusout", function() {
-            // 焦点仍在浮层内（例如点到歌单按钮）时不收起
+        stage.addEventListener("focusout", function(e) {
+            // 焦点在浮层内部转移（歌单按钮 → 另一按钮）时，focusout 阶段
+            // document.activeElement 已暂时落回 body，直接看它会误判成"焦点离开"。
+            // relatedTarget 才是真实去向；指针点击换焦点时它在浮层内，据此返回，
+            // 避免在指针仍悬停时写回收起态、冻结整个面板
+            const to = e && e.relatedTarget;
+            if (to && stage.contains(to)) return;
             if (stage.contains(document.activeElement)) return;
             collapseVisual();
         });

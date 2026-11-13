@@ -27,6 +27,7 @@
     var MOBILE_MQ = "(max-width: 700px)";
     var REDUCE_MQ = "(prefers-reduced-motion: reduce)";
     var CTA_TEXT = "点击任意处开始游玩";
+    var CTA_LOADING = "加载中…";
     var WELCOME_FIRST = "这是你第一次游玩『反向💣扫雷』先来试试教学模式吧！";
     var WELCOME_BACK = "欢迎回来！今天也来『反向💣扫雷』吧 o(*^▽^*)┛";
     var EASE_FLY = "cubic-bezier(.3,.7,.25,1)";
@@ -626,6 +627,62 @@
 
     /* ---------- 6. 开始交互 ---------- */
 
+    /* 点击开始时页面可能还没就绪（首局棋盘仍在生成 / 资源未加载完）：
+       此时启动层提示改为「加载中…」，轮询到就绪后自动开始，避免转场后
+       出现空棋盘或加载占位。 */
+    var startPending = false;
+    var readyTimer = null;
+    var readyDeadline = 0;
+
+    /**
+     * 判断页面是否已经可以开始游玩：DOM 完成加载且首局棋盘已生成。
+     * @returns {boolean}
+     */
+    function pageReady() {
+        try {
+            if (document.readyState !== "complete") return false;
+            return !!document.querySelector("#board .cell");
+        } catch (e) {
+            return true;
+        }
+    }
+
+    /** 把启动提示切换为「加载中…」 */
+    function showLoadingCta() {
+        var cta = $("splashCta");
+        if (!cta) return;
+        cta.textContent = CTA_LOADING;
+        cta.classList.add("is-loading");
+    }
+
+    /** 点击 / 键盘触发开始：页面未就绪时先显示加载中，就绪后自动开始 */
+    function requestStart() {
+        if (started || finished) return;
+        if (pageReady()) {
+            start();
+            return;
+        }
+        if (startPending) return;
+        startPending = true;
+        readyDeadline = Date.now() + 8000;
+        showLoadingCta();
+        waitReadyForStart();
+    }
+
+    /** 轮询等待页面就绪（120ms 一次），就绪后自动进入转场 */
+    function waitReadyForStart() {
+        readyTimer = setTimeout(function () {
+            if (started || finished || !isStartup()) return;
+            // 页面就绪或等待超时（8s，防止异常场景卡死在「加载中」）后开始
+            if (pageReady() || Date.now() > readyDeadline) {
+                startPending = false;
+                start();
+                return;
+            }
+            waitReadyForStart();
+        }, 120);
+    }
+
     /**
      * 开始游玩：幂等。加 playing + transitioning，收起已打开的侧栏 / 弹窗，
      * 再按设备与动效偏好选择转场方式。
@@ -638,6 +695,11 @@
         if (!body || started || finished) return;
         if (!body.classList.contains("startup")) return;
         started = true;
+        startPending = false;
+        if (readyTimer) {
+            clearTimeout(readyTimer);
+            readyTimer = null;
+        }
         closeOpenUI();
         body.classList.add("playing", "transitioning");
         if (opts.instant) {
@@ -664,7 +726,7 @@
         )) return;
         // 侧栏展开或弹窗显示中：这一下留给关闭 / 操作 UI，不触发开始
         if (uiOpen()) return;
-        start();
+        requestStart();
     }
 
     function onKeyDown(e) {
@@ -677,7 +739,7 @@
         if (e.key === " " || e.code === "Space") {
             try { e.preventDefault(); } catch (err) {}
         }
-        start();
+        requestStart();
     }
 
     /* ---------- 7. 初始化与对外接口 ---------- */
@@ -704,7 +766,8 @@
         start: start,
         isStartup: isStartup,
         emoji: emoji,
-        welcomeText: function () { return welcomeText; }
+        welcomeText: function () { return welcomeText; },
+        isReady: pageReady
     };
 
     if (document.readyState === "loading") {

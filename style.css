@@ -10824,10 +10824,11 @@ body.tetris-mode .ops-tips {
         padding: 0;
     }
 
-    /* 全屏按钮高 32、top 8 → 下边缘 40，音乐按钮留 8px 间距 */
+    /* 音乐按钮与全屏按钮同排、位于其左侧：全屏 right 8 宽 64，
+       音乐 right = 8 + 64 + 8 = 80，两者间距 8px、右对齐同一行 */
     .bili-stage {
-        top: max(48px, calc(env(safe-area-inset-top, 0px) + 48px));
-        right: max(8px, env(safe-area-inset-right, 0px));
+        top: max(8px, env(safe-area-inset-top, 0px));
+        right: max(80px, calc(env(safe-area-inset-right, 0px) + 80px));
     }
 
     /* 与「全屏」按钮同字号与图标间距；64×32 放得下「图标 + 两字文案」 */
@@ -11419,16 +11420,16 @@ body.playing footer.sidebar-version {
         max-width: calc(100vw - 12px);
     }
 
-    /* 全屏 / 音乐移到主按钮条下方、靠右：全屏 top 57（8+41+8），
-       音乐 top 97（57+32+8）；两者右边缘与按钮条右缘留 8px */
+    /* 全屏 / 音乐移到主按钮条下方、靠右同一排：全屏 top 57（8+41+8）right 8；
+       音乐与全屏同排、位于其左侧（right = 8+64+8 = 80） */
     body.playing:not(.startup) .rm-fullscreen-btn {
         top: max(57px, calc(env(safe-area-inset-top, 0px) + 57px));
         right: max(8px, env(safe-area-inset-right, 0px));
     }
 
     body.playing:not(.startup) .bili-stage {
-        top: max(97px, calc(env(safe-area-inset-top, 0px) + 97px));
-        right: max(8px, env(safe-area-inset-right, 0px));
+        top: max(57px, calc(env(safe-area-inset-top, 0px) + 57px));
+        right: max(80px, calc(env(safe-area-inset-right, 0px) + 80px));
     }
 
     /* 页脚在 74.4 中已对 ≤700px 隐藏（底部让给侧栏工具栏），此处不再显示 */

@@ -11420,16 +11420,17 @@ body.playing footer.sidebar-version {
         max-width: calc(100vw - 12px);
     }
 
-    /* 全屏 / 音乐移到主按钮条下方、靠右同一排：全屏 top 57（8+41+8）right 8；
-       音乐与全屏同排、位于其左侧（right = 8+64+8 = 80） */
+    /* 主按钮条下方同一排：全屏贴左侧（top 57 = 8+41+8、left 8），
+       音乐贴右侧（top 57、right 8）；两者分居左右不再相邻 */
     body.playing:not(.startup) .rm-fullscreen-btn {
         top: max(57px, calc(env(safe-area-inset-top, 0px) + 57px));
-        right: max(8px, env(safe-area-inset-right, 0px));
+        left: max(8px, env(safe-area-inset-left, 0px));
+        right: auto;
     }
 
     body.playing:not(.startup) .bili-stage {
         top: max(57px, calc(env(safe-area-inset-top, 0px) + 57px));
-        right: max(80px, calc(env(safe-area-inset-right, 0px) + 80px));
+        right: max(8px, env(safe-area-inset-right, 0px));
     }
 
     /* 页脚在 74.4 中已对 ≤700px 隐藏（底部让给侧栏工具栏），此处不再显示 */

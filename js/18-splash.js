@@ -627,12 +627,11 @@
 
     /* ---------- 6. 开始交互 ---------- */
 
-    /* 点击开始时页面可能还没就绪（首局棋盘仍在生成 / 资源未加载完）：
-       此时启动层提示改为「加载中…」，轮询到就绪后自动开始，避免转场后
-       出现空棋盘或加载占位。 */
-    var startPending = false;
+    /* 启动提示与首局就绪联动：页面 / 首局棋盘尚未就绪时显示「加载中…」，
+       就绪后自动切换为「点击任意处开始游玩」；点击只在就绪后才会开始。 */
     var readyTimer = null;
-    var readyDeadline = 0;
+    var readyWatchStart = 0;
+    var readyForced = false;
 
     /**
      * 判断页面是否已经可以开始游玩：DOM 完成加载且首局棋盘已生成。
@@ -647,40 +646,60 @@
         }
     }
 
-    /** 把启动提示切换为「加载中…」 */
-    function showLoadingCta() {
+    /** 启动提示切到「加载中…」 */
+    function setCtaLoading() {
         var cta = $("splashCta");
         if (!cta) return;
         cta.textContent = CTA_LOADING;
         cta.classList.add("is-loading");
     }
 
-    /** 点击 / 键盘触发开始：页面未就绪时先显示加载中，就绪后自动开始 */
-    function requestStart() {
-        if (started || finished) return;
-        if (pageReady()) {
-            start();
-            return;
-        }
-        if (startPending) return;
-        startPending = true;
-        readyDeadline = Date.now() + 8000;
-        showLoadingCta();
-        waitReadyForStart();
+    /** 启动提示切到「点击任意处开始游玩」 */
+    function setCtaReady() {
+        var cta = $("splashCta");
+        if (!cta) return;
+        cta.textContent = CTA_TEXT;
+        cta.classList.remove("is-loading");
     }
 
-    /** 轮询等待页面就绪（120ms 一次），就绪后自动进入转场 */
-    function waitReadyForStart() {
+    /**
+     * 按当前就绪状态同步启动提示；返回是否已就绪。
+     * @returns {boolean}
+     */
+    function syncStartCta() {
+        if (started || finished) return true;
+        if (pageReady()) {
+            setCtaReady();
+            return true;
+        }
+        setCtaLoading();
+        return false;
+    }
+
+    /** 未就绪时每 120ms 轮询，就绪后把提示切回「点击任意处」；8s 兜底强制可点 */
+    function watchStartReady() {
         readyTimer = setTimeout(function () {
-            if (started || finished || !isStartup()) return;
-            // 页面就绪或等待超时（8s，防止异常场景卡死在「加载中」）后开始
-            if (pageReady() || Date.now() > readyDeadline) {
-                startPending = false;
-                start();
+            if (started || finished) return;
+            if (pageReady()) {
+                readyTimer = null;
+                setCtaReady();
                 return;
             }
-            waitReadyForStart();
+            if (Date.now() - readyWatchStart > 8000) {
+                readyTimer = null;
+                readyForced = true;
+                setCtaReady();
+                return;
+            }
+            watchStartReady();
         }, 120);
+    }
+
+    /** 点击 / 键盘触发开始：页面未就绪时点击无效（提示仍是加载中） */
+    function requestStart() {
+        if (started || finished) return;
+        if (!pageReady() && !readyForced) return;
+        start();
     }
 
     /**
@@ -695,7 +714,6 @@
         if (!body || started || finished) return;
         if (!body.classList.contains("startup")) return;
         started = true;
-        startPending = false;
         if (readyTimer) {
             clearTimeout(readyTimer);
             readyTimer = null;
@@ -755,8 +773,9 @@
         if (emojiEl) emojiEl.textContent = emoji;
         var welcomeEl = $("splashWelcome");
         if (welcomeEl) welcomeEl.textContent = welcomeText;
-        var cta = $("splashCta");
-        if (cta) cta.textContent = CTA_TEXT;
+        // 启动提示按首局就绪状态初始化：未就绪先显示「加载中…」，就绪后切回点击文案
+        readyWatchStart = Date.now();
+        if (!syncStartCta()) watchStartReady();
         syncTitleEmoji();
         document.addEventListener("click", onDocClick, true);
         document.addEventListener("keydown", onKeyDown, true);

@@ -11597,6 +11597,873 @@ body.playing footer.sidebar-version {
     /* 页脚在 74.4 中已对 ≤700px 隐藏（底部让给侧栏工具栏），此处不再显示 */
 }
 
+/* ==========================================================================
+ * 75. 个性定制：页面背景 / 地块三态色系 / 普通雷 emoji
+ * --------------------------------------------------------------------------
+ * 75.1 设置栏「👕 个性定制」与折叠分组（存档管理 / 关于默认折叠）
+ * 75.2 背景场景层与 11 套背景（取自 背景测试台.html 的最终版）
+ * 75.3 背景与文字可读性（深色 / 浅色 tone）
+ * 75.4 棋盘三态色系变量（默认值 = 原配色）
+ * 75.5 存档管理入口：文字按钮与三按钮同排
+ * 约束：本节只追加覆盖规则；默认色系不改变任何既有观感，硬核配色仍由
+ *       第 66 段优先（硬核局不写 .cell-valid / .cell-low / .cell-over）。
+ * ========================================================================== */
+
+/* ---- 75.1 个性定制分组 ---- */
+
+.personalize-group {
+    margin-top: 8px;
+    padding: 0;
+    border: 1px solid rgba(22, 33, 43, .08);
+    border-radius: 14px;
+    background: #f7f9fc;
+    overflow: hidden;
+}
+
+.sidebar-title + .personalize-group {
+    margin-top: 10px;
+}
+
+/* 三个项目各自独立折叠：标题即按钮，摘要常驻标题右侧 */
+.pers-acc-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 10px 12px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color .2s ease;
+}
+
+.pers-acc-head .personalize-label {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+.pers-acc-head:hover {
+    background: #eef3f9;
+}
+
+.pers-acc-head:active {
+    transform: scale(.995);
+}
+
+.pers-acc-head:focus-visible {
+    outline: 2px solid rgba(47, 127, 235, .5);
+    outline-offset: -2px;
+}
+
+.pers-acc-arrow {
+    flex: none;
+    color: var(--rm-ink-4);
+    font-size: 14px;
+    line-height: 1;
+    transition: transform .3s var(--rm-ease);
+}
+
+.personalize-group.pers-acc-open .pers-acc-arrow {
+    transform: rotate(90deg);
+}
+
+.personalize-group.pers-acc-open .pers-acc-head {
+    border-bottom: 1px dashed rgba(22, 33, 43, .08);
+}
+
+.pers-acc-body {
+    display: none;
+    padding: 2px 12px 12px;
+    animation: sidebarSectionIn .3s var(--rm-spring) both;
+}
+
+.personalize-group.pers-acc-open .pers-acc-body {
+    display: block;
+}
+
+.personalize-label {
+    color: var(--rm-ink);
+    font-size: 12.5px;
+    font-weight: 800;
+    letter-spacing: .01em;
+}
+
+.personalize-current {
+    margin-left: auto;
+    color: #2f7d67;
+    font-size: 11px;
+    font-weight: 800;
+    max-width: 55%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.personalize-hint {
+    margin-top: 8px;
+    color: var(--rm-ink-4);
+    font-size: 10.5px;
+    line-height: 1.6;
+}
+
+/* 背景缩略图：3 列小卡，选中项加绿色描边 */
+.bg-choice-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.bg-choice {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid rgba(22, 33, 43, .08);
+    border-radius: 11px;
+    background: #f7f9fc;
+    cursor: pointer;
+    transition: border-color .2s ease, box-shadow .2s ease, transform .16s ease;
+}
+
+.bg-choice:hover {
+    border-color: rgba(47, 158, 122, .5);
+    transform: translateY(-1px);
+}
+
+.bg-choice:active {
+    transform: scale(.98);
+}
+
+.bg-choice.active {
+    border-color: #2f9e7a;
+    box-shadow: 0 0 0 2px rgba(47, 158, 122, .22);
+}
+
+.bg-choice-thumb {
+    position: relative;
+    display: block;
+    height: 34px;
+    overflow: hidden;
+    border-radius: 7px;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .12);
+}
+
+.bg-choice-glyph {
+    position: absolute;
+    right: 4px;
+    bottom: 2px;
+    color: rgba(255, 255, 255, .92);
+    font-size: 12px;
+    line-height: 1;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, .45);
+    pointer-events: none;
+}
+
+.bg-choice-name {
+    overflow: hidden;
+    color: #315048;
+    font-size: 9.5px;
+    font-weight: 700;
+    line-height: 1.2;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bg-choice.active .bg-choice-name {
+    color: #1f6b57;
+    font-weight: 800;
+}
+
+/* 色系卡：2 列，三格色条 + 名称 + 策略标签 */
+.palette-choice-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.pal-choice {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 3px;
+    padding: 6px 7px 7px;
+    border: 1px solid rgba(22, 33, 43, .08);
+    border-radius: 11px;
+    background: #f7f9fc;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color .2s ease, box-shadow .2s ease, transform .16s ease;
+}
+
+.pal-choice:hover {
+    border-color: rgba(47, 127, 235, .45);
+    transform: translateY(-1px);
+}
+
+.pal-choice:active {
+    transform: scale(.98);
+}
+
+.pal-choice.active {
+    border-color: #2f7feb;
+    box-shadow: 0 0 0 2px rgba(47, 127, 235, .2);
+}
+
+.pal-choice-strip {
+    display: flex;
+    height: 12px;
+    overflow: hidden;
+    border-radius: 5px;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .08);
+}
+
+.pal-choice-strip i {
+    flex: 1 1 0;
+}
+
+.pal-choice-name {
+    overflow: hidden;
+    color: var(--rm-ink);
+    font-size: 10.5px;
+    font-weight: 700;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pal-choice-sub {
+    color: var(--rm-ink-4);
+    font-size: 9px;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+/* emoji 卡：6 列，图标 + 小字名称 */
+.emoji-choice-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.emoji-choice {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 2px 5px;
+    border: 1px solid rgba(22, 33, 43, .08);
+    border-radius: 10px;
+    background: #f7f9fc;
+    cursor: pointer;
+    transition: border-color .2s ease, box-shadow .2s ease, transform .16s ease;
+}
+
+.emoji-choice:hover {
+    border-color: rgba(47, 127, 235, .4);
+    transform: translateY(-1px);
+}
+
+.emoji-choice:active {
+    transform: scale(.96);
+}
+
+.emoji-choice.active {
+    border-color: #2f7feb;
+    box-shadow: 0 0 0 2px rgba(47, 127, 235, .2);
+    background: #eef5ff;
+}
+
+.emoji-choice-glyph {
+    font-size: 19px;
+    line-height: 1.15;
+}
+
+.emoji-choice-name {
+    max-width: 100%;
+    overflow: hidden;
+    color: var(--rm-ink-3);
+    font-size: 8.5px;
+    font-weight: 600;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 折叠分组：存档管理 / 关于。标题即按钮，闭合时只留标题行 */
+#settingSidebar .sidebar-section.set-acc {
+    padding: 0;
+    overflow: hidden;
+}
+
+#settingSidebar .set-acc > .rm-acc-head {
+    margin: 0;
+    padding: 16px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    font-size: 15px;
+    letter-spacing: .01em;
+}
+
+#settingSidebar .set-acc > .rm-acc-head:hover {
+    background: #f7f9fc;
+}
+
+#settingSidebar .set-acc > .rm-acc-body {
+    padding: 0 16px 16px;
+}
+
+#settingSidebar .set-acc .rm-acc-icon {
+    font-size: 17px;
+}
+
+#settingSidebar .set-acc .rm-acc-arrow {
+    font-size: 16px;
+}
+
+/* ---- 75.2 背景场景层 ---- */
+
+.bg-stage {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    display: none;
+    overflow: hidden;
+    background: #05060a;
+    pointer-events: none;
+}
+
+body.custom-bg .bg-stage {
+    display: block;
+}
+
+/* 场景层生效时隐藏原版扫描线与漂浮幽灵，让背景效果独立呈现 */
+body.custom-bg .bg-effects {
+    display: none;
+}
+
+/* 脑王金色庆祝需要整页铺金，临时让出背景层 */
+body.brain-golden .bg-stage {
+    display: none !important;
+}
+
+.bg-stage::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+    background: radial-gradient(120% 90% at 50% 6%, transparent 38%, rgba(0, 0, 0, .28) 100%);
+}
+
+.bg-scene {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: none;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity .8s ease;
+}
+
+.bg-scene.active {
+    opacity: 1;
+}
+
+.bg-scene.no-transition {
+    transition: none;
+}
+
+.bg-canvas {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* —— 极光 —— */
+.bg-scene[data-bg="aurora"] {
+    background:
+        radial-gradient(80% 50% at 50% -10%, rgba(34, 197, 94, .25), transparent 60%),
+        radial-gradient(60% 50% at 80% 60%, rgba(20, 184, 166, .18), transparent 65%),
+        linear-gradient(180deg, #04121c 0%, #082a30 55%, #03141a 100%);
+}
+
+.bg-scene[data-bg="aurora"]::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+        radial-gradient(rgba(255, 255, 255, .75) 1px, transparent 1.3px),
+        radial-gradient(rgba(191, 219, 254, .55) 1px, transparent 1.2px);
+    background-size: 130px 130px, 210px 210px;
+    background-position: 0 0, 55px 80px;
+    opacity: .5;
+    pointer-events: none;
+}
+
+.aurora-curtain {
+    position: absolute;
+    top: -18%;
+    height: 140%;
+    width: 16vw;
+    min-width: 100px;
+    filter: blur(20px);
+    mix-blend-mode: screen;
+    opacity: .58;
+    border-radius: 48% 52% 45% 55% / 6% 8% 92% 94%;
+    transform-origin: 50% 0;
+    animation: auroraFlow 20s ease-in-out infinite alternate;
+    will-change: transform;
+    pointer-events: none;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 24%, #000 76%, transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0%, #000 24%, #000 76%, transparent 100%);
+}
+
+.aurora-curtain::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0) 0 5px, rgba(255, 255, 255, .1) 5px 6px, rgba(255, 255, 255, 0) 6px 13px);
+    mix-blend-mode: screen;
+    opacity: .65;
+    pointer-events: none;
+}
+
+.aurora-curtain.c1 { left: -4%; width: 20vw; background: linear-gradient(180deg, transparent 2%, rgba(74, 222, 128, .07) 14%, rgba(74, 222, 128, .52) 48%, rgba(74, 222, 128, .1) 82%, transparent 98%); animation-duration: 22s; }
+.aurora-curtain.c2 { left: 8%; width: 14vw; background: linear-gradient(180deg, transparent 2%, rgba(45, 212, 191, .06) 15%, rgba(45, 212, 191, .46) 50%, rgba(45, 212, 191, .08) 84%, transparent 98%); animation-duration: 25s; animation-delay: -6s; }
+.aurora-curtain.c3 { left: 22%; width: 22vw; background: linear-gradient(180deg, transparent 2%, rgba(34, 197, 94, .06) 14%, rgba(34, 197, 94, .5) 47%, rgba(34, 197, 94, .09) 82%, transparent 98%); animation-duration: 20s; animation-delay: -11s; }
+.aurora-curtain.c4 { left: 38%; width: 17vw; background: linear-gradient(180deg, transparent 2%, rgba(16, 185, 129, .06) 15%, rgba(16, 185, 129, .44) 52%, rgba(16, 185, 129, .08) 84%, transparent 98%); animation-duration: 24s; animation-delay: -3s; }
+.aurora-curtain.c5 { left: 52%; width: 24vw; background: linear-gradient(180deg, transparent 2%, rgba(20, 184, 166, .06) 14%, rgba(20, 184, 166, .48) 46%, rgba(20, 184, 166, .09) 82%, transparent 98%); animation-duration: 21s; animation-delay: -14s; }
+.aurora-curtain.c6 { left: 68%; width: 18vw; background: linear-gradient(180deg, transparent 2%, rgba(134, 239, 172, .07) 15%, rgba(134, 239, 172, .42) 50%, rgba(134, 239, 172, .08) 84%, transparent 98%); animation-duration: 26s; animation-delay: -8s; }
+.aurora-curtain.c7 { left: 82%; width: 22vw; background: linear-gradient(180deg, transparent 2%, rgba(34, 211, 238, .05) 14%, rgba(34, 211, 238, .38) 52%, rgba(34, 211, 238, .07) 84%, transparent 98%); animation-duration: 19s; animation-delay: -5s; }
+
+.aurora-glow {
+    position: absolute;
+    left: 50%;
+    top: -12%;
+    width: 86vmax;
+    height: 46vmax;
+    transform: translateX(-50%);
+    background: radial-gradient(ellipse at center, rgba(34, 197, 94, .22), transparent 66%);
+    filter: blur(30px);
+    pointer-events: none;
+}
+
+@keyframes auroraFlow {
+    0% { transform: translateX(-3vw) skewY(-3deg) scaleX(.9); }
+    50% { transform: translateX(1vw) skewY(2deg) scaleX(1.06); }
+    100% { transform: translateX(-1vw) skewY(-1deg) scaleX(.96); }
+}
+
+/* —— 星野 —— */
+.bg-scene[data-bg="starfield"] {
+    background:
+        radial-gradient(60% 50% at 70% 10%, rgba(59, 130, 246, .18), transparent 60%),
+        radial-gradient(50% 40% at 20% 80%, rgba(37, 99, 235, .12), transparent 65%),
+        linear-gradient(180deg, #0a1740 0%, #102a5c 55%, #07112e 100%);
+}
+
+/* —— 阳光浅海 —— */
+.bg-scene[data-bg="abyss"] {
+    background:
+        radial-gradient(70% 40% at 50% -5%, rgba(255, 255, 255, .95), transparent 60%),
+        linear-gradient(180deg, #f0f9ff 0%, #bae6fd 22%, #67e8f9 46%, #22d3ee 66%, #0891b2 86%, #0e7490 100%);
+}
+
+.bg-scene[data-bg="abyss"]::before {
+    content: "";
+    position: absolute;
+    inset: -20% -10%;
+    z-index: 1;
+    background:
+        linear-gradient(112deg, transparent 30%, rgba(255, 255, 255, .28) 36%, transparent 42%),
+        linear-gradient(96deg, transparent 54%, rgba(255, 255, 255, .2) 60%, transparent 66%),
+        linear-gradient(72deg, transparent 68%, rgba(255, 255, 255, .16) 74%, transparent 80%);
+    filter: blur(12px);
+    animation: raysSway 18s ease-in-out infinite alternate;
+    pointer-events: none;
+}
+
+@keyframes raysSway {
+    0% { transform: translateX(-2vw) rotate(-1deg); }
+    100% { transform: translateX(2vw) rotate(1deg); }
+}
+
+/* —— 樱花 —— */
+.bg-scene[data-bg="sakura"] {
+    background: linear-gradient(170deg, #fff7ed 0%, #fce7f3 48%, #fbcfe8 100%);
+}
+
+.bg-scene[data-bg="sakura"]::before {
+    content: "";
+    position: absolute;
+    left: 64%;
+    top: 4%;
+    width: 28vmax;
+    height: 28vmax;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 255, 255, .95), rgba(255, 237, 213, .35) 46%, transparent 70%);
+    filter: blur(8px);
+}
+
+/* —— 数字雨 —— */
+.bg-scene[data-bg="rain"] {
+    background:
+        radial-gradient(70% 50% at 50% 0%, rgba(34, 197, 94, .25), transparent 60%),
+        linear-gradient(180deg, #04150f 0%, #0b3d2e 55%, #0e4a35 100%);
+}
+
+/* —— 地雷幽灵 —— */
+.bg-scene[data-bg="ghosts"] {
+    background:
+        radial-gradient(50% 40% at 78% 8%, rgba(191, 219, 254, .2), transparent 60%),
+        radial-gradient(60% 50% at 20% 80%, rgba(30, 64, 175, .35), transparent 65%),
+        linear-gradient(180deg, #0b1f3a 0%, #122a4d 55%, #071426 100%);
+}
+
+.bg-scene[data-bg="ghosts"]::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(147, 197, 253, .14) 1.1px, transparent 1.2px);
+    background-size: 26px 26px;
+    opacity: .5;
+    pointer-events: none;
+}
+
+.ghost {
+    position: absolute;
+    opacity: .3;
+    filter: blur(.4px);
+    user-select: none;
+    animation: ghostFloat 12s ease-in-out infinite alternate;
+    will-change: transform, opacity;
+}
+
+.bg-scene[data-bg="ghosts"] .ghost {
+    filter: drop-shadow(0 0 12px rgba(147, 197, 253, .55));
+}
+
+@keyframes ghostFloat {
+    0% { transform: translate3d(0, 0, 0) rotate(-6deg); opacity: .1; }
+    50% { opacity: .45; }
+    100% { transform: translate3d(2vw, -8vh, 0) rotate(8deg); opacity: .18; }
+}
+
+.ghost-wisp {
+    position: absolute;
+    border-radius: 50% 50% 38% 38%;
+    background: linear-gradient(180deg, rgba(226, 240, 255, .5), rgba(147, 197, 253, .06));
+    filter: blur(3px);
+    animation: ghostWisp 14s ease-in-out infinite alternate;
+    pointer-events: none;
+}
+
+.ghost-wisp::before,
+.ghost-wisp::after {
+    content: "";
+    position: absolute;
+    top: 32%;
+    width: 11%;
+    height: 15%;
+    border-radius: 50%;
+    background: rgba(8, 20, 42, .6);
+}
+
+.ghost-wisp::before { left: 31%; }
+.ghost-wisp::after { right: 31%; }
+
+@keyframes ghostWisp {
+    0% { transform: translate3d(0, 0, 0) rotate(-3deg); }
+    100% { transform: translate3d(2vw, -4vh, 0) rotate(4deg); }
+}
+
+/* —— 薄荷汽水 —— */
+.bg-scene[data-bg="mint"] {
+    background:
+        radial-gradient(80% 60% at 78% 8%, rgba(255, 255, 255, .92), transparent 58%),
+        radial-gradient(60% 50% at 12% 88%, rgba(253, 230, 138, .6), transparent 65%),
+        linear-gradient(160deg, #d1fae5 0%, #a7f3d0 35%, #bae6fd 70%, #e0f2fe 100%);
+}
+
+.bg-scene[data-bg="mint"]::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(6, 95, 70, .16) 1.2px, transparent 1.3px);
+    background-size: 24px 24px;
+    opacity: .5;
+    pointer-events: none;
+}
+
+/* —— 糖果波普 —— */
+.bg-scene[data-bg="candy"] {
+    background: linear-gradient(135deg, #fdf2f8 0%, #fbcfe8 28%, #fef08a 62%, #a7f3d0 100%);
+}
+
+.bg-scene[data-bg="candy"]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(190, 24, 93, .16) 1.5px, transparent 1.6px);
+    background-size: 18px 18px;
+    opacity: .55;
+    pointer-events: none;
+}
+
+.candy-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(22px);
+    mix-blend-mode: multiply;
+    opacity: .5;
+    animation: candyFloat 18s ease-in-out infinite alternate;
+}
+
+.candy-blob.c1 { left: 2%; top: 5%; width: 46vmax; height: 40vmax; background: radial-gradient(circle, rgba(244, 114, 182, .9), transparent 68%); animation-duration: 19s; }
+.candy-blob.c2 { right: -8%; top: 0%; width: 38vmax; height: 36vmax; background: radial-gradient(circle, rgba(250, 204, 21, .85), transparent 68%); animation-duration: 24s; animation-direction: alternate-reverse; }
+.candy-blob.c3 { left: 10%; bottom: -18%; width: 42vmax; height: 38vmax; background: radial-gradient(circle, rgba(34, 211, 238, .8), transparent 68%); animation-duration: 21s; }
+.candy-blob.c4 { right: 4%; bottom: -12%; width: 34vmax; height: 32vmax; background: radial-gradient(circle, rgba(163, 230, 53, .8), transparent 68%); animation-duration: 17s; animation-direction: alternate-reverse; }
+
+@keyframes candyFloat {
+    0% { transform: translate3d(0, 0, 0) scale(1); }
+    100% { transform: translate3d(4vw, -3vh, 0) scale(1.12); }
+}
+
+.candy-sweet {
+    position: absolute;
+    z-index: 2;
+    filter: drop-shadow(0 8px 12px rgba(190, 24, 93, .18));
+    animation: sweetFloat 16s ease-in-out infinite alternate;
+    user-select: none;
+    pointer-events: none;
+}
+
+@keyframes sweetFloat {
+    0% { transform: translate3d(0, 0, 0) rotate(-8deg); }
+    100% { transform: translate3d(2vw, -3vh, 0) rotate(8deg); }
+}
+
+/* —— 霓虹光束 —— */
+.bg-scene[data-bg="neon"] {
+    background:
+        radial-gradient(60% 50% at 50% 110%, rgba(236, 72, 153, .25), transparent 60%),
+        linear-gradient(135deg, #1a0b3a 0%, #2e1065 45%, #140a30 100%);
+}
+
+/* —— 萤火森林 —— */
+.bg-scene[data-bg="forest"] {
+    background:
+        radial-gradient(80% 60% at 70% 0%, rgba(74, 222, 128, .35), transparent 60%),
+        radial-gradient(60% 50% at 20% 80%, rgba(20, 184, 166, .28), transparent 65%),
+        linear-gradient(180deg, #0a3d2a 0%, #0b4a35 55%, #062a1e 100%);
+}
+
+.forest-firefly {
+    position: absolute;
+    border-radius: 50%;
+    animation: fireflyBlink 6s ease-in-out infinite;
+    will-change: transform, opacity;
+}
+
+@keyframes fireflyBlink {
+    0%, 100% { opacity: .12; transform: translate3d(0, 0, 0) scale(.8); }
+    50% { opacity: .95; transform: translate3d(0, -6px, 0) scale(1.1); }
+}
+
+/* —— 雨林晨光 —— */
+.bg-scene[data-bg="rainforest"] {
+    background: linear-gradient(180deg, #f0fdf4 0%, #d9f99d 25%, #86efac 50%, #34d399 75%, #0f766e 100%);
+}
+
+.rainforest-ray {
+    position: absolute;
+    top: -20%;
+    width: 10vmax;
+    height: 150%;
+    background: linear-gradient(180deg, rgba(255, 255, 255, .45), transparent);
+    filter: blur(14px);
+    opacity: .55;
+    animation: raySway 16s ease-in-out infinite alternate;
+    transform-origin: top center;
+}
+
+.rainforest-ray.r1 { left: 8%; transform: rotate(18deg); }
+.rainforest-ray.r2 { left: 30%; transform: rotate(24deg); animation-delay: -4s; }
+.rainforest-ray.r3 { left: 55%; transform: rotate(14deg); animation-delay: -8s; }
+.rainforest-ray.r4 { left: 78%; transform: rotate(26deg); animation-delay: -12s; }
+
+.rainforest-leaf {
+    position: absolute;
+    border-radius: 60% 40% 55% 45%;
+    filter: blur(1px);
+    opacity: .7;
+    animation: none;
+    pointer-events: none;
+}
+
+@keyframes raySway {
+    0% { transform: rotate(12deg) translateX(-1vw); opacity: .4; }
+    100% { transform: rotate(28deg) translateX(1vw); opacity: .65; }
+}
+
+/* ---- 75.3 深色 / 浅色背景上的标题与页脚 ---- */
+
+body.bg-tone-dark .game-title {
+    color: #ffffff;
+    text-shadow: 0 1px 0 rgba(0, 0, 0, .3), 0 8px 26px rgba(0, 0, 0, .45);
+}
+
+body.bg-tone-light .game-title {
+    color: #2d3748;
+}
+
+body.bg-tone-dark footer.sidebar-version {
+    color: rgba(255, 255, 255, .86) !important;
+    text-shadow: 0 1px 12px rgba(0, 0, 0, .45);
+}
+
+body.bg-tone-light footer.sidebar-version {
+    color: #4a5568 !important;
+    text-shadow: 0 1px 10px rgba(255, 255, 255, .55);
+}
+
+/* ---- 75.4 棋盘三态色系 ---- */
+
+:root {
+    --rm-cell-valid: #9fdf9f;
+    --rm-cell-low: #fde68a;
+    --rm-cell-over: #fca5a5;
+    --rm-cell-valid-stroke: rgba(47, 132, 79, .26);
+    --rm-cell-low-stroke: rgba(190, 126, 8, .24);
+    --rm-cell-over-stroke: rgba(197, 60, 60, .24);
+}
+
+.cell-valid {
+    background: var(--rm-cell-valid);
+    box-shadow: inset 0 0 0 1px var(--rm-cell-valid-stroke);
+}
+
+.cell-low {
+    background: var(--rm-cell-low);
+    box-shadow: inset 0 0 0 1px var(--rm-cell-low-stroke);
+}
+
+.cell-over {
+    background: var(--rm-cell-over);
+    box-shadow: inset 0 0 0 1px var(--rm-cell-over-stroke);
+}
+
+/* 自定义色系下按底色亮度切换数字颜色；默认色系沿用各 .n1 ~ .n9 的原色 */
+.cell-valid .cell-num { color: var(--rm-cell-ink-valid, inherit); }
+.cell-low .cell-num { color: var(--rm-cell-ink-low, inherit); }
+.cell-over .cell-num { color: var(--rm-cell-ink-over, inherit); }
+
+/* 色系配套数字色：n1~n5 / n-1~n-3 按三态底色使用独立变量；
+   变量未写入（默认色系）时回落到 inherit，即原有 .n1 ~ .n-3 的颜色。 */
+.cell-valid.n1 .cell-num { color: var(--rm-num-1-valid, var(--rm-cell-ink-valid, inherit)); }
+.cell-low.n1 .cell-num { color: var(--rm-num-1-low, var(--rm-cell-ink-low, inherit)); }
+.cell-over.n1 .cell-num { color: var(--rm-num-1-over, var(--rm-cell-ink-over, inherit)); }
+.cell-valid.n2 .cell-num { color: var(--rm-num-2-valid, var(--rm-cell-ink-valid, inherit)); }
+.cell-low.n2 .cell-num { color: var(--rm-num-2-low, var(--rm-cell-ink-low, inherit)); }
+.cell-over.n2 .cell-num { color: var(--rm-num-2-over, var(--rm-cell-ink-over, inherit)); }
+.cell-valid.n3 .cell-num { color: var(--rm-num-3-valid, var(--rm-cell-ink-valid, inherit)); }
+.cell-low.n3 .cell-num { color: var(--rm-num-3-low, var(--rm-cell-ink-low, inherit)); }
+.cell-over.n3 .cell-num { color: var(--rm-num-3-over, var(--rm-cell-ink-over, inherit)); }
+.cell-valid.n4 .cell-num { color: var(--rm-num-4-valid, var(--rm-cell-ink-valid, inherit)); }
+.cell-low.n4 .cell-num { color: var(--rm-num-4-low, var(--rm-cell-ink-low, inherit)); }
+.cell-over.n4 .cell-num { color: var(--rm-num-4-over, var(--rm-cell-ink-over, inherit)); }
+.cell-valid.n5 .cell-num { color: var(--rm-num-5-valid, var(--rm-cell-ink-valid, inherit)); }
+.cell-low.n5 .cell-num { color: var(--rm-num-5-low, var(--rm-cell-ink-low, inherit)); }
+.cell-over.n5 .cell-num { color: var(--rm-num-5-over, var(--rm-cell-ink-over, inherit)); }
+.cell-valid.n-1 .cell-num { color: var(--rm-num-neg1-valid, var(--rm-cell-ink-valid, inherit)); }
+.cell-low.n-1 .cell-num { color: var(--rm-num-neg1-low, var(--rm-cell-ink-low, inherit)); }
+.cell-over.n-1 .cell-num { color: var(--rm-num-neg1-over, var(--rm-cell-ink-over, inherit)); }
+.cell-valid.n-2 .cell-num { color: var(--rm-num-neg2-valid, var(--rm-cell-ink-valid, inherit)); }
+.cell-low.n-2 .cell-num { color: var(--rm-num-neg2-low, var(--rm-cell-ink-low, inherit)); }
+.cell-over.n-2 .cell-num { color: var(--rm-num-neg2-over, var(--rm-cell-ink-over, inherit)); }
+.cell-valid.n-3 .cell-num { color: var(--rm-num-neg3-valid, var(--rm-cell-ink-valid, inherit)); }
+.cell-low.n-3 .cell-num { color: var(--rm-num-neg3-low, var(--rm-cell-ink-low, inherit)); }
+.cell-over.n-3 .cell-num { color: var(--rm-num-neg3-over, var(--rm-cell-ink-over, inherit)); }
+
+.cell.rm-preview-valid { background: var(--rm-cell-valid) !important; }
+.cell.rm-preview-low { background: var(--rm-cell-low) !important; }
+.cell.rm-preview-over { background: var(--rm-cell-over) !important; }
+
+/* ---- 75.5 存档管理：文字入口与三按钮同排 ---- */
+
+#SaveManage .save-hint .tip-note-link {
+    margin-left: 2px;
+    font-size: 11px;
+}
+
+#SaveManage .save-manage-main {
+    flex-wrap: nowrap;
+    gap: 6px;
+}
+
+#SaveManage .save-manage-main > button {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0 4px;
+    font-size: 11.5px;
+    white-space: nowrap;
+}
+
+#settingSidebar .rm-undo-btn {
+    display: block;
+    width: auto;
+    margin: 8px 0 0;
+    padding: 1px 2px;
+    border: 0;
+    border-radius: 4px;
+    background: none;
+    color: var(--rm-blue-deep);
+    font-size: 11.5px;
+    font-weight: 700;
+    line-height: 1.5;
+    text-align: left;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+
+#settingSidebar .rm-undo-btn:hover {
+    background: rgba(47, 127, 235, .12);
+    color: #1a5fb0;
+}
+
+#settingSidebar .rm-undo-btn:active {
+    background: rgba(47, 127, 235, .2);
+}
+
+/* ---- 75.6 窄屏与动效偏好 ---- */
+
+@media (max-width: 700px) {
+    .bg-choice-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .palette-choice-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .emoji-choice-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    #settingSidebar .set-acc > .rm-acc-head { padding: 14px; }
+    #settingSidebar .set-acc > .rm-acc-body { padding: 0 14px 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bg-scene *,
+    .bg-scene::before,
+    .bg-scene::after {
+        animation: none !important;
+    }
+}
+
 
 
 

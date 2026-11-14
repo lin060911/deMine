@@ -370,6 +370,8 @@ function genPreHtml(preview) {
     // 没有预览数据时给出占位文案，调用方无需判空
     if (!preview) return "<div>无预览</div>";
     const {size, active, center, values, labels, marks, guides} = preview;
+    // 图例中的「普通雷」标记跟随个性定制替换，避免设置后图鉴仍显示旧图标
+    const normalEmoji = (typeof M !== "undefined" && M.normal && M.normal.e) ? M.normal.e : "💣";
     // 未给出逐格数值时，默认影响为 +1，格子不显示数字
     const isPlus1 = !values;
     // 引导层：中心点 / 平分线画进覆盖整格的 SVG，文本气泡用绝对定位的 HTML
@@ -393,7 +395,8 @@ function genPreHtml(preview) {
         // 其他地雷标记优先于数值与中心样式：标记格只画 emoji，不重复画数字
         const mark = marks ? marks.find(m => m.r === i && m.c === j) : null;
         if (mark) {
-            html += `<div class="preview-cell mark">${mark.text || "💣"}</div>`;
+            const markText = (mark.text && mark.text !== "💣") ? mark.text : normalEmoji;
+            html += `<div class="preview-cell mark">${markText}</div>`;
             continue;
         }
         let cls = "preview-cell";

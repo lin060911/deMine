@@ -1302,7 +1302,9 @@
             var backend = st.backend === "localStorage" ? "浏览器" : "内存·本次有效";
             var size = st.size ? fmtBytes(st.bytes) : "0 B";
             var when = st.savedAtISO ? fmtShort(st.savedAtISO) : "尚未保存";
-            var html = "<div>🔐 签名存档 · 完整性 " + chip + "</div>" +
+            var html = "<div>🔐 签名存档 · 完整性 " + chip +
+                ' <button class="tip-note-link save-detail-link" type="button"' +
+                ' onclick="RMSave.showDetails()" title="查看存档完整画像">📄详情</button></div>' +
                 "<div><span class=\"save-status-chip info\">后端：" + esc(backend) + "</span>" +
                 "<span class=\"save-status-chip info\">" + esc(size) + "</span>" +
                 "<span class=\"save-status-chip info\">保存于 " + esc(when) + "</span></div>" +
@@ -1344,7 +1346,7 @@
             btn = document.createElement("button");
             btn.type = "button";
             btn.id = "rmUndoImportBtn";
-            btn.className = "clear-input-btn rm-undo-btn";
+            btn.className = "tip-note-link rm-undo-btn";
             host.appendChild(btn);
         }
         btn.textContent = "↩️ 撤销上次导入（快照：" + fmtDate(info.iso) + "）";

@@ -93,10 +93,15 @@ function toggleAcc(id) {
             if (ACC_ALWAYS_OPEN.indexOf(x.id) >= 0) return;
             x.classList.remove("rm-acc-open");
             x.classList.add("rm-acc-closed");
+            const otherHead = x.querySelector(".rm-acc-head");
+            if (otherHead) otherHead.setAttribute("aria-expanded", "false");
         });
     }
     el.classList.toggle("rm-acc-open", willOpen);
     el.classList.toggle("rm-acc-closed", !willOpen);
+    // 同步 aria-expanded：存档管理 / 关于等按钮式折叠头的可访问状态
+    const head = el.querySelector(".rm-acc-head");
+    if (head) head.setAttribute("aria-expanded", willOpen ? "true" : "false");
     AudioFX.pop();
 }
 window.toggleAcc = toggleAcc;

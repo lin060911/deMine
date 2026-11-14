@@ -359,7 +359,8 @@ function renderCreateBoard() {
             cell.dataset.c = c;
             let val = tempP[r][c];
             if (val !== 0) {
-                cell.textContent = val;
+                // 数字包一层 .cell-num，才能命中三态色系配套的数字色变量
+                cell.innerHTML = '<span class="cell-num">' + val + "</span>";
                 cell.classList.add("n" + Math.min(Math.abs(val), 9));
                 // 正值与负值使用不同的色标，画布上可直接看出题目的数值分布
                 if (val > 0) cell.classList.add("cell-valid"); else cell.classList.add("cell-over");

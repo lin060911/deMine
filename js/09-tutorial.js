@@ -800,7 +800,8 @@ function renderTeachBoard() {
             if (p === t) d.classList.add("cell-valid"); else if (p < t) d.classList.add("cell-low"); else if (p > t) d.classList.add("cell-over");
             // 目标值非 0 的格子才显示数字，并挂上数值对应的配色类
             if (t !== 0) {
-                d.textContent = t;
+                // 数字包一层 .cell-num，才能命中三态色系配套的数字色变量
+                d.innerHTML = '<span class="cell-num">' + t + "</span>";
                 d.classList.add("n" + t);
             }
             let k = r + "," + c;

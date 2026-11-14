@@ -388,8 +388,11 @@
             target: q("#SuggestiveSetting"),
             text: "③ 可开启提示性功能，游戏更简单直观"
         }, {
+            target: q("#PersonalizeSection"),
+            text: "④ 此处可以定制页面背景、地块三态颜色与普通雷图标"
+        }, {
             target: q("#SaveManage"),
-            text: "④ 此处可以管理你的存档"
+            text: "⑤ 此处可以管理你的存档"
         } ];
     }
 

@@ -40,6 +40,8 @@
      */
     function spawnMineGhost() {
         if (!container) return;
+        // 自定义背景生效时场景层已替代默认氛围，不再生成幽灵节点
+        if (document.body && document.body.classList.contains("custom-bg")) return;
         let el = document.createElement("div");
         el.className = "bg-mine-ghost";
         el.textContent = mineEmojis[Math.floor(Math.random() * mineEmojis.length)];

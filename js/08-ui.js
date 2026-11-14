@@ -234,8 +234,8 @@ function closeAllModals() {
         // 难度弹窗（独立容器，不属于 .auto-modal）
         var cm = document.getElementById("difficultyModal");
         if (cm) cm.style.display = "none";
-        // 挑战弹窗 / 脑王通关框 / 胜利框：显隐由内联 display 与 .visible 共同决定
-        [ "challengeModal", "brainWinModal", "win" ].forEach(function(id) {
+        // 挑战弹窗 / 通关结果卡：显隐由内联 display 与 .visible 共同决定
+        [ "challengeModal", "win" ].forEach(function(id) {
             var el = document.getElementById(id);
             if (!el) return;
             el.style.display = "none";
@@ -978,10 +978,13 @@ function syncPresetStartCard(d) {
         : (gameHardcore
             ? { icon: "🪚", name: "硬核模式", cls: "mode-hardcore" }
             : { icon: "🎯", name: "经典模式", cls: "mode-classic" });
-    // 参数摘要：骨牌局的块数按生成规则预估
+    // 参数摘要：骨牌局的块数与出题共用 tetrisPieceCountFor，避免两处口径分叉
     var params = "棋盘 " + SR + "×" + SC + " · ";
     if (gameTetris) {
-        params += "骨牌 " + Math.max(3, Math.ceil(T * 2 / 3)) + " 块";
+        var pieces = typeof tetrisPieceCountFor === "function"
+            ? tetrisPieceCountFor(d, T)
+            : Math.max(3, T);
+        params += "骨牌 " + pieces + " 块";
     } else {
         params += "总雷数 " + T;
         if (gameHardcore) params += " · 硬核配色";
@@ -1164,23 +1167,29 @@ function applySet() {
  * 通关结算：记录本局用时、最快纪录与通关次数，并检查脑王解锁条件。
  * 硬核与俄罗斯方块模式的成绩分别写入独立的持久化键组，与普通成绩互不覆盖；
  * 地狱通关次数在脑王门槛判定时合并计算。
+ * @returns {{time:number,count:number,record:boolean}|null} 结算摘要：
+ *   time 本局用时（毫秒）、count 结算后的通关次数、record 是否刷新已有最快纪录；
+ *   无难度或自由模式不记账时返回 null，调用方据此决定结果卡显示哪些行
  * @sideeffect 写入 lt / rec / wins（或硬核 / 俄罗斯方块三组）并持久化，刷新成绩列表
  */
 function saveRec() {
-    if (!diff) return;
     // 自由模式没有固定难度，不参与成绩统计
+    if (!diff) return null;
     if (isFreeMode) {
         renderRecordList();
-        return;
+        return null;
     }
     const _ms = RM.timer.ms();
     // 俄罗斯方块局单独记账：普通与硬核成绩保持不变，也不触发脑王解锁提示
     if (gameTetris) {
+        // 先读旧纪录：record 只在"已有纪录且本次更短"时为真，首次通关不算刷新
+        const prev = tetRec[diff];
+        const record = prev != null && _ms < prev;
         try {
             tetLt[diff] = _ms;
             Store.set("mineTetrisLastTimes", JSON.stringify(tetLt));
             // 只有比历史最快更短才刷新纪录
-            if (tetRec[diff] === null || _ms < tetRec[diff]) {
+            if (prev == null || _ms < prev) {
                 tetRec[diff] = _ms;
                 Store.set("mineTetrisRecords", JSON.stringify(tetRec));
             }
@@ -1190,31 +1199,37 @@ function saveRec() {
             if (window.RM) RM.warn("saveRec", e);
         }
         renderRecordList();
-        return;
+        return { time: _ms, count: tetWins[diff], record: record };
     }
     // 用开局快照判定：本局硬核才写硬核成绩，中途切换偏好不改变本局记账口径
     if (gameHardcore) {
+        const prev = hcRec[diff];
+        const record = prev != null && _ms < prev;
         // 硬核局单独记账：普通难度的通关次数与最快纪录保持不变
         hcLt[diff] = _ms;
         Store.save("mineHardcoreLastTimes", hcLt);
-        if (hcRec[diff] === null || _ms < hcRec[diff]) {
+        if (prev == null || _ms < prev) {
             hcRec[diff] = _ms;
             Store.save("mineHardcoreRecords", hcRec);
         }
         hcWins[diff] = (hcWins[diff] || 0) + 1;
         Store.save("mineHardcoreWins", hcWins);
-    } else {
-        lt[diff] = _ms;
-        Store.save("mineLastTimes", lt);
-        // 只有比历史最快更短才刷新纪录
-        if (rec[diff] === null || _ms < rec[diff]) {
-            rec[diff] = _ms;
-            Store.save("mineRecords", rec);
-        }
-        wins[diff] = (wins[diff] || 0) + 1;
-        Store.save("mineWins", wins);
+        renderRecordList();
+        return { time: _ms, count: hcWins[diff], record: record };
     }
+    const prevClassic = rec[diff];
+    const recordClassic = prevClassic != null && _ms < prevClassic;
+    lt[diff] = _ms;
+    Store.save("mineLastTimes", lt);
+    // 只有比历史最快更短才刷新纪录
+    if (prevClassic == null || _ms < prevClassic) {
+        rec[diff] = _ms;
+        Store.save("mineRecords", rec);
+    }
+    wins[diff] = (wins[diff] || 0) + 1;
+    Store.save("mineWins", wins);
     renderRecordList();
+    const summary = { time: _ms, count: wins[diff], record: recordClassic };
     // 地狱通关（普通或硬核）都可能凑满脑王门槛，统一在门槛函数里合并计数
     if (diff === "hell" && !brainUnlockedNotified) {
         if (checkBrainUnlocked()) {
@@ -1228,6 +1243,7 @@ function saveRec() {
             }, 1500);
         }
     }
+    return summary;
 }
 
 /**
@@ -1756,14 +1772,181 @@ function setGoldenBackground() {
     }, 6e4);
 }
 
-/* ---------- 13. 胜利判定 ---------- */
+/* ---------- 13. 胜利判定与结果卡 ---------- */
+
+/* 结果卡的静态文案：标题、图标与按钮文字按变体区分（难度色板与金色 /
+ * 飘落等副作用在 showWinResult 内处理）。brain-repeat 的标题含动态次数，
+ * 因此这里只留空字符串占位。 */
+const WIN_RESULT_TEXT = {
+    free: { icon: "🎉", title: "搞定！ヾ(≧▽≦*)o", button: "确定" },
+    puzzle: { icon: "🎉", title: "搞定！ヾ(≧▽≦*)o", button: "确定" },
+    easy: { icon: "😎", title: "o(*≧▽≦)ツ完成！", button: "确定" },
+    medium: { icon: "😮", title: "o(*≧▽≦)ツ完成！", button: "确定" },
+    hard: { icon: "😤", title: "o(*≧▽≦)ツ完成！", button: "确定" },
+    hell: { icon: "👿", title: "o(*≧▽≦)ツ完成！", button: "确定" },
+    "brain-first": { icon: "🕶️", title: "Σ(っ °Д °;)っ哇，大佬！", button: "收下墨镜 😎" },
+    "brain-repeat": { icon: "🤯", title: "", button: "确定" }
+};
+
+/**
+ * 显示通关结果卡，按变体组织标题、题目信息、完成时间与通关次数。
+ * 变体分四类：自由 / 题库码（只有题目信息）、预设难度（时间 + 次数 + 刷新纪录）、
+ * 脑王首通（金色庆祝 + 奉上墨镜）、脑王复通（金色庆祝 + 第 N 次）。
+ * @param {string} variant free | puzzle | easy | medium | hard | hell |
+ *   brain-first | brain-repeat
+ * @param {{time?:number,count?:number,record?:boolean}} [data] 结算摘要，
+ *   由 saveRec 返回；自由 / 题库码与缺少结算数据时只展示题目信息
+ * @sideeffect 写入结果卡各节点文本、切换配色变体并显示 #win；脑王两档额外
+ *   播放专属音效、飘落表情与金色背景
+ */
+function showWinResult(variant, data) {
+    data = data || {};
+    const win = document.getElementById("win");
+    const card = document.getElementById("winCard");
+    if (!win || !card) return;
+    const isBrain = variant === "brain-first" || variant === "brain-repeat";
+    const conf = WIN_RESULT_TEXT[variant] || WIN_RESULT_TEXT.free;
+    // 玩法 / 题目来源：题库码与自由局都可能是经典配色，但标签要反映题目来源
+    let modeIcon, modeName;
+    if (variant === "puzzle") {
+        modeIcon = "📦";
+        modeName = "题库码题目";
+    } else if (gameTetris) {
+        modeIcon = "🐻";
+        modeName = "俄罗斯方块模式";
+    } else if (gameHardcore) {
+        modeIcon = "🪚";
+        modeName = "硬核模式";
+    } else {
+        modeIcon = "🎯";
+        modeName = "经典模式";
+    }
+    // 题目参数：棋盘尺寸 + 雷数 / 骨牌块数（不再展示参与的种类数）
+    let params = "棋盘 " + SR + "×" + SC;
+    params += gameTetris ? " · 骨牌 " + G.max + " 块" : " · 总雷数 " + G.max;
+    // 时间与次数只在预设难度 / 脑王两档出现；自由与题库码不记账
+    const showScore = variant !== "free" && variant !== "puzzle";
+    // 预设难度把两个维度标识对调：大图标显示玩法，胶囊显示难度；
+    // 自由 / 题库码 / 脑王保持「图标=结果、胶囊=玩法 / 题目来源」
+    const isPreset = variant === "easy" || variant === "medium" ||
+        variant === "hard" || variant === "hell";
+    // 次数行只用于预设难度：脑王复通的次数已写进标题，不再重复一行
+    const showCount = showScore && variant !== "brain-first" &&
+        variant !== "brain-repeat" && data.count > 0;
+    // 题库码只有从题库码入口进入的题目才有原文，缺失时整块隐藏
+    const showCode = variant === "puzzle" && !!lastPuzzleCode;
+    // 节点按 id 逐项写入；旧版结构缺节点时跳过，不阻断结算
+    const iconEl = document.getElementById("winIcon");
+    if (iconEl) iconEl.textContent = isPreset ? modeIcon : conf.icon;
+    const titleEl = document.getElementById("winTitle");
+    if (titleEl) {
+        titleEl.textContent = variant === "brain-repeat"
+            ? "第 " + (data.count || 1) + " 次达成脑王难度"
+            : conf.title;
+    }
+    const modeEl = document.getElementById("winMode");
+    if (modeEl) {
+        modeEl.textContent = isPreset
+            ? conf.icon + " " + (typeof DIFF_LABEL !== "undefined" ? DIFF_LABEL[variant] : variant)
+            : modeIcon + " " + modeName;
+    }
+    const paramsEl = document.getElementById("winParams");
+    if (paramsEl) paramsEl.textContent = params;
+    const resultEl = document.getElementById("winResult");
+    if (resultEl) resultEl.hidden = !showScore;
+    const timeEl = document.getElementById("winTime");
+    if (timeEl) timeEl.textContent = fmtTime(typeof data.time === "number" ? data.time : null);
+    const recordEl = document.getElementById("winRecord");
+    if (recordEl) recordEl.hidden = !(showScore && data.record);
+    const countEl = document.getElementById("winCount");
+    if (countEl) {
+        countEl.hidden = !showCount;
+        countEl.textContent = showCount ? "🏁 第 " + data.count + " 次通关" : "";
+    }
+    const eggEl = document.getElementById("winEgg");
+    if (eggEl) eggEl.hidden = variant !== "brain-first";
+    const codeEl = document.getElementById("winCode");
+    if (codeEl) codeEl.hidden = !showCode;
+    const codeText = document.getElementById("winCodeText");
+    if (codeText) codeText.textContent = showCode ? lastPuzzleCode : "";
+    const btn = document.getElementById("winBtn");
+    if (btn) btn.textContent = conf.button;
+    // 配色变体：脑王两档共用金色，其余用自身 key（free / puzzle / 难度）；
+    // #win 同步加 win-brain 让遮罩变浅，透出 body.brain-golden 的金色背景
+    card.className = "win-card variant-" + (isBrain ? "brain" : variant);
+    win.classList.toggle("win-brain", isBrain);
+    card.scrollTop = 0;
+    win.style.display = "flex";
+    if (isBrain) {
+        AudioFX.winBrain();
+        startFallingEmoji();
+        setGoldenBackground();
+    } else {
+        AudioFX.win();
+    }
+}
+
+/**
+ * 关闭通关结果卡并开新局：卡上的按钮同时承担旧版「再来一局」的职责，
+ * 先收起卡面与脑王庆祝，再交给 10-game 的 newGame() 走统一的重置 / 开局流程。
+ * 新局沿用当前难度：预设难度重新进入「准备好了吗？」卡片，自由模式直接出题。
+ * @sideeffect 隐藏 #win、复位 #winCard 类名、停止飘落并移除 brain-golden；
+ *   随后 newGame() 重置对局并重新生成棋盘或进入待开局
+ */
+function closeWinResult() {
+    const win = document.getElementById("win");
+    if (win) {
+        win.style.display = "none";
+        win.classList.remove("win-brain");
+    }
+    const card = document.getElementById("winCard");
+    if (card) card.className = "win-card";
+    stopFallingEmoji();
+    document.body.classList.remove("brain-golden");
+    // newGame 内部会播放确认音并完成 fullReset / 出题，这里不再重复播放
+    if (typeof newGame === "function") {
+        newGame();
+    } else {
+        AudioFX.confirm();
+    }
+}
+window.closeWinResult = closeWinResult;
+
+/**
+ * 复制结果卡里的题库码：优先异步剪贴板，被拒绝时回落到隐藏 textarea 方案。
+ * @sideeffect 写系统剪贴板并弹出轻提示
+ */
+function copyWinCode() {
+    if (!lastPuzzleCode) return;
+    const text = lastPuzzleCode;
+    const done = () => {
+        if (window.RM && RM.toast) RM.toast("题库码已复制 ✅");
+    };
+    const fallback = () => {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+            document.execCommand("copy");
+        } catch (e) {}
+        document.body.removeChild(ta);
+        done();
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(fallback);
+    } else {
+        fallback();
+    }
+}
+window.copyWinCode = copyWinCode;
 
 /**
  * 主棋盘通关判定：雷全部放完且每格影响值与目标完全一致时判定胜利。
  * 教学关卡有自己的过关逻辑，因此这里直接跳过。
  * 结算只允许发生一次：胜利后窗口缩放等重绘路径会再次调用 render → checkWin，
  * 用 winSettled 拦住重复记账；该标记由 10-game 的 fullReset 重置。
- * @sideeffect 停表并播放对应难度的通关反馈、写入成绩
+ * @sideeffect 停表、写入成绩并播放对应变体的通关反馈
  */
 function checkWin() {
     if (teachActive) return;
@@ -1780,34 +1963,32 @@ function checkWin() {
         onTutorialWin();
         return;
     }
-    if (isFreeMode) {
-        AudioFX.win();
-        document.getElementById("win").style.display = "flex";
+    // ① 自由模式 / 题库码题目：只展示题目来源与参数，不写成绩
+    if (isFreeMode || !diff) {
+        const isPuzzle = !diff && !isFreeMode;
+        showWinResult(isPuzzle ? "puzzle" : "free", { time: RM.timer.ms() });
         checkWinAchievements();
+        // 题库码题目没有难度标记（diff 为空），通关后把关卡参数恢复成当前进度的
+        // 标准档，避免下一局沿用分享题目的棋盘大小与雷数；放在成就判定之后执行，
+        // 成就侧仍要用本局的 SR / SC 扫描题面数值
+        if (isPuzzle) applyStandardParams();
         return;
     }
+    // ③④ 脑王首通 / 复通：首通与否取决于结算前已落盘的 brainCleared 标记
+    const wasBrainCleared = diff === "brain" && Store.get("brainCleared") === "true";
+    const summary = saveRec();
     if (diff === "brain") {
-        // 脑王有专属庆祝：飘落 emoji + 金色背景 + 独立通关弹窗
-        AudioFX.winBrain();
-        startFallingEmoji();
-        setGoldenBackground();
-        document.getElementById("win").style.display = "flex";
-        document.getElementById("brainWinModal").style.display = "block";
-        saveRec();
         try {
             Store.set("brainCleared", "true");
         } catch (e) {}
         applyBrainEgg();
+        showWinResult(wasBrainCleared ? "brain-repeat" : "brain-first",
+            summary || { time: RM.timer.ms(), count: 0 });
     } else {
-        AudioFX.win();
-        saveRec();
-        document.getElementById("win").style.display = "flex";
+        // ② 预设难度：经典 / 硬核 / 俄罗斯方块共用同一套结果卡，按难度取色
+        showWinResult(diff, summary || { time: RM.timer.ms(), count: 0 });
     }
     checkWinAchievements();
-    // 题库码题目没有难度标记（diff 为空），通关后把四项关卡参数恢复成
-    // 当前进度的标准档，避免下一局沿用分享题目的棋盘大小与雷数。放在成就判定
-    // 之后执行：成就侧仍要用本局的 SR / SC 扫描题面数值。
-    if (!diff && !isFreeMode) applyStandardParams();
 }
 
 /* ---------- 14. 各类弹窗的关闭函数 ---------- */
@@ -1828,14 +2009,6 @@ function closeBrainLockedModal() {
     document.getElementById("overlay").style.display = "none";
     document.getElementById("brainLockedModal").style.display = "none";
     if (typeof guideRefresh === "function") guideRefresh();
-}
-
-/** 关闭脑王通关框，同时停止飘落庆祝与金色背景。 */
-function closeBrainWinModal() {
-    AudioFX.confirm();
-    document.getElementById("brainWinModal").style.display = "none";
-    stopFallingEmoji();
-    document.body.classList.remove("brain-golden");
 }
 
 /** 关闭开场欢迎框。 */

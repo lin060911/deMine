@@ -22,7 +22,7 @@ var RM = window.RM || {};
 window.RM = RM;
 
 /* 程序标识串：仅随日志输出，用于问题定位，不参与任何游戏逻辑 */
-RM.VERSION = "1.6.0";
+RM.VERSION = "1.6.1";
 
 /* 程序英文名：页脚署名、存档导出与导入校验统一使用这一写法 */
 RM.APP_NAME = "ReverseMinesweeper";
@@ -162,9 +162,9 @@ let freeRectExpanded = false;
  * total 的上限还受 SR*SC 约束，kinds 的上限还受 min(26, T) 约束，
  * 由 applyBoardParams 与 08-ui 的 setVal 动态收敛。 */
 const LIMIT = {
-    size: [ 5, 20 ],
-    sr: [ 5, 20 ],
-    sc: [ 5, 20 ],
+    size: [ 5, 40 ],
+    sr: [ 5, 40 ],
+    sc: [ 5, 40 ],
     total: [ 1, 400 ],
     kinds: [ 1, 26 ],
     type: [ 0, 22 ],
@@ -212,6 +212,44 @@ const PRE = {
         spec: 4
     }
 };
+
+/* 俄罗斯方块模式的骨牌块数：按预设难度独立配置（开发者参数）。
+ * 取值为该难度一局的骨牌总数；自由模式与题库码题目沿用当前总雷数。
+ * 历史规则「ceil(总雷数 × 2/3)」只是本表初值的来源，现在逐档独立，
+ * 调整某一难度的推理量时直接改对应数字即可，不再依赖比例公式。
+ * 约束：最终块数会被收敛到 1 ~ SR×SC（锚点格不可重复）。 */
+const TETRIS_PIECE_COUNT = {
+    easy: 4,
+    medium: 6,
+    hard: 8,
+    hell: 12,
+    brain: 14
+};
+
+/* 俄罗斯方块局的最少骨牌块数：预设难度低于该值时补足，避免题面几乎没有
+ * 可推理信息；自由模式尊重玩家设定的总雷数，不受此下限影响。 */
+const TETRIS_MIN_PIECES = 3;
+
+/**
+ * 计算某难度俄罗斯方块模式的骨牌块数，供出题与界面摘要共用。
+ * 预设难度读 TETRIS_PIECE_COUNT；其它难度（自由 / 题库码）沿用总雷数。
+ * @param {string} d 难度 key
+ * @param {number} total 当前总雷数（预设难度下作为缺省值）
+ * @returns {number} 收敛到 1 ~ SR×SC 的骨牌块数
+ */
+function tetrisPieceCountFor(d, total) {
+    var n = Math.max(1, Math.floor(Number(total) || 1));
+    var preset = d === "easy" || d === "medium" || d === "hard" ||
+        d === "hell" || d === "brain";
+    if (preset) {
+        var conf = TETRIS_PIECE_COUNT[d];
+        if (typeof conf === "number" && isFinite(conf)) n = Math.floor(conf);
+        n = Math.max(TETRIS_MIN_PIECES, n);
+    }
+    var area = Math.max(1, (Number(SR) || 1) * (Number(SC) || 1));
+    return Math.max(1, Math.min(n, area));
+}
+window.tetrisPieceCountFor = tetrisPieceCountFor;
 
 /* 难度 key 到界面显示名的映射 */
 const DIFF_LABEL = {
@@ -338,6 +376,10 @@ const HELL_SERIES_REQ = 5;
 
 /* 当前对局难度 key；null 表示尚未选择或正在自由调整参数 */
 let diff = null;
+
+/* 最近一次成功应用的题库码原文：仅题库码题目非空，用于通关结果卡回显题目来源。
+ * 每局重置时清空（fullReset），由 11-create 的 applyPuzzleCode 在装配成功后写入。 */
+let lastPuzzleCode = null;
 
 
 

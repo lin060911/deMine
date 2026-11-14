@@ -338,7 +338,7 @@
         )) return true;
         var list = document.querySelectorAll(
             ".game-modal, .auto-modal, .rm-confirm-overlay, .rm-confirm-modal, " +
-            ".teach-complete-modal, .brain-win-modal"
+            ".teach-complete-modal, .win"
         );
         for (var i = 0; i < list.length; i++) {
             var el = list[i];

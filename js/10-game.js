@@ -95,7 +95,8 @@ function fullReset() {
     teachPlaceList = [];
     teachPlacedTypes = {};
     teachExpectedTypes = {};
-    document.getElementById("brainWinModal").style.display = "none";
+    // 题库码原文只属于应用它的那一局，换局时一并作废
+    lastPuzzleCode = null;
     document.getElementById("presetStartCard").style.display = "none";
     // 重新显示主棋盘与道具栏，并收掉上一局的胜利层、飘落特效与脑王主题
     document.getElementById("board").style.display = "";

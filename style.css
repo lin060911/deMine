@@ -1071,93 +1071,277 @@ body.brain-golden .bg-mine-ghost {
     transition-duration: .15s;
 }
 
-/* ===== 9. 通关遮罩 ===== */
-/* 通关遮罩：全屏毛玻璃压暗背景，居中结果卡把注意力收拢到「再来一局」 */
+/* ===== 9. 通关结果卡 ===== */
+/* 全屏压暗遮罩 + 居中结果卡；卡面主色由 --win-accent / --win-accent-2 /
+   --win-surface / --win-chip 决定，按难度变体在 .variant-* 中覆盖，脑王两档统一走金色。
+   卡面与卡内色块一律使用不透明纯色，不使用渐变或透明底色。 */
 
-        .win {
-            position: fixed;
-            top:0;left:0;width:100%;height:100%;
-            background:rgba(0, 0, 0, 0.5);
-            display:none;
-            flex-direction:column;
-            align-items:center;
-            justify-content:center;
-            color:#fcc367;
-            font-size:40px;
-            z-index: 100;
-            text-shadow: 0 0 16px rgba(252, 195, 103, 0.9), 0 0 32px rgba(252, 195, 103, 0.3);
-            animation: winOverlayIn 0.7s cubic-bezier(0.4, 0, 0.2, 1) both;
-            backdrop-filter: blur(2px);
-        }
+.win {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(10, 22, 36, .55);
+    z-index: 100;
+    backdrop-filter: blur(3px);
+    animation: winOverlayIn .4s cubic-bezier(.4, 0, .2, 1) both;
+}
 
-        @keyframes winOverlayIn {
-            0%   { opacity: 0; backdrop-filter: blur(0px); }
-            100% { opacity: 1; backdrop-filter: blur(2px); }
-        }
+/* 脑王两档：遮罩改为暖金浅色，让 body.brain-golden 的金色背景透出来 */
+.win.win-brain {
+    background: rgba(255, 214, 90, .18);
+}
 
-        .win button {
-            margin-top: 30px;
-            padding: 14px 32px;
-            background: linear-gradient(180deg, #48bb78, #38a169);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 18px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: background 0.35s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.35s ease;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.15);
-            will-change: transform;
-        }
-        .win button:hover {
-            background: linear-gradient(180deg, #38a169, #2d8a5a);
-            transform: scale(1.08);
-            box-shadow: 0 8px 24px rgba(56,161,105,0.45), inset 0 1px 0 rgba(255,255,255,0.15);
-        }
-        .win button:active {
-            transform: scale(1.03);
-            transition-duration: 0.1s;
-        }
+@keyframes winOverlayIn {
+    0%   { opacity: 0; backdrop-filter: blur(0); }
+    100% { opacity: 1; backdrop-filter: blur(3px); }
+}
+
+.win-card {
+    --win-accent: #0ca5c8;
+    --win-accent-2: #087f9b;
+    --win-surface: #ffffff;
+    --win-chip: #e6f6fa;
+    position: relative;
+    width: min(92vw, 430px);
+    max-height: 86vh;
+    overflow-y: auto;
+    padding: 34px 30px 28px;
+    border: 3px solid var(--win-accent);
+    border-radius: 28px;
+    background: var(--win-surface);
+    box-shadow:
+        0 26px 60px rgba(10, 25, 40, .28),
+        0 1px 0 #ffffff inset;
+    text-align: center;
+    animation: winCardIn .5s cubic-bezier(.34, 1.56, .64, 1) both;
+}
+
+@keyframes winCardIn {
+    0%   { opacity: 0; transform: translateY(16px) scale(.94); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.win-icon {
+    margin-bottom: 10px;
+    font-size: 60px;
+    line-height: 1;
+    filter: drop-shadow(0 8px 16px rgba(20, 40, 60, .16));
+}
+
+.win-title {
+    margin: 0 0 14px;
+    font-size: 25px;
+    font-weight: 800;
+    line-height: 1.35;
+    letter-spacing: .01em;
+    color: var(--win-accent-2);
+}
+
+.win-mode {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 auto 10px;
+    padding: 5px 14px;
+    border-radius: 999px;
+    background: var(--win-chip);
+    color: var(--win-accent-2);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.win-params {
+    margin-bottom: 12px;
+    color: #4a5b6b;
+    font-size: 13.5px;
+    line-height: 1.8;
+}
+
+.win-result {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    margin-bottom: 10px;
+    color: #4a5b6b;
+    font-size: 13.5px;
+}
+
+.win-result[hidden],
+.win-record[hidden],
+.win-count[hidden],
+.win-egg[hidden],
+.win-code[hidden] {
+    display: none;
+}
+
+.win-time {
+    color: var(--win-accent-2);
+    font-size: 21px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+.win-record {
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: #ffd95c;
+    color: #6b4a00;
+    font-size: 12px;
+    font-weight: 800;
+    box-shadow: 0 3px 8px rgba(230, 163, 20, .22);
+}
+
+.win-count {
+    margin-bottom: 10px;
+    color: #4a5b6b;
+    font-size: 13px;
+}
+
+.win-egg {
+    margin: 4px auto 2px;
+    padding: 8px 14px;
+    border-radius: 14px;
+    background: #ffe6a8;
+    color: #7a5200;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.win-code {
+    margin: 4px 0 2px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: #eef7fb;
+    border: 1px dashed var(--win-accent);
+    text-align: left;
+}
+
+.win-code-head {
+    margin-bottom: 6px;
+    color: var(--win-accent-2);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.win-code-text {
+    max-height: 96px;
+    overflow-y: auto;
+    color: #38495a;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11.5px;
+    line-height: 1.55;
+    word-break: break-all;
+}
+
+.win-code-copy {
+    margin-top: 8px;
+    padding: 6px 14px;
+    border-radius: 10px;
+    background: var(--win-accent);
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.win-btn {
+    margin-top: 20px;
+    height: 46px;
+    padding: 0 40px;
+    border: none;
+    border-radius: 15px;
+    /* 除脑王两档外统一绿底白字；脑王在 .variant-brain 中覆盖为金色 */
+    background: #38a169;
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 8px 22px rgba(10, 40, 60, .22), inset 0 1px 0 rgba(255, 255, 255, .3);
+    transition: transform .25s var(--rm-spring), box-shadow .25s ease, background .25s ease;
+    will-change: transform;
+}
+
+.win-btn:hover {
+    background: #2f855a;
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 14px 30px rgba(10, 40, 60, .28), inset 0 1px 0 rgba(255, 255, 255, .3);
+}
+
+.win-btn:active {
+    transform: scale(.97);
+    transition-duration: .1s;
+}
+
+/* 难度色板：与 🕹️难度 里的预设按钮同一色相，只取更深的文字色保证可读 */
+.win-card.variant-easy {
+    --win-accent: #48c78e;
+    --win-accent-2: #2f855a;
+    --win-surface: #e9f7ef;
+    --win-chip: #d5efe1;
+}
+
+.win-card.variant-medium {
+    --win-accent: #f5cc5d;
+    --win-accent-2: #a8690f;
+    --win-surface: #fdf6e3;
+    --win-chip: #fbe9bf;
+}
+
+.win-card.variant-hard {
+    --win-accent: #e84848;
+    --win-accent-2: #b52a2a;
+    --win-surface: #fdeaea;
+    --win-chip: #fad6d6;
+}
+
+.win-card.variant-hell {
+    --win-accent: #8b3fd0;
+    --win-accent-2: #6b21a8;
+    --win-surface: #f5ecfd;
+    --win-chip: #ead9fa;
+}
+
+.win-card.variant-free,
+.win-card.variant-puzzle {
+    --win-accent: #0ca5c8;
+    --win-accent-2: #087f9b;
+    --win-surface: #eef9fc;
+    --win-chip: #d8f0f7;
+}
 
 /* ===== 10. 脑王彩蛋 ===== */
-/* 脑王弹窗：环形渐变描边 + 长周期光晕，作为隐藏彩蛋的最高规格反馈 */
-.brain-win-modal {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    z-index: 1001;
-    display: none;
-    width: min(92vw, 540px);
-    min-width: 0;
-    padding: 46px 40px 36px;
-    border: 3px solid transparent;
-    border-radius: 32px;
-    text-align: center;
-    background:
-        linear-gradient(#ffffff, #ffffff) padding-box,
-        conic-gradient(from 140deg,
-            #ffd54a, #7fe0ff, #7aa8ff, #b98cff, #f18bff, #ffe066, #ffd54a) border-box;
+/* 脑王两档共用金色卡面：金色描边 + 长周期光晕 + 图标轻晃，作为最高规格反馈 */
+.win-card.variant-brain {
+    --win-accent: #f0c232;
+    --win-accent-2: #9a6a05;
+    --win-surface: #fff5c9;
+    --win-chip: #ffe9a0;
+    background: var(--win-surface);
+    border-color: #ffd54a;
     box-shadow:
-        0 30px 90px rgba(86, 62, 160, .26),
-        0 0 70px rgba(255, 213, 74, .22),
-        0 1px 0 rgba(255, 255, 255, .8) inset;
-    animation: brainWinPulse 4.4s ease-in-out infinite, brainWinAppear .65s var(--rm-spring) both;
+        0 30px 90px rgba(120, 84, 0, .3),
+        0 0 80px rgba(255, 213, 74, .42),
+        0 1px 0 rgba(255, 255, 255, .85) inset;
+    animation: winCardIn .5s cubic-bezier(.34, 1.56, .64, 1) both,
+        winBrainGlow 4.4s ease-in-out .5s infinite;
 }
 
-@keyframes brainWinPulse {
-    0%, 100% { box-shadow: 0 30px 90px rgba(86, 62, 160, .26), 0 0 70px rgba(255, 213, 74, .2), 0 1px 0 rgba(255, 255, 255, .8) inset; }
-    50%      { box-shadow: 0 30px 90px rgba(86, 62, 160, .32), 0 0 110px rgba(255, 213, 74, .34), 0 1px 0 rgba(255, 255, 255, .8) inset; }
+@keyframes winBrainGlow {
+    0%, 100% {
+        box-shadow: 0 30px 90px rgba(120, 84, 0, .3), 0 0 70px rgba(255, 213, 74, .36),
+            0 1px 0 rgba(255, 255, 255, .85) inset;
+    }
+    50% {
+        box-shadow: 0 30px 90px rgba(120, 84, 0, .34), 0 0 110px rgba(255, 213, 74, .5),
+            0 1px 0 rgba(255, 255, 255, .85) inset;
+    }
 }
 
-@keyframes brainWinAppear {
-    0%   { opacity: 0; transform: translate(-50%, -50%) scale(.88); }
-    100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-}
-
-.brain-win-modal .icon {
-    margin-bottom: 10px;
-    font-size: 92px;
-    line-height: 1;
+.win-card.variant-brain .win-icon {
     filter: drop-shadow(0 8px 18px rgba(120, 80, 0, .22));
     animation: brainIconBounce 3s var(--rm-ease) infinite;
 }
@@ -1168,47 +1352,19 @@ body.brain-golden .bg-mine-ghost {
     65%      { transform: translateY(-4px) rotate(4deg) scale(1.015); }
 }
 
-.brain-win-modal h2 {
-    margin-bottom: 10px;
-    font-size: 30px;
-    font-weight: 800;
-    letter-spacing: -.01em;
-    background: linear-gradient(100deg, #b7791f 0%, #d69e2e 30%, #805ad5 72%, #4299e1 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: #b7791f;
+.win-card.variant-brain .win-title {
+    color: #a1700a;
 }
 
-.brain-win-modal p {
-    margin-bottom: 20px;
-    color: var(--rm-ink-2);
-    font-size: 15px;
-    line-height: 1.75;
+.win-card.variant-brain .win-btn {
+    background: #f0c232;
+    color: #5b3d00;
+    box-shadow: 0 8px 22px rgba(230, 163, 20, .32);
 }
 
-.brain-win-modal button {
-    height: 50px;
-    padding: 0 36px;
-    border: none;
-    border-radius: 17px;
-    background: linear-gradient(180deg, #ffe066, #ffcc33);
-    color: #6b4a00;
-    font-size: 15px;
-    font-weight: 700;
-    cursor: pointer;
-    box-shadow: 0 8px 22px rgba(230, 163, 20, .32), inset 0 1px 0 rgba(255, 255, 255, .55);
-    transition: transform .25s var(--rm-spring), box-shadow .25s ease;
-}
-
-.brain-win-modal button:hover {
-    transform: translateY(-2px) scale(1.02);
+.win-card.variant-brain .win-btn:hover {
+    background: #e6b32a;
     box-shadow: 0 14px 30px rgba(230, 163, 20, .4), inset 0 1px 0 rgba(255, 255, 255, .55);
-}
-
-.brain-win-modal button:active {
-    transform: scale(.97);
-    transition-duration: .1s;
 }
 
 /* ===== 11. 庆祝落物 ===== */
@@ -4403,15 +4559,20 @@ body.drag-mode .cell.mine-here {
     .teach-complete-modal .icon { font-size: 52px; }
     .teach-complete-modal h2 { font-size: 20px; }
 
-    .brain-win-modal {
-        width: 90%;
-        padding: 36px 22px 28px;
-        border-radius: 26px;
+    .win {
+        padding: 16px;
     }
 
-    .brain-win-modal .icon { font-size: 72px; }
-    .brain-win-modal h2 { font-size: 24px; }
-    .brain-win-modal p { font-size: 13.5px; }
+    .win-card {
+        width: 92%;
+        padding: 28px 20px 22px;
+        border-radius: 24px;
+    }
+
+    .win-icon { font-size: 50px; }
+    .win-title { font-size: 21px; }
+    .win-time { font-size: 19px; }
+    .win-btn { height: 44px; padding: 0 30px; font-size: 15px; }
 
     /* 难度弹窗：窄屏压缩上下留白，内容区在 86vh 内滚动 */
     .game-modal {

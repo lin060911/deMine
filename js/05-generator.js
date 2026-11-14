@@ -172,22 +172,21 @@ function genFreeGame() {
 
 /* ---------- 6. 俄罗斯方块出题 ---------- */
 /**
- * 生成一局「俄罗斯方块反向扫雷」题目：总块数取当前 T（骨牌占 1 个锚点格，
- * 因此受 SR×SC 约束），预设难度会再降为约 2/3（至少 3 块）以降低可旋转带来的
- * 推理量，自由模式尊重玩家设定的总雷数；7 种骨牌按随机配额分配——总块数 ≥ 7
- * 时每种至少 1 块，余量在已出现的类型里随机追加；总块数 < 7 时随机取 T 种各 1 块。
+ * 生成一局「俄罗斯方块反向扫雷」题目：总块数由 00-core 的
+ * tetrisPieceCountFor() 决定——预设难度取独立的 TETRIS_PIECE_COUNT 配置，
+ * 自由模式与题库码题目沿用当前总雷数；骨牌占 1 个锚点格，因此总块数受
+ * SR×SC 约束。7 种骨牌按随机配额分配——总块数 ≥ 7 时每种至少 1 块，
+ * 余量在已出现的类型里随机追加；总块数 < 7 时随机取若干种各 1 块。
  * 每块骨牌随机朝向与锚点，锚点互不重复（自身格不可叠放）；影响值按覆盖的
  * 4 格各 +1 反算，越界部分不参与目标值（与放置时的裁剪规则一致）。
  * @sideeffect 写 G.tar / G.pool / G.max / G.placed / G.rot，重置 tetroRot 并调用 resetP
  */
 function genTetrisGame() {
     const area = Math.max(1, SR * SC);
-    // 骨牌块数：自由模式尊重玩家设定的总雷数；预设难度降为约 2/3（至少 3 块），
-    // 让棋盘更空、可旋转带来的推理想象量下降，整体难度与经典难度更接近
+    // 骨牌块数：预设难度取 00-core 的独立配置，自由 / 题库码沿用总雷数；
+    // 函数内部已按 SR×SC 与最少块数收敛，这里不再叠加比例规则
     let total = Math.max(1, Math.min(T, area));
-    const presetMode = !isFreeMode && typeof isPresetDifficulty === "function" &&
-        isPresetDifficulty(diff);
-    if (presetMode) total = Math.max(3, Math.ceil(total * 2 / 3));
+    if (typeof tetrisPieceCountFor === "function") total = tetrisPieceCountFor(diff, total);
     // 配额：先保证每种出现的类型 1 块，剩余名额在已选类型里随机分配
     const kinds = Math.min(TETRO_ORDER.length, total);
     const order = shuffleArr(TETRO_ORDER).slice(0, kinds);

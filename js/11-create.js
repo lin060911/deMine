@@ -685,6 +685,8 @@ function applyPuzzleCode() {
             // 难度标记，否则极端题面（如 0 雷）会按上一局的难度立即记账
             diff = null;
             isFreeMode = false;
+            // 记录本次应用的题库码原文，供通关结果卡回显题目来源（fullReset 已清空）
+            lastPuzzleCode = code;
             // 装配完成后统一重绘棋盘与记录表，并开始计时
             resetP();
             render();

@@ -362,16 +362,6 @@
         <button onclick="closeBrainLockedModal()">知道了</button>
     </div>
 
-    <!-- 区块：脑王通关庆祝弹窗
-         通关脑王难度时由 08-ui.js 的检查流程显示，同时切换全屏金色背景并
-         启动下落表情特效；关闭函数为 closeBrainWinModal() -->
-    <div class="brain-win-modal" id="brainWinModal" style="display:none;">
-        <div class="icon">🕶️</div>
-        <h2>哇，大佬!</h2>
-        <p>您通关了<b>脑王难度</b>！<br>这副大佬专属墨镜是您的了<br>但...这还不是理论难度极限...</p>
-        <button onclick="closeBrainWinModal()">收下墨镜 😎</button>
-    </div>
-
     <!-- 区块：标题区
          只保留游戏名；操作提示与当前操作方式徽章整块迁到棋盘右侧的常驻
          操作 tips 卡（见下方 .board-tray）。徽章文本仍由 07-board.js 的
@@ -588,12 +578,33 @@
         <div class="preset-start-tag" id="presetStartTag"><span id="presetStartTagText">简单</span></div>
     </div>
 
-    <!-- 区块：胜利提示层
-         通关后覆盖在棋盘上方，由 08-ui.js 在胜利判定通过后显示；
-         「再来一局」直接调用 10-game.js 的 newGame() -->
-    <div class="win" id="win">
-        <div>🎉 恭喜通关！</div>
-        <button onclick="newGame()">再来一局</button>
+    <!-- 区块：通关结果卡
+         通关后由 08-ui.js 的 checkWin() 调用 showWinResult() 填充并显示；
+         四种变体共用同一张卡：自由 / 题库码（只有题目信息）、预设难度
+         （完成时间 + 第 N 次通关）、脑王首通（金色 + 奉上墨镜）、脑王复通
+         （金色 + 第 N 次）。配色与金色庆祝由 .win-card.variant-* 与
+         showWinResult 切换；卡面与卡内色块均为不透明纯色。关闭函数为
+         closeWinResult()，关闭后按当前难度自动开新局。 -->
+    <div class="win" id="win" role="dialog" aria-modal="true" aria-labelledby="winTitle">
+        <div class="win-card" id="winCard">
+            <div class="win-icon" id="winIcon">🎉</div>
+            <h2 class="win-title" id="winTitle">搞定！ヾ(≧▽≦*)o</h2>
+            <div class="win-mode" id="winMode">🎯 经典模式</div>
+            <div class="win-params" id="winParams">棋盘 8×8 · 总雷数 4</div>
+            <div class="win-result" id="winResult" hidden>
+                <span class="win-result-label">⏱️ 完成时间</span>
+                <span class="win-time" id="winTime">00:00.00</span>
+                <span class="win-record" id="winRecord" hidden>⚡ 刷新最快用时</span>
+            </div>
+            <div class="win-count" id="winCount" hidden></div>
+            <div class="win-egg" id="winEgg" hidden>这副大佬专属墨镜是您的了</div>
+            <div class="win-code" id="winCode" hidden>
+                <div class="win-code-head">📦 题库码</div>
+                <div class="win-code-text" id="winCodeText"></div>
+                <button class="win-code-copy" type="button" onclick="copyWinCode()">复制题库码</button>
+            </div>
+            <button class="win-btn" id="winBtn" type="button" onclick="closeWinResult()">确定</button>
+        </div>
     </div>
 
     <!-- 区块：左侧栏开关容器
@@ -872,15 +883,15 @@
              更新公告为静态摘要，避免多处版本号不一致 -->
         <div class="sidebar-section" id="AboutSection">
             <div class="sidebar-title about-title">ℹ️ 关于</div>
-            <div class="about-version">🔧 版本号 <strong id="aboutVersion">v1.6.0</strong></div>
+            <div class="about-version">🔧 版本号 <strong id="aboutVersion">v1.6.1</strong></div>
             <div class="about-announce">
                 <div class="about-announce-title">📣 更新公告</div>
                 <ul class="about-announce-list">
+                    <li><b>V1.6.1</b>：通关结果卡按四种情况区分——自由 / 题库码只显示题目模式与参数（题库码附带可复制原文）；预设难度显示完成时间与第 N 次通关，刷新最快用时带 ⚡ 标记，卡片取该难度的色板；脑王首通沿用金色背景 + 专属音效 + 表情雨并奉上 🕶️，复通显示「第 N 次达成脑王难度」。俄罗斯方块骨牌块数改为按难度独立配置的开发者参数，不再按 2/3 折算。</li>
                     <li><b>V1.6.0</b>：新增启动界面与标题转场（💣 飞行爆炸烟雾 / 😎 墨镜接回），点击任意处或按 Enter 开始；游玩态大标题固定左上角，主按钮条 + 棋盘 + 地雷槽整块竖直居中；欢迎 / 新手引导弹窗改为启动界面文案，不再弹出。</li>
                     <li><b>V1.5.4</b>：移动端「全屏 / 音乐」两个按钮统一为 64×32 胶囊（图标 + 文字）；页面标题下方的操作 tips 整块迁到棋盘右侧——经典等模式显示蓝色「操作 tips」，俄罗斯方块局改为显示红色「骨牌 tips」（操作 tips 隐藏、不叠加）；开启「🎧 外链音乐播放器」时立刻收起设置栏，并弹出持续显示的高光框 + 小手指向「音乐」按钮。</li>
                     <li><b>V1.5.3</b>：设置栏「🔊 音量设置」新增「🎧 外链音乐播放器」开关。开启后关闭游戏背景音乐（滑块数值保留）、右上角出现 🎵 悬浮钮，可播放 B 站外链歌单（14 首固定）；关闭后恢复背景音乐并停止播放器。</li>
                     <li><b>V1.5.2</b>：俄罗斯方块模式图标改为🐻、代表色改为红色；骨牌颜色透明度提高（锚点格更明显）；棋盘右侧新增常驻操作 tips；「准备好了吗？」面板随玩法切换实时刷新；新增「🐻 俄罗斯方块」成就分组 8 个成就；「预设难度 / 速通系列」更名为「经典 / 速通」，且只判定经典玩法。</li>
-                    <li><b>V1.5.1</b>：修复骨牌图形全部画在首格的问题；预设难度骨牌数降为约 2/3（自由模式不变）；双击已放置骨牌可绕锚点旋转（触屏长按仍删除）。</li>
                 </ul>
             </div>
             <!-- 测试者工具：只构造并下载测试存档，不读写当前存档；具体数据由
@@ -902,7 +913,7 @@
 
     <!-- 区块：页脚
          署名与联系方式，纯静态文本，脚本不依赖 -->
-    <footer class="sidebar-version">ReverseMinesweeper v1.6.0<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
+    <footer class="sidebar-version">ReverseMinesweeper v1.6.1<br>© 2026 L1Nzy<br>lin060911@qq.com</footer>
 
     <!-- 区块：脚本加载区（顺序即依赖）
          19 个外部脚本按 00 → 18 的书写顺序同步执行，共享同一个全局作用域：

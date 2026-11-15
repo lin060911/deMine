@@ -67,26 +67,38 @@
 
     ];
 
-    /* 三态色系：default 沿用 style.css 的原始绿 / 黄 / 红，其余 7 组取自
-       「色组测试台.html」的色盘；high 对应「偏高」、low 对应「偏低」、
-       normal 对应「正确」。 */
+    /* 三态色系：default 沿用 style.css 的原始绿 / 黄 / 红；其余 12 组中，
+       7 组取自「色组测试台.html」，5 组为新增主题；high 对应「偏高」、
+       low 对应「偏低」、normal 对应「正确」。 */
     var PALETTES = [
         { id: "default", name: "经典", note: "绿 / 黄 / 红", strategy: "默认",
           normal: "#9fdf9f", low: "#fde68a", high: "#fca5a5" },
-        { id: "spiderverse", name: "蜘蛛侠", note: "能力越大，责任越大", strategy: "深蓝战衣 / 蛛红 / 蛛纹黑",
-          normal: "#22499ce5", low: "#e25858d3", high: "#464646d3" },
+        { id: "BWG", name: "黑白灰", note: "单色明度", strategy: "灰 / 白 / 黑",
+          normal: "#9CA3AF", low: "#E5E7EB", high: "#1F2937" },
+        { id: "spiderman", name: "《蜘蛛侠》", note: "能力越大，责任越大", strategy: "深蓝战衣 / 蛛红 / 蛛纹黑",
+          normal: "#22499cc9", low: "#e25858d3", high: "#464646d3" },
         { id: "eva01", name: "EVA 初号机", note: "不能逃！不能逃！不能逃！", strategy: "荧光绿线条 / 关节 / 装甲紫",
           normal: "#B6DF95", low: "#D5C0ED", high: "#695BC2" },
-        { id: "lalaland", name: "爱乐之城", note: "Here's to the ones who dream, foolish as they may seem.", strategy: "蓝调夜色 / 黄裙 / 紫暮",
+        { id: "lalaland", name: "《爱乐之城》", note: "Here's to the ones who dream, foolish as they may seem.", strategy: "蓝调夜色 / 黄裙 / 紫暮",
           normal: "#96ACDE", low: "#F8E7B5", high: "#815BC2" },
-        { id: "watchmen", name: "守望者", note: "我在三十五钟前就已经动手了", strategy: "曼哈顿蓝 / 笑脸黄 / 锈红底",
+        { id: "watchmen", name: "《守望者》", note: "我在三十五钟前就已经动手了", strategy: "曼哈顿蓝 / 笑脸黄 / 锈红底",
           normal: "#5B7AC2", low: "#F8E7B5", high: "#E39C92" },
-        { id: "space2001", name: "2001太空漫游", note: "打开舱门，哈尔", strategy: "临床白 / 太空黑 / HAL 红",
+        { id: "space2001", name: "《2001太空漫游》", note: "打开舱门，哈尔", strategy: "临床白 / 太空黑 / HAL 红",
           normal: "#E0E0E0", low: "#0B0B14", high: "#E5576C" },
-        { id: "yourname", name: "你的名字。", note: "君の名前は？", strategy: "彗星青蓝 / 夜蓝紫 / 结绳绯红",
+        { id: "yourname", name: "《你的名字。》", note: "君の名前は？", strategy: "彗星青蓝 / 夜蓝紫 / 结绳绯红",
           normal: "#96C4DE", low: "#5B70C2", high: "#F1BBC7" },
-        { id: "sailormoon", name: "美少女战士", note: "我要代表月亮，惩罚你！", strategy: "樱粉 / 金月 / 水手蓝",
-          normal: "#E58FAC", low: "#F8E7B5", high: "#5B77C2" }
+        { id: "sailormoon", name: "《美少女战士》", note: "我要代表月亮，惩罚你！", strategy: "樱粉 / 金月 / 水手蓝",
+          normal: "#E58FAC", low: "#F8E7B5", high: "#5B77C2" },
+        { id: "presswork", name: "印刷", note: "极简纸质", strategy: "纸灰 / 蓝 / 红",
+          normal: "#D6D2C9", low: "#5A8FC9", high: "#C95A5A" },
+        { id: "cherry", name: "樱花", note: "春樱冷暖", strategy: "粉白 / 樱红 / 雾蓝",
+          normal: "#F0D8DC", low: "#D4607A", high: "#8AA8C0" },
+        { id: "vaporwave", name: "蒸汽波", note: "霓虹梦境", strategy: "紫灰 / 天青 / 霓虹粉",
+          normal: "#9B8BB5", low: "#01CDFE", high: "#FF71CE" },
+        { id: "ivory", name: "象牙", note: "古典", strategy: "象牙白 / 藏青 / 酒红",
+          normal: "#E8E0D0", low: "#3A5A8A", high: "#A84A4A" },
+        { id: "linglong", name: "玉玲珑", note: "绿意", strategy: "玉绿 / 琥珀 / 紫罗兰",
+          normal: "#A8D0B8", low: "#D0A050", high: "#9A7AB8" }   
     ];
 
 
@@ -94,9 +106,9 @@
        三态底色自动压深 / 提亮，保证数字在三态格上都清晰；默认色系不配置，
        继续沿用 style.css 中各 .n1 ~ .n-3 的原色。 */
     var PALETTE_NUMBERS = {
-        spiderverse: {
-            n1: "#7cc4ff", n2: "#7ef0c0", n3: "#ff8fa3", n4: "#b3d9ff", n5: "#c77dff",
-            neg1: "#ffb86b", neg2: "#ff8a65", neg3: "#ff6b6b"
+        spiderman: {
+            n1: "#2f8fff", n2: "#ff3b3b", n3: "#ff6b6b", n4: "#1f4fd1", n5: "#8a1f1f",
+            neg1: "#ff9f1c", neg2: "#e63946", neg3: "#b00020"
         },
         eva01: {
             n1: "#39ff88", n2: "#b6ff5a", n3: "#ff5c8a", n4: "#7dffc4", n5: "#d4a6ff",
@@ -115,12 +127,59 @@
             neg1: "#ffa94d", neg2: "#ff6b6b", neg3: "#ff3333"
         },
         yourname: {
-            n1: "#4dabf7", n2: "#63e6be", n3: "#ff6b9d", n4: "#74c0fc", n5: "#b197fc",
-            neg1: "#ffa94d", neg2: "#ff8787", neg3: "#ff5c8a"
+            n1: "#4fc3f7", n2: "#ffd166", n3: "#ff6f91", n4: "#7c9cff", n5: "#b388ff",
+            neg1: "#ff9f43", neg2: "#ff6b6b", neg3: "#d81b60"
         },
         sailormoon: {
             n1: "#4dabf7", n2: "#ffd43b", n3: "#ff6b9d", n4: "#74c0fc", n5: "#da77f2",
             neg1: "#ffa94d", neg2: "#ff8787", neg3: "#ff4d6d"
+        },
+        presswork: {
+            n1: "#0b6fa8", n2: "#0f8a5f", n3: "#c62828", n4: "#1a3d6d", n5: "#6d1b1b",
+            neg1: "#b26a00", neg2: "#a63a1f", neg3: "#8e1b1b"
+        },
+        cherry: {
+            n1: "#3f6fb0", n2: "#2f8f63", n3: "#d6336c", n4: "#2a5588", n5: "#8a2f45",
+            neg1: "#b5651d", neg2: "#c0392b", neg3: "#a61e4d"
+        },
+        vaporwave: {
+            n1: "#00e5ff", n2: "#39ff14", n3: "#ff2d95", n4: "#7a5cff", n5: "#ff6ec7",
+            neg1: "#ff9f1c", neg2: "#ff3860", neg3: "#ff00aa"
+        },
+        ivory: {
+            n1: "#6fb0e0", n2: "#8fd39a", n3: "#ff8a8a", n4: "#a6c8ff", n5: "#e0a8ff",
+            neg1: "#ffc46b", neg2: "#ff9e7a", neg3: "#ff7a7a"
+        },
+        linglong: {
+            n1: "#2f7f6f", n2: "#2f8f4f", n3: "#b53a3a", n4: "#1f5f5f", n5: "#6b3f8f",
+            neg1: "#8a5a1f", neg2: "#a0442a", neg3: "#8f2f3a"
+        },
+        BWG: {
+            n1: "#2f7feb", n2: "#2fa96b", n3: "#e9514e", n4: "#23509a", n5: "#9c3733",
+            neg1: "#c96a24", neg2: "#c94a2e", neg3: "#c93333"
+        }
+    };
+
+    var PALETTE_NUM_STYLE = {
+        spiderman: {
+            contrast: 4.5,
+            glow: "0 0 5px currentColor, 0 1px 0 rgba(0, 0, 0, .35)"
+        },
+        presswork: {
+            contrast: 4.5,
+            glow: "0 1px 0 rgba(255, 255, 255, .5), 0 1px 2px rgba(0, 0, 0, .18)"
+        },
+        cherry: {
+            contrast: 4.5,
+            glow: "0 0 6px rgba(255, 255, 255, .55)"
+        },
+        vaporwave: {
+            contrast: 4.5,
+            glow: "0 0 4px rgba(0, 229, 255, .95), 0 0 9px rgba(255, 45, 149, .8), 0 0 14px rgba(122, 92, 255, .5)"
+        },
+        yourname: {
+            contrast: 4.5,
+            glow: "0 0 6px rgba(255, 255, 255, .55), 0 0 2px rgba(0, 0, 0, .15)"
         }
     };
 
@@ -167,8 +226,20 @@
         { e: "🤣", name: "哈哈哈" },
         { e: "🥰", name: "我喜欢你" },
         { e: "🫪", name: "我的老妈呀" },
+        { e: "🦄", name: "独角" },
+        { e: "🐼", name: "胖达" },
+        { e: "🐡", name: "炸开" },
+        { e: "🕊️", name: "鸽鸽" },
+        { e: "🐝", name: "活力" },
+        { e: "⚓", name: "锚" },
+        { e: "⛄", name: "融化" },
+        { e: "✈️", name: "起飞" },
+        { e: "🍌", name: "一条大香蕉" },
+        { e: "🪦", name: "RIP" },
+        { e: "🤬", name: "艹" },
         { e: "😇", name: "L1Nzy" },
-        { e: "🤬", name: "艹" }
+        { e: "🏆", name: "BLG牛逼" },
+        { e: "🍾", name: "我们是冠军" }
     ];
 
     /* ---------- 2. 读取与校验 ---------- */
@@ -286,7 +357,8 @@
      * @param {string} bgHex 该状态的地块底色
      * @returns {string} 适配后的 #rrggbb
      */
-    function numberInk(baseHex, bgHex) {
+    function numberInk(baseHex, bgHex, minContrast) {
+        var min = minContrast || 3;
         var bgLum = luminance(bgHex);
         var darkText = bgLum > 0.16;
         var hsl = hexToHsl(baseHex);
@@ -294,14 +366,14 @@
         var step = darkText ? -1 : 1;
         var out = hslToHex(hsl[0], hsl[1], l);
         var guard = 0;
-        while (contrastRatio(out, bgHex) < 3 && guard < 100) {
+        while (contrastRatio(out, bgHex) < min && guard < 100) {
             l += step;
             if (l <= 0) { l = 0; out = hslToHex(hsl[0], hsl[1], 0); break; }
             if (l >= 100) { l = 100; out = hslToHex(hsl[0], hsl[1], 100); break; }
             out = hslToHex(hsl[0], hsl[1], l);
             guard++;
         }
-        if (contrastRatio(out, bgHex) < 3) {
+        if (contrastRatio(out, bgHex) < min) {
             return contrastRatio("#000000", bgHex) >= contrastRatio("#ffffff", bgHex) ? "#000000" : "#ffffff";
         }
         return out;
@@ -825,7 +897,8 @@
     function clearPaletteVars() {
         var names = [ "--rm-cell-valid", "--rm-cell-low", "--rm-cell-over",
             "--rm-cell-valid-stroke", "--rm-cell-low-stroke", "--rm-cell-over-stroke",
-            "--rm-cell-ink-valid", "--rm-cell-ink-low", "--rm-cell-ink-over" ];
+            "--rm-cell-ink-valid", "--rm-cell-ink-low", "--rm-cell-ink-over",
+            "--rm-num-glow" ];
         // 数字色变量共 8 位 × 3 态，切换色系 / 回到默认时一并清除
         NUMBER_SLOTS.forEach(function (slot) {
             PALETTE_STATES.forEach(function (st) {
@@ -855,6 +928,8 @@
         // 数字专项色：每个色系 8 个基础色，按三态底色逐格适配后写入变量
         var numbers = PALETTE_NUMBERS[p.id];
         if (!numbers) return;
+        var numStyle = PALETTE_NUM_STYLE[p.id] || {};
+        var minContrast = numStyle.contrast || 3;
         PALETTE_STATES.forEach(function (st) {
             var bg = p[st.color];
             NUMBER_SLOTS.forEach(function (slot) {
@@ -862,10 +937,11 @@
                 if (!base) return;
                 rootStyle.setProperty(
                     "--rm-num-" + slot.var + "-" + st.key,
-                    numberInk(base, bg)
+                    numberInk(base, bg, minContrast)
                 );
             });
         });
+        if (numStyle.glow) rootStyle.setProperty("--rm-num-glow", numStyle.glow);
     }
 
     /* 更新页面上所有普通雷图标的文字；只改叶子节点，避免破坏卡片结构 */

@@ -12446,6 +12446,9 @@ body.bg-tone-light footer.sidebar-version {
 .cell-low .cell-num { color: var(--rm-cell-ink-low, inherit); }
 .cell-over .cell-num { color: var(--rm-cell-ink-over, inherit); }
 
+/* 重点色系的数字质感：印刷压印 / 樱花柔光 / 蒸汽波霓虹 / 蜘蛛侠描边 */
+.cell-num { text-shadow: var(--rm-num-glow, none); }
+
 /* 色系配套数字色：n1~n5 / n-1~n-3 按三态底色使用独立变量；
    变量未写入（默认色系）时回落到 inherit，即原有 .n1 ~ .n-3 的颜色。 */
 .cell-valid.n1 .cell-num { color: var(--rm-num-1-valid, var(--rm-cell-ink-valid, inherit)); }

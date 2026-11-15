@@ -1632,18 +1632,30 @@ function renderTetroOverlay() {
         hideTetroOverlay();
         return;
     }
-    let base = first.getBoundingClientRect();
-    if (!base.width || !base.height) {
+    /* 用棋盘内容盒 + 首格布局尺寸计算网格原点，不能直接读首格 / 次格的
+       getBoundingClientRect()：骨牌落在第一行时，首格会播 just-dropped 缩放
+       动画，读到的 rect 带 transform，会把整盘覆盖层一起带偏。 */
+    let cs = window.getComputedStyle(host);
+    let padL = parseFloat(cs.paddingLeft) || 0;
+    let padT = parseFloat(cs.paddingTop) || 0;
+    let borL = parseFloat(cs.borderLeftWidth) || 0;
+    let borT = parseFloat(cs.borderTopWidth) || 0;
+    let hostRect = host.getBoundingClientRect();
+    // 棋盘可能正在播 boardAppear 缩放，用 offsetWidth 比例还原到视口尺度
+    let scaleX = host.offsetWidth ? hostRect.width / host.offsetWidth : 1;
+    let scaleY = host.offsetHeight ? hostRect.height / host.offsetHeight : 1;
+    let cellW = first.offsetWidth * scaleX;
+    let cellH = first.offsetHeight * scaleY;
+    if (!cellW || !cellH) {
         hideTetroOverlay();
         return;
     }
-    // 首行第二格用来量格子间距；首行只有一格时按 0 间距处理
-    let gap = 0;
-    let second = host.children[1];
-    if (second && second.classList && second.classList.contains("cell")) {
-        let b2 = second.getBoundingClientRect();
-        gap = Math.max(0, b2.left - base.left - base.width);
-    }
+    let baseLeft = hostRect.left + (borL + padL) * scaleX;
+    let baseTop = hostRect.top + (borT + padT) * scaleY;
+    let gapX = (parseFloat(cs.columnGap) || parseFloat(cs.gap) || 0) * scaleX;
+    let gapY = (parseFloat(cs.rowGap) || parseFloat(cs.gap) || 0) * scaleY;
+    let stepX = cellW + gapX;
+    let stepY = cellH + gapY;
     // 坐标保留两位小数，避免长浮点串影响可读性，也保证相邻格不错位
     const px = function(v) {
         return Math.round(v * 100) / 100;
@@ -1662,11 +1674,11 @@ function renderTetroOverlay() {
         for (let i = 0; i < offs.length; i++) {
             let dr = +offs[i][0], dc = +offs[i][1];
             // 坐标 = 锚点所在格 + 相对偏移；漏掉锚点行列会让所有骨牌都画在首格
-            let left = px(base.left + (c + dc) * (base.width + gap));
-            let top = px(base.top + (r + dr) * (base.height + gap));
+            let left = px(baseLeft + (c + dc) * stepX);
+            let top = px(baseTop + (r + dr) * stepY);
             html += '<i class="tetro-cell' + (dr === 0 && dc === 0 ? " is-anchor" : "") +
                 '" data-color="' + color + '" style="position:fixed;left:' + left +
-                "px;top:" + top + "px;width:" + px(base.width) + "px;height:" + px(base.height) +
+                "px;top:" + top + "px;width:" + px(cellW) + "px;height:" + px(cellH) +
                 "px;z-index:1;--tc:" + color + '"></i>';
         }
     }

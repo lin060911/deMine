@@ -12315,6 +12315,85 @@ body.brain-golden .bg-stage {
     100% { transform: rotate(28deg) translateX(1vw); opacity: .65; }
 }
 
+/* —— 淡色纯色背景：整页单色，无暗角 / 无动画 —— */
+.bg-scene[data-bg="solidCream"] { background: #f7f3e8; }
+.bg-scene[data-bg="solidMint"] { background: #e8f3e6; }
+.bg-scene[data-bg="solidMist"] { background: #e8f0f7; }
+
+/* 纯色主题不叠暗角，保持整页均匀的淡色 */
+body.bg-flat .bg-stage::after {
+    display: none;
+}
+
+/* —— 淡色纯色上的简单动效层 —— */
+.solid-fx {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.solid-fx .solid-dot {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--fx-color);
+    box-shadow: 0 0 5px var(--fx-color);
+    opacity: 0;
+    will-change: transform, opacity;
+}
+
+/* 波点：整层点阵缓慢漂移 + 呼吸 */
+.solid-fx-dots {
+    background-image: radial-gradient(circle, var(--fx-color) 1.4px, transparent 1.7px);
+    background-size: 24px 24px;
+    opacity: .42;
+    animation: solidDotsDrift 18s linear infinite, solidDotsBreath 7s ease-in-out infinite;
+}
+
+@keyframes solidDotsDrift {
+    from { background-position: 0 0; }
+    to { background-position: 48px 24px; }
+}
+
+@keyframes solidDotsBreath {
+    0%, 100% { opacity: .26; }
+    50% { opacity: .48; }
+}
+
+/* 网格脉冲：淡色网格缓慢明暗与轻微缩放 */
+.solid-fx-grid {
+    background-image:
+        linear-gradient(var(--fx-color) 1px, transparent 1px),
+        linear-gradient(90deg, var(--fx-color) 1px, transparent 1px);
+    background-size: 46px 46px;
+    opacity: .22;
+    animation: solidGridPulse 6.5s ease-in-out infinite;
+}
+
+@keyframes solidGridPulse {
+    0%, 100% { opacity: .12; transform: scale(1); }
+    50% { opacity: .28; transform: scale(1.015); }
+}
+
+/* 雾蓝：密集曲线小点，三段位移模拟贝塞尔路径 */
+.solid-fx-bezier .solid-dot {
+    animation: solidBezier 12s ease-in-out infinite;
+}
+
+@keyframes solidBezier {
+    0% { transform: translate(0, 0) scale(.4); opacity: 0; }
+    12% { opacity: .8; }
+    35% { transform: translate(var(--x1), var(--y1)) scale(1.15); opacity: .92; }
+    62% { transform: translate(var(--x2), var(--y2)) scale(1.05); opacity: .82; }
+    85% { opacity: .4; }
+    100% { transform: translate(var(--x3), var(--y3)) scale(.4); opacity: 0; }
+}
+
+
+
 /* ---- 75.3 深色 / 浅色背景上的标题与页脚 ---- */
 
 body.bg-tone-dark .game-title {
@@ -12463,6 +12542,33 @@ body.bg-tone-light footer.sidebar-version {
         animation: none !important;
     }
 }
+
+
+/* ==========================================================================
+ * 76. 教学退出按钮常驻
+ * --------------------------------------------------------------------------
+ * 教学模式下 #teachExitBar 必须一直显示，不依赖 hover / 父级悬停状态；
+ * 09-tutorial 的 syncMainPanel() 同时写内联 display，这里再用 !important
+ * 兜住任何级联覆盖（包括启动层 / 弹窗 / 侧栏的临时样式）。
+ * ========================================================================== */
+
+body.teach-mode:not(.startup) .teach-exit-bar {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    min-height: 30px;
+    position: relative;
+    z-index: 40;
+    pointer-events: auto !important;
+}
+
+body.teach-mode:not(.startup) .teach-exit-btn {
+    display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+
 
 
 

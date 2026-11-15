@@ -31,11 +31,17 @@
 
     /* ---------- 1. 候选数据 ---------- */
 
-    /* 背景清单：与「背景测试台.html」的 11 套效果一致；none 表示恢复原始
-       薄荷渐变页面，不创建任何场景节点。thumb 用于设置栏缩略图。 */
+    /* 背景清单：11 套动态背景取自「背景测试台.html」，另加 8 套淡色纯色；
+       none 表示恢复原始薄荷渐变页面，不创建任何场景节点。thumb 用于缩略图。 */
     var BG_DEFS = [
         { id: "none", name: "初始", en: "DEFAULT", tone: "light", type: "none", glyph: "💣",
           desc: "来扫雷吗", thumb: "linear-gradient(160deg,#c2e286,#b1e4b3 55%,#e8f4f8)" },
+        { id: "solidCream", name: "奶油白", en: "CREAM", tone: "light", type: "css", flat: true,
+          color: "#f7f3e8", effect: "dots", fx: "#d9d8b2", glyph: "☁️", desc: "奶油白，柔光波点", thumb: "#f7f3e8" },
+        { id: "solidMint", name: "薄荷绿", en: "MINT", tone: "light", type: "css", flat: true,
+          color: "#e8f3e6", effect: "grid", fx: "#8dce93", glyph: "🌿", desc: "薄荷绿，网格脉冲", thumb: "#e8f3e6" },
+        { id: "solidMist", name: "雾蓝", en: "MIST", tone: "light", type: "css", flat: true,
+          color: "#e8f0f7", effect: "bezier", fx: "#6f90c2", glyph: "🩵", desc: "雾蓝，贝特尔曲线", thumb: "#e8f0f7" },
         { id: "aurora", name: "极光", en: "AURORA", tone: "dark", type: "css", glyph: "✦",
           desc: "爱是一道光", thumb: "linear-gradient(160deg,#04121c,#0a5c4a 45%,#22c55e 70%,#a7f3d0)" },
         { id: "starfield", name: "星空", en: "STARFIELD", tone: "dark", type: "canvas", glyph: "✧",
@@ -58,6 +64,7 @@
           desc: "夜晚静悄悄", thumb: "linear-gradient(180deg,#0a3d2a,#0b4a35 55%,#84cc16)" },
         { id: "rainforest", name: "晨光", en: "RAINFOREST", tone: "light", type: "css", glyph: "🍃",
           desc: "雨林、阳光", thumb: "linear-gradient(180deg,#f0fdf4,#d9f99d 25%,#86efac 50%,#34d399 75%,#0f766e)" }
+
     ];
 
     /* 三态色系：default 沿用 style.css 的原始绿 / 黄 / 红，其余 7 组取自
@@ -67,7 +74,7 @@
         { id: "default", name: "经典", note: "绿 / 黄 / 红", strategy: "默认",
           normal: "#9fdf9f", low: "#fde68a", high: "#fca5a5" },
         { id: "spiderverse", name: "蜘蛛侠", note: "能力越大，责任越大", strategy: "深蓝战衣 / 蛛红 / 蛛纹黑",
-          normal: "#22499c", low: "#e25858", high: "#464646" },
+          normal: "#22499ce5", low: "#e25858d3", high: "#464646d3" },
         { id: "eva01", name: "EVA 初号机", note: "不能逃！不能逃！不能逃！", strategy: "荧光绿线条 / 关节 / 装甲紫",
           normal: "#B6DF95", low: "#D5C0ED", high: "#695BC2" },
         { id: "lalaland", name: "爱乐之城", note: "Here's to the ones who dream, foolish as they may seem.", strategy: "蓝调夜色 / 黄裙 / 紫暮",
@@ -414,6 +421,43 @@
         }
     }
 
+    /**
+     * 给淡色纯色背景挂一层简单动效：波点 / 网格脉冲 / 点阵聚合 /
+     * 贝塞尔小点 / 涟漪 / 柔光漂移。
+     * @param {HTMLElement} el 场景节点
+     * @param {Object} def 背景定义（effect / fx）
+     * @sideeffect 向场景追加 .solid-fx 层与若干装饰节点
+     */
+    function buildSolidEffect(el, def) {
+        var kind = def.effect;
+        if (!kind) return;
+        var layer = make("div", "solid-fx solid-fx-" + kind);
+        layer.style.setProperty("--fx-color", def.fx || "#d8d0c0");
+        var i, dot, size;
+
+        if (kind === "bezier") {
+            // 雾蓝：密集曲线小点，点径与透明度都比首版更明显
+            for (i = 0; i < 48; i++) {
+                dot = make("span", "solid-dot");
+                size = (3 + Math.random() * 2.6).toFixed(2);
+                dot.style.width = size + "px";
+                dot.style.height = size + "px";
+                dot.style.left = (3 + Math.random() * 94) + "%";
+                dot.style.top = (3 + Math.random() * 94) + "%";
+                dot.style.setProperty("--x1", ((Math.random() - .5) * 200).toFixed(0) + "px");
+                dot.style.setProperty("--y1", ((Math.random() - .5) * 150).toFixed(0) + "px");
+                dot.style.setProperty("--x2", ((Math.random() - .5) * 300).toFixed(0) + "px");
+                dot.style.setProperty("--y2", ((Math.random() - .5) * 220).toFixed(0) + "px");
+                dot.style.setProperty("--x3", ((Math.random() - .5) * 360).toFixed(0) + "px");
+                dot.style.setProperty("--y3", ((Math.random() - .5) * 260).toFixed(0) + "px");
+                dot.style.animationDuration = (7 + Math.random() * 5).toFixed(2) + "s";
+                dot.style.animationDelay = (-Math.random() * 12).toFixed(2) + "s";
+                layer.appendChild(dot);
+            }
+        }
+        el.appendChild(layer);
+    }
+
     /* Canvas 动效：与测试台最终版一致，只保留 11 套背景实际用到的 6 种 */
     var EFFECTS = {
         starfield: {
@@ -661,6 +705,7 @@
         else if (def.id === "candy") buildCandy(el);
         else if (def.id === "forest") buildForest(el);
         else if (def.id === "rainforest") buildRainforest(el);
+        else if (def.effect) buildSolidEffect(el, def);
         if (bgStage) bgStage.appendChild(el);
         scenes[def.id] = { el: el, canvas: canvas };
         return scenes[def.id];
@@ -731,8 +776,11 @@
             }
             activeSceneEl = null;
             stopEffect();
-            document.body.classList.remove("custom-bg", "bg-tone-dark", "bg-tone-light");
-            if (bgStage) bgStage.style.display = "none";
+            document.body.classList.remove("custom-bg", "bg-tone-dark", "bg-tone-light", "bg-flat");
+            if (bgStage) {
+                bgStage.style.display = "none";
+                bgStage.style.background = "";
+            }
             return;
         }
 
@@ -742,6 +790,9 @@
         document.body.classList.add("custom-bg");
         document.body.classList.toggle("bg-tone-dark", def.tone === "dark");
         document.body.classList.toggle("bg-tone-light", def.tone === "light");
+        // 淡色纯色背景：去掉暗角，并让场景层底色跟随主题，切换时不闪黑
+        document.body.classList.toggle("bg-flat", !!def.flat);
+        if (bgStage) bgStage.style.background = (def.flat && def.color) ? def.color : "";
 
         if (activeSceneEl && activeSceneEl !== entry.el) {
             var oldEl = activeSceneEl;

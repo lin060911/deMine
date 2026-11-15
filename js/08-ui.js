@@ -276,6 +276,18 @@ function syncMainPanel() {
     p.style.display = hide ? "none" : "flex";
     // 教学模式下显示「退出教学」按钮条：它位于地雷槽之外，无法用 #slot 的类名判定
     document.body.classList.toggle("teach-mode", hide);
+    // 双保险：同步内联 display，避免任何悬停 / 级联规则把退出条藏起来
+    var exitBar = document.getElementById("teachExitBar");
+    if (exitBar) {
+        exitBar.style.display = hide ? "flex" : "none";
+        exitBar.style.visibility = hide ? "visible" : "";
+        exitBar.style.opacity = hide ? "1" : "";
+    }
+    var exitBtn = document.getElementById("teachExitBtn");
+    if (exitBtn) {
+        exitBtn.style.visibility = hide ? "visible" : "";
+        exitBtn.style.opacity = hide ? "1" : "";
+    }
 }
 window.syncMainPanel = syncMainPanel;
 

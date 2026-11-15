@@ -366,7 +366,7 @@ function closeChallengeEntryPanels() {
  *   boardRows/Cols 本关棋盘尺寸；
  *   targetBoard    目标影响值矩阵，0 表示该格不显示数字；
  *   steps          分步提示：第 0 步为关卡开场说明，可带 rule 规则高亮卡
- *                  （icon / title / text / sub / tone）；其后各步按目标格顺序
+ *                  （icon / title / text / tone）；其后各步按目标格顺序
  *                  给出操作提示，text 为气泡正文，每次操作前最多两句；
  *                  hint 为底部提示，targetCell 为需要高亮的目标格 [行, 列]。
  * 本表是纯数据，增删关卡只需修改它，无需改动下面的流程代码。
@@ -384,7 +384,6 @@ const TEACH_LEVELS = [ {
             icon: "🎯",
             title: "游戏目标",
             text: "把地雷放到棋盘，让每格数字等于周围地雷的影响值",
-            sub: "🖱️ 拖拽 / 点选放置 · 右键或长按删除",
             tone: "blue"
         },
         text: "拖动/点选放置一颗💣到九宫格的中心",
@@ -407,7 +406,6 @@ const TEACH_LEVELS = [ {
             icon: "🧩",
             title: "地块含义",
             text: "颜色表示当前影响值与数字的关系：🟨 偏低|🟥 偏高|🟩 刚好",
-            sub: "🖱️ 拖拽 / 点选放置 · 右键或长按删除",
             tone: "blue"
         },
         text: "先放一颗💣到中间「1」区域的中心",
@@ -1132,7 +1130,7 @@ function paintTeachBubble(icon, title, text, hint) {
 
 /**
  * 渲染 / 收起气泡里的规则高亮卡；rule 为空时收起卡片。
- * @param {?Object} rule 规则数据：icon / title / text / sub / tone
+ * @param {?Object} rule 规则数据：icon / title / text / tone
  * @sideeffect 改写 #teachRuleCard 的内容与显隐
  */
 function paintTeachRule(rule) {
@@ -1142,7 +1140,7 @@ function paintTeachRule(rule) {
         card.classList.remove("show");
         return;
     }
-    let key = [ rule.icon, rule.title, rule.text, rule.sub || "" ].join("|");
+    let key = [ rule.icon, rule.title, rule.text ].join("|");
     if (card.dataset.ruleKey !== key) {
         card.dataset.ruleKey = key;
         card.className = "teach-rule-card tone-" + (rule.tone || "blue");
@@ -1150,7 +1148,6 @@ function paintTeachRule(rule) {
             '<div class="teach-rule-copy">' +
             '<div class="teach-rule-title">' + rule.title + "</div>" +
             '<div class="teach-rule-text">' + rule.text + "</div>" +
-            (rule.sub ? '<div class="teach-rule-sub">' + rule.sub + "</div>" : "") +
             "</div>";
         // 先清掉 show 再读取布局，让新规则重新播放入场动画
         void card.offsetWidth;

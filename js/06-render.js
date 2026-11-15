@@ -424,7 +424,7 @@ function syncTetrisUI() {
  * 仅在极小棋盘的骨牌局里，单张骨牌卡仍可能纵向伸到地雷槽面板范围；此时按
  * 槽位右缘 + 12px 余量动态计算横向间距让整列右移避开槽位（间距需求过大时
  * 改为 tips-stack 堆叠）。右侧还要给「创造 / 设置」两个固定悬浮钮留出约
- * 62px，放不下时同样用 tips-stack 改为棋盘在上、tips 在下的布局。
+ * 62px，放不下时同样用 tips-stack 把 tips 列移到地雷槽下方。
  * 创造模式（主棋盘托盘隐藏）或棋盘未显示时移除 tips-stack 与动态间距。
  * @sideeffect 切换 body 的 tips-stack 类，必要时写入 tips 列的 `--tips-gap`
  */
@@ -435,16 +435,42 @@ function syncBoardTipsPlacement() {
     let creating = (typeof createModeActive !== "undefined") && createModeActive;
     let host = document.getElementById("board");
     let col = document.getElementById("boardTipsCol");
+    let wrap = document.getElementById("boardWrap");
+    let slot = document.getElementById("slot");
     let boardHidden = !host || host.style.display === "none";
-    if (creating || boardHidden || vw <= 1100) {
+
+    // 堆叠态：把 tips 列插到地雷槽正下方，而不是棋盘与地雷槽之间
+    function stackBelowSlot() {
+        if (!col) return;
+        document.body.classList.add("tips-stack");
+        col.style.removeProperty("--tips-gap");
+        if (slot && slot.parentNode) {
+            if (slot.nextElementSibling !== col) slot.parentNode.insertBefore(col, slot.nextSibling);
+        } else if (wrap) {
+            wrap.appendChild(col);
+        }
+    }
+
+    // 侧边布局：tips 列回到 board-wrap 内，绝对定位到棋盘右侧
+    function restoreToBoard() {
         document.body.classList.remove("tips-stack");
-        if (col) col.style.removeProperty("--tips-gap");
+        if (!col) return;
+        col.style.removeProperty("--tips-gap");
+        if (wrap && col.parentNode !== wrap) wrap.appendChild(col);
+    }
+
+    if (creating || boardHidden) {
+        restoreToBoard();
+        return;
+    }
+    // ≤1100px 没有侧边空间，统一放到地雷槽下方
+    if (vw <= 1100) {
+        stackBelowSlot();
         return;
     }
     let w = host.getBoundingClientRect().width;
     if (!w) {
-        document.body.classList.remove("tips-stack");
-        if (col) col.style.removeProperty("--tips-gap");
+        stackBelowSlot();
         return;
     }
     // 单卡列宽固定 220，先按常规 18px 间距判定侧边布局是否放得下
@@ -455,16 +481,14 @@ function syncBoardTipsPlacement() {
     // 右侧两个固定悬浮钮 46 宽 + 右边缘 14 内距 + 2 余量，tips 不能压到它们
     let need = gap + colW + 62;
     if (space < need) {
-        document.body.classList.add("tips-stack");
-        if (col) col.style.removeProperty("--tips-gap");
+        stackBelowSlot();
         return;
     }
-    // 空间足够：若此前处于堆叠态，先恢复侧边布局再测量（绝对定位后 rect 才是最终位置）
-    if (document.body.classList.contains("tips-stack")) document.body.classList.remove("tips-stack");
+    // 空间足够：恢复到 board-wrap 后再测量（绝对定位后 rect 才是最终位置）
+    restoreToBoard();
     if (col) col.style.setProperty("--tips-gap", gap + "px");
     // 极小棋盘的骨牌局：单张骨牌卡可能纵向伸到地雷槽范围。用 2D 相交判断，
-    // 只有真的会重叠时才把整列右移让开槽位；间距需求过大则改走下方堆叠。
-    let slot = document.getElementById("slot");
+    // 只有真的会重叠时才把整列右移让开槽位；间距需求过大则改走槽位下方堆叠。
     if (!col || !slot || slot.style.display === "none") return;
     let cr = col.getBoundingClientRect();
     let sr = slot.getBoundingClientRect();
@@ -475,8 +499,7 @@ function syncBoardTipsPlacement() {
     let boardRight = host.getBoundingClientRect().right;
     let avoid = Math.max(18, Math.ceil(sr.right + pad - boardRight));
     if (avoid > 96 || space < avoid + colW + 62) {
-        document.body.classList.add("tips-stack");
-        if (col) col.style.removeProperty("--tips-gap");
+        stackBelowSlot();
         return;
     }
     if (col) col.style.setProperty("--tips-gap", avoid + "px");

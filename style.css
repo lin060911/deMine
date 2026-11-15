@@ -5928,15 +5928,6 @@ body > footer.sidebar-version {
     line-height: 1.55;
 }
 
-.teach-rule-sub {
-    margin-top: 6px;
-    padding-top: 6px;
-    border-top: 1px dashed rgba(35, 50, 74, .2);
-    color: #53647e;
-    font-size: 12px;
-    font-weight: 500;
-}
-
 /* 不同规则用左侧色条与标题色区分：目标蓝 / 偏高红 / 胜利绿 */
 .teach-rule-card.tone-red {
     border-left-color: #e24d4d;
@@ -6288,10 +6279,6 @@ body > footer.sidebar-version {
 
     .teach-rule-text {
         font-size: 14px;
-    }
-
-    .teach-rule-sub {
-        font-size: 11.5px;
     }
 
     .teach-bubble.mines-only .teach-bubble-mines {
@@ -10081,6 +10068,11 @@ body.tetris-mode .tetro-overlay .tetro-cell.is-anchor {
     width: 220px;
 }
 
+/* 堆叠态：tips 列由 JS 移到地雷槽正下方，单独留出与槽位的间距 */
+body.tips-stack .board-tips-col {
+    margin: 12px auto 0;
+}
+
 .board-tips {
     display: flex;
     flex-direction: column;
@@ -10116,8 +10108,8 @@ body.tetris-mode .ops-tips {
    `--tips-gap` 由 06-render.js#syncBoardTipsPlacement() 按地雷槽右缘动态写入
    （仅极小棋盘的单张骨牌卡与槽位纵向相交时右移让开，常规对局保持 18px）。
    「创造 / 设置」两个固定悬浮钮（共约 62px）会占住最右侧，右侧放不下时由
-   syncBoardTipsPlacement() 给 body 加 tips-stack，改为棋盘在上、tips 在下的
-   堆叠布局（棋盘位置不变） */
+   syncBoardTipsPlacement() 给 body 加 tips-stack，并把 tips 列移到地雷槽
+   正下方（棋盘位置不变） */
 @media (min-width: 1101px) {
     .board-tips-col {
         position: absolute;

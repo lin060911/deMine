@@ -22,7 +22,7 @@ var RM = window.RM || {};
 window.RM = RM;
 
 /* 程序标识串：仅随日志输出，用于问题定位，不参与任何游戏逻辑 */
-RM.VERSION = "1.6.2";
+RM.VERSION = "1.6.3";
 
 /* 程序英文名：页脚署名、存档导出与导入校验统一使用这一写法 */
 RM.APP_NAME = "ReverseMinesweeper";
@@ -162,9 +162,9 @@ let freeRectExpanded = false;
  * total 的上限还受 SR*SC 约束，kinds 的上限还受 min(26, T) 约束，
  * 由 applyBoardParams 与 08-ui 的 setVal 动态收敛。 */
 const LIMIT = {
-    size: [ 5, 40 ],
-    sr: [ 5, 40 ],
-    sc: [ 5, 40 ],
+    size: [ 5, 20 ],
+    sr: [ 5, 20 ],
+    sc: [ 5, 20 ],
     total: [ 1, 400 ],
     kinds: [ 1, 26 ],
     type: [ 0, 22 ],

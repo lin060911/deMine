@@ -31,7 +31,7 @@
 
     /* ---------- 1. 候选数据 ---------- */
 
-    /* 背景清单：11 套动态背景取自「背景测试台.html」，另加 8 套淡色纯色；
+    /* 背景清单：11 套动态背景取自「背景测试台.html」，另加 3 套淡色纯色（共 15 项含初始）；
        none 表示恢复原始薄荷渐变页面，不创建任何场景节点。thumb 用于缩略图。 */
     var BG_DEFS = [
         { id: "none", name: "初始", en: "DEFAULT", tone: "light", type: "none", glyph: "💣",
@@ -67,8 +67,8 @@
 
     ];
 
-    /* 三态色系：default 沿用 style.css 的原始绿 / 黄 / 红；其余 12 组中，
-       7 组取自「色组测试台.html」，5 组为新增主题；high 对应「偏高」、
+    /* 三态色系：default 沿用 style.css 的原始绿 / 黄 / 红；其余 13 组中，
+       1 组黑白灰 + 7 组影视色盘取自「色组测试台.html」，5 组为新增主题；high 对应「偏高」、
        low 对应「偏低」、normal 对应「正确」。 */
     var PALETTES = [
         { id: "default", name: "经典", note: "绿 / 黄 / 红", strategy: "默认",
